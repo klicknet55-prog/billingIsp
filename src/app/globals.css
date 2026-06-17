@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Token warna (channel HSL). Tema warna diganti dengan mengubah atribut
+   `data-theme` pada <html>, mode gelap dengan class `.dark`.
+--------------------------------------------------------------------------- */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 221 83% 53%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 221 83% 53%;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: 222 47% 7%;
+  --foreground: 210 40% 98%;
+  --card: 222 40% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 40% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217 91% 60%;
+  --primary-foreground: 222 47% 11%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --success: 142 64% 50%;
+  --warning: 38 92% 55%;
+  --border: 217 33% 20%;
+  --input: 217 33% 22%;
+  --ring: 217 91% 60%;
+}
+
+/* Preset warna: hanya menimpa hue brand (primary/ring). */
+[data-theme="ocean"] { --primary: 192 91% 36%; --ring: 192 91% 36%; }
+[data-theme="ocean"].dark, .dark [data-theme="ocean"] { --primary: 188 86% 53%; --ring: 188 86% 53%; }
+
+[data-theme="emerald"] { --primary: 160 84% 32%; --ring: 160 84% 32%; }
+[data-theme="emerald"].dark { --primary: 158 64% 47%; --ring: 158 64% 47%; }
+
+[data-theme="violet"] { --primary: 262 83% 58%; --ring: 262 83% 58%; }
+[data-theme="violet"].dark { --primary: 258 90% 66%; --ring: 258 90% 66%; }
+
+[data-theme="rose"] { --primary: 347 77% 50%; --ring: 347 77% 50%; }
+[data-theme="rose"].dark { --primary: 350 89% 60%; --ring: 350 89% 60%; }
+
+[data-theme="amber"] { --primary: 32 95% 44%; --ring: 32 95% 44%; }
+[data-theme="amber"].dark { --primary: 38 92% 50%; --ring: 38 92% 50%; }
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Scrollbar halus */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 9999px;
+}

@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+*.log
+.env
+.env.local
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+drizzle/meta
+.DS_Store
+public/uploads/
