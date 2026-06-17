@@ -21,9 +21,14 @@ function num(v: FormDataEntryValue | null): number | null {
 
 function parseInput(formData: FormData): PelangganInput {
   const tgl = String(formData.get("tglJatuhTempo") ?? "");
+  const rawType = String(formData.get("connectionType") ?? "pppoe");
+  const connectionType = rawType === "hotspot" ? "hotspot" : "pppoe";
   return {
     nama: String(formData.get("nama") ?? "").trim(),
     noWa: normalizePhone(String(formData.get("noWa") ?? "")),
+    connectionType,
+    connectionUsername: String(formData.get("connectionUsername") ?? "").trim() || null,
+    connectionPassword: String(formData.get("connectionPassword") ?? "").trim() || null,
     alamat: String(formData.get("alamat") ?? "") || null,
     latitude: num(formData.get("latitude")),
     longitude: num(formData.get("longitude")),
@@ -48,7 +53,12 @@ export async function createPelangganAction(formData: FormData) {
 export async function updatePelangganAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
   const id = String(formData.get("id") ?? "");
-  await updatePelanggan(user.tenantId!, id, parseInput(formData));
+  try {
+    await updatePelanggan(user.tenantId!, id, parseInput(formData));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal memperbarui pelanggan.";
+    redirect(`/isp/pelanggan/${id}?error=${encodeURIComponent(msg)}`);
+  }
   revalidatePath("/isp/pelanggan");
   redirect("/isp/pelanggan");
 }

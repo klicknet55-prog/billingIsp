@@ -20,7 +20,10 @@ export interface PelangganRow extends Pelanggan {
   routerNama: string | null;
 }
 
-export async function listPelanggan(tenantId: string): Promise<PelangganRow[]> {
+export async function listPelanggan(tenantId: string, routerId?: string): Promise<PelangganRow[]> {
+  const where = routerId
+    ? and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.routerId, routerId))
+    : eq(pelanggan.tenantId, tenantId);
   const rows = await db
     .select({
       p: pelanggan,
@@ -30,7 +33,7 @@ export async function listPelanggan(tenantId: string): Promise<PelangganRow[]> {
     .from(pelanggan)
     .leftJoin(paketInternet, eq(pelanggan.paketInternetId, paketInternet.id))
     .leftJoin(routers, eq(pelanggan.routerId, routers.id))
-    .where(eq(pelanggan.tenantId, tenantId))
+    .where(where)
     .orderBy(desc(pelanggan.createdAt));
   return rows.map((r) => ({ ...r.p, paketNama: r.paketNama, routerNama: r.routerNama }));
 }
@@ -44,6 +47,9 @@ export async function getPelanggan(tenantId: string, id: string) {
 export interface PelangganInput {
   nama: string;
   noWa: string;
+  connectionType: "pppoe" | "hotspot";
+  connectionUsername?: string | null;
+  connectionPassword?: string | null;
   alamat?: string | null;
   latitude?: number | null;
   longitude?: number | null;
@@ -53,11 +59,72 @@ export interface PelangganInput {
   tglJatuhTempo?: Date | null;
 }
 
+function assertConnectionCredentials(input: PelangganInput) {
+  if (!input.connectionUsername?.trim() || !input.connectionPassword?.trim()) {
+    throw new Error("Username dan password pelanggan wajib diisi.");
+  }
+}
+
+async function syncCustomerConnection(
+  tenantId: string,
+  input: PelangganInput,
+  customerName: string
+) {
+  if (!input.routerId || !input.paketInternetId) return;
+  const [router, paket] = await Promise.all([
+    db.query.routers.findFirst({
+      where: and(eq(routers.tenantId, tenantId), eq(routers.id, input.routerId!)),
+    }),
+    db.query.paketInternet.findFirst({
+      where: and(eq(paketInternet.tenantId, tenantId), eq(paketInternet.id, input.paketInternetId!)),
+    }),
+  ]);
+
+  if (!router) throw new Error("Router untuk sinkronisasi tidak ditemukan.");
+  if (!paket) throw new Error("Paket internet untuk sinkronisasi tidak ditemukan.");
+
+  const mk = getMikrotikClient();
+  const creds = {
+    connectionMode: router.connectionMode,
+    ipAddress: router.ipAddress,
+    apiPort: router.apiPort,
+    username: router.username,
+    password: router.passwordEncrypted,
+  } as const;
+
+  if (input.connectionType === "pppoe") {
+    const profile = paket.mikrotikProfilePppoe?.trim();
+    if (!profile) {
+      throw new Error("Profile PPPoE pada paket internet belum diisi.");
+    }
+    await mk.upsertPppoeSecret(creds, {
+      username: input.connectionUsername!.trim(),
+      password: input.connectionPassword!.trim(),
+      profile,
+      remoteAddress: input.ipAddress ?? undefined,
+      comment: `NetManage:${customerName}`,
+    });
+    return;
+  }
+
+  const profile = paket.mikrotikProfileHotspot?.trim();
+  if (!profile) {
+    throw new Error("Profile Hotspot pada paket internet belum diisi.");
+  }
+  await mk.upsertHotspotUser(creds, {
+    username: input.connectionUsername!.trim(),
+    password: input.connectionPassword!.trim(),
+    profile,
+    comment: `NetManage:${customerName}`,
+  });
+}
+
 export async function createPelanggan(
   tenantId: string,
   input: PelangganInput,
   createdBy: string
 ) {
+  assertConnectionCredentials(input);
   // Enforce limit pelanggan sesuai paket SaaS tenant.
   const sub = await db.query.subscriptions.findFirst({
     where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
@@ -78,12 +145,17 @@ export async function createPelanggan(
     }
   }
 
+  await syncCustomerConnection(tenantId, input, input.nama);
+
   const id = newId("pel");
   await db.insert(pelanggan).values({
     id,
     tenantId,
     nama: input.nama,
     noWa: input.noWa,
+    connectionType: input.connectionType,
+    connectionUsername: input.connectionUsername ?? null,
+    connectionPassword: input.connectionPassword ?? null,
     alamat: input.alamat ?? null,
     latitude: input.latitude ?? null,
     longitude: input.longitude ?? null,
@@ -98,11 +170,16 @@ export async function createPelanggan(
 }
 
 export async function updatePelanggan(tenantId: string, id: string, input: PelangganInput) {
+  assertConnectionCredentials(input);
+  await syncCustomerConnection(tenantId, input, input.nama);
   await db
     .update(pelanggan)
     .set({
       nama: input.nama,
       noWa: input.noWa,
+      connectionType: input.connectionType,
+      connectionUsername: input.connectionUsername ?? null,
+      connectionPassword: input.connectionPassword ?? null,
       alamat: input.alamat ?? null,
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
@@ -129,13 +206,16 @@ export async function setIsolasi(tenantId: string, id: string, isolated: boolean
     if (router) {
       const mk = getMikrotikClient();
       const creds = {
+        connectionMode: router.connectionMode,
         ipAddress: router.ipAddress,
         apiPort: router.apiPort,
         username: router.username,
         password: router.passwordEncrypted,
       };
-      if (isolated) await mk.isolate(creds, cust.ipAddress ?? cust.nama);
-      else await mk.activate(creds, cust.ipAddress ?? cust.nama);
+      const username = cust.connectionUsername?.trim() || cust.nama;
+      const ref = { connectionType: cust.connectionType, username } as const;
+      if (isolated) await mk.isolate(creds, ref);
+      else await mk.activate(creds, ref);
     }
   }
   await db

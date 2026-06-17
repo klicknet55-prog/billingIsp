@@ -25,10 +25,10 @@ export default async function PaketPage() {
     <>
       <PageHeader
         title="Paket Internet"
-        description="Atur paket layanan (kecepatan & harga sewa)."
+        description="Atur paket layanan, termasuk mapping profile PPPoE/Hotspot Mikrotik."
         action={
           <Disclosure label="Tambah Paket">
-            <form action={createPaketAction} className="grid gap-4 sm:grid-cols-3">
+            <form action={createPaketAction} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="nama">Nama</Label>
                 <Input id="nama" name="nama" required placeholder="Home 10" />
@@ -41,7 +41,15 @@ export default async function PaketPage() {
                 <Label htmlFor="hargaBulanan">Harga / bln</Label>
                 <Input id="hargaBulanan" name="hargaBulanan" type="number" required placeholder="150000" />
               </div>
-              <div className="sm:col-span-3">
+              <div className="space-y-2">
+                <Label htmlFor="mikrotikProfilePppoe">Profile PPPoE Mikrotik</Label>
+                <Input id="mikrotikProfilePppoe" name="mikrotikProfilePppoe" placeholder="pppoe-10mb" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="mikrotikProfileHotspot">Profile Hotspot Mikrotik</Label>
+                <Input id="mikrotikProfileHotspot" name="mikrotikProfileHotspot" placeholder="hs-10mb" />
+              </div>
+              <div className="sm:col-span-2">
                 <Button type="submit">Simpan</Button>
               </div>
             </form>
@@ -56,6 +64,8 @@ export default async function PaketPage() {
               <TableRow>
                 <TableHead>Nama</TableHead>
                 <TableHead>Kecepatan</TableHead>
+                <TableHead>Profile PPPoE</TableHead>
+                <TableHead>Profile Hotspot</TableHead>
                 <TableHead>Harga</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
@@ -65,6 +75,8 @@ export default async function PaketPage() {
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.nama}</TableCell>
                   <TableCell>{p.kecepatan}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.mikrotikProfilePppoe ?? "-"}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.mikrotikProfileHotspot ?? "-"}</TableCell>
                   <TableCell>{formatRupiah(p.hargaBulanan)}</TableCell>
                   <TableCell className="text-right">
                     <form action={deletePaketAction} className="inline">
@@ -78,7 +90,7 @@ export default async function PaketPage() {
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     Belum ada paket.
                   </TableCell>
                 </TableRow>

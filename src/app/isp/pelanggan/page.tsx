@@ -29,14 +29,15 @@ import { getMapsClient } from "@/lib/integrations/maps";
 export default async function PelangganPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; routerId?: string }>;
 }) {
   const qs = await searchParams;
   const error = qs.error ? decodeURIComponent(qs.error) : "";
+  const routerId = qs.routerId ? decodeURIComponent(qs.routerId) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
   const [rows, paket, routers, quota] = await Promise.all([
-    listPelanggan(tenantId),
+    listPelanggan(tenantId, routerId || undefined),
     listPaket(tenantId),
     listRouters(tenantId),
     getTenantQuotaSnapshot(tenantId),
@@ -71,6 +72,16 @@ export default async function PelangganPage({
           <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
         </Card>
       )}
+      {routerId && (
+        <Card className="mb-4 border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
+            <span className="text-primary">Filter aktif: menampilkan pelanggan pada router terpilih.</span>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/isp/pelanggan">Reset Filter</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">
@@ -79,6 +90,8 @@ export default async function PelangganPage({
               <TableRow>
                 <TableHead>Nama</TableHead>
                 <TableHead>WhatsApp</TableHead>
+                <TableHead>Tipe</TableHead>
+                <TableHead>Username</TableHead>
                 <TableHead>Paket</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -91,6 +104,8 @@ export default async function PelangganPage({
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nama}</TableCell>
                     <TableCell className="text-muted-foreground">{p.noWa}</TableCell>
+                    <TableCell className="uppercase">{p.connectionType}</TableCell>
+                    <TableCell className="font-mono text-xs">{p.connectionUsername ?? "-"}</TableCell>
                     <TableCell>{p.paketNama ?? "-"}</TableCell>
                     <TableCell>
                       <Badge variant={p.isIsolated ? "destructive" : "success"}>
@@ -131,7 +146,7 @@ export default async function PelangganPage({
               })}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     Belum ada pelanggan.
                   </TableCell>
                 </TableRow>

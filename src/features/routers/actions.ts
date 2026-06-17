@@ -12,8 +12,11 @@ export async function createRouterAction(formData: FormData) {
   try {
     await createRouter(user.tenantId!, {
       nama: String(formData.get("nama") ?? "").trim(),
+      connectionMode: (String(formData.get("connectionMode") ?? "rest") as
+        | "rest"
+        | "legacy_api"),
       ipAddress: String(formData.get("ipAddress") ?? "").trim(),
-      apiPort: String(formData.get("apiPort") ?? "8728").trim(),
+      apiPort: String(formData.get("apiPort") ?? "443").trim(),
       username: String(formData.get("username") ?? "").trim(),
       password: String(formData.get("password") ?? ""),
       tipe: (String(formData.get("tipe") ?? "pppoe") as "pppoe" | "hotspot"),
@@ -27,7 +30,13 @@ export async function createRouterAction(formData: FormData) {
 
 export async function deleteRouterAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
-  await deleteRouter(user.tenantId!, String(formData.get("id") ?? ""));
+  const id = String(formData.get("id") ?? "");
+  try {
+    await deleteRouter(user.tenantId!, id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal menghapus router.";
+    redirect(`/isp/router?error=${encodeURIComponent(msg)}&routerId=${encodeURIComponent(id)}`);
+  }
   revalidatePath("/isp/router");
 }
 

@@ -1,4 +1,5 @@
 import { RefreshCw } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,10 +28,11 @@ import { requireUser } from "@/lib/auth";
 export default async function RouterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; routerId?: string }>;
 }) {
   const qs = await searchParams;
   const error = qs.error ? decodeURIComponent(qs.error) : "";
+  const routerId = qs.routerId ? decodeURIComponent(qs.routerId) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const [rows, quota] = await Promise.all([
     listRouters(user.tenantId!),
@@ -55,12 +57,19 @@ export default async function RouterPage({
                 <Input id="nama" name="nama" required placeholder="Router Pusat" />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="connectionMode">Mode Koneksi</Label>
+                <Select id="connectionMode" name="connectionMode" defaultValue="rest">
+                  <option value="rest">REST API (RouterOS v7)</option>
+                  <option value="legacy_api">Legacy API (8728/8729)</option>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="ipAddress">IP Address</Label>
                 <Input id="ipAddress" name="ipAddress" required placeholder="192.168.88.1" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="apiPort">API Port</Label>
-                <Input id="apiPort" name="apiPort" defaultValue="8728" />
+                <Label htmlFor="apiPort">Port API / HTTPS</Label>
+                <Input id="apiPort" name="apiPort" defaultValue="443" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="tipe">Tipe</Label>
@@ -87,7 +96,16 @@ export default async function RouterPage({
 
       {error && (
         <Card className="mb-4 border-destructive/30 bg-destructive/5">
-          <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
+          <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
+            <span className="text-destructive">{error}</span>
+            {routerId && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/isp/pelanggan?routerId=${encodeURIComponent(routerId)}`}>
+                  Lihat Pelanggan Terkait
+                </Link>
+              </Button>
+            )}
+          </CardContent>
         </Card>
       )}
 
@@ -98,6 +116,7 @@ export default async function RouterPage({
               <TableRow>
                 <TableHead>Nama</TableHead>
                 <TableHead>IP</TableHead>
+                <TableHead>Mode</TableHead>
                 <TableHead>Tipe</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -108,6 +127,7 @@ export default async function RouterPage({
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.nama}</TableCell>
                   <TableCell className="font-mono text-xs">{r.ipAddress}:{r.apiPort}</TableCell>
+                  <TableCell className="uppercase">{r.connectionMode === "rest" ? "REST" : "LEGACY"}</TableCell>
                   <TableCell className="uppercase">{r.tipe}</TableCell>
                   <TableCell>
                     <Badge variant={r.isOnline ? "success" : "destructive"}>
@@ -134,7 +154,7 @@ export default async function RouterPage({
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     Belum ada router.
                   </TableCell>
                 </TableRow>

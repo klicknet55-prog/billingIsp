@@ -11,6 +11,8 @@ export async function createPaketAction(formData: FormData) {
   await createPaket(user.tenantId!, {
     nama: String(formData.get("nama") ?? "").trim(),
     kecepatan: String(formData.get("kecepatan") ?? "").trim(),
+    mikrotikProfilePppoe: String(formData.get("mikrotikProfilePppoe") ?? "").trim() || null,
+    mikrotikProfileHotspot: String(formData.get("mikrotikProfileHotspot") ?? "").trim() || null,
     hargaBulanan: Number(formData.get("hargaBulanan") ?? 0),
   });
   revalidatePath("/isp/paket");

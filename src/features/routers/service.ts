@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { packageTenants, routers, subscriptions, type Router } from "@/lib/db/schema";
+import { packageTenants, pelanggan, routers, subscriptions, type Router } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
 import { newId } from "@/lib/utils";
 
@@ -14,6 +14,7 @@ export async function listRouters(tenantId: string): Promise<Router[]> {
 
 export interface RouterInput {
   nama: string;
+  connectionMode: "rest" | "legacy_api";
   ipAddress: string;
   apiPort: string;
   username: string;
@@ -46,6 +47,7 @@ export async function createRouter(tenantId: string, input: RouterInput) {
     id: newId("rtr"),
     tenantId,
     nama: input.nama,
+    connectionMode: input.connectionMode,
     ipAddress: input.ipAddress,
     apiPort: input.apiPort,
     username: input.username,
@@ -56,6 +58,15 @@ export async function createRouter(tenantId: string, input: RouterInput) {
 }
 
 export async function deleteRouter(tenantId: string, id: string) {
+  const usedByCustomers = await db.$count(
+    pelanggan,
+    and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.routerId, id))
+  );
+  if (usedByCustomers > 0) {
+    throw new Error(
+      `Router masih dipakai oleh ${usedByCustomers} pelanggan. Pindahkan/hapus pelanggan terkait terlebih dahulu.`
+    );
+  }
   await db.delete(routers).where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));
 }
 
@@ -66,6 +77,7 @@ export async function refreshRouterStatus(tenantId: string, id: string) {
   });
   if (!router) return;
   const status = await getMikrotikClient().getStatus({
+    connectionMode: router.connectionMode,
     ipAddress: router.ipAddress,
     apiPort: router.apiPort,
     username: router.username,

@@ -32,6 +32,38 @@ export function PelangganFields({
         <Label htmlFor="noWa">No. WhatsApp</Label>
         <Input id="noWa" name="noWa" defaultValue={defaults?.noWa} placeholder="0812xxxx" required />
       </div>
+      <div className="space-y-2">
+        <Label htmlFor="connectionType">Tipe Koneksi</Label>
+        <Select
+          id="connectionType"
+          name="connectionType"
+          defaultValue={defaults?.connectionType ?? "pppoe"}
+        >
+          <option value="pppoe">PPPoE</option>
+          <option value="hotspot">Hotspot</option>
+        </Select>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="connectionUsername">Username</Label>
+        <Input
+          id="connectionUsername"
+          name="connectionUsername"
+          defaultValue={defaults?.connectionUsername ?? ""}
+          placeholder="user123"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="connectionPassword">Password</Label>
+        <Input
+          id="connectionPassword"
+          name="connectionPassword"
+          type="text"
+          defaultValue={defaults?.connectionPassword ?? ""}
+          placeholder="******"
+          required
+        />
+      </div>
       <div className="space-y-2 sm:col-span-2">
         <Label htmlFor="alamat">Alamat</Label>
         <Input id="alamat" name="alamat" defaultValue={defaults?.alamat ?? ""} />

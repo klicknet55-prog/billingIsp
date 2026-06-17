@@ -14,6 +14,8 @@ export async function listPaket(tenantId: string): Promise<PaketInternet[]> {
 export interface PaketInput {
   nama: string;
   kecepatan: string;
+  mikrotikProfilePppoe?: string | null;
+  mikrotikProfileHotspot?: string | null;
   hargaBulanan: number;
 }
 
@@ -23,6 +25,8 @@ export async function createPaket(tenantId: string, input: PaketInput) {
     tenantId,
     nama: input.nama,
     kecepatan: input.kecepatan,
+    mikrotikProfilePppoe: input.mikrotikProfilePppoe ?? null,
+    mikrotikProfileHotspot: input.mikrotikProfileHotspot ?? null,
     hargaBulanan: input.hargaBulanan,
   });
 }

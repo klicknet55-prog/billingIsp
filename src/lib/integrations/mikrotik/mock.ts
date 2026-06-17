@@ -1,5 +1,11 @@
 import { createLogger } from "@/lib/logger";
-import type { MikrotikClient, RouterCredentials, RouterStatus } from "./types";
+import type {
+  HotspotUserInput,
+  MikrotikClient,
+  PppoeSecretInput,
+  RouterCredentials,
+  RouterStatus,
+} from "./types";
 
 const log = createLogger("mikrotik:mock");
 
@@ -15,10 +21,20 @@ export const mikrotikMock: MikrotikClient = {
       activeUsers: online ? Math.floor(Math.random() * 50) : 0,
     };
   },
-  async isolate(router, ipOrUser) {
-    log.info(`isolate ${ipOrUser} @ ${router.ipAddress}`);
+  async upsertPppoeSecret(router: RouterCredentials, input: PppoeSecretInput) {
+    log.info(
+      `upsertPppoeSecret ${input.username} profile=${input.profile} mode=${router.connectionMode}`
+    );
   },
-  async activate(router, ipOrUser) {
-    log.info(`activate ${ipOrUser} @ ${router.ipAddress}`);
+  async upsertHotspotUser(router: RouterCredentials, input: HotspotUserInput) {
+    log.info(
+      `upsertHotspotUser ${input.username} profile=${input.profile} mode=${router.connectionMode}`
+    );
+  },
+  async isolate(router, ref) {
+    log.info(`isolate ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
+  },
+  async activate(router, ref) {
+    log.info(`activate ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
   },
 };

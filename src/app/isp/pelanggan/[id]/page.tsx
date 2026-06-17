@@ -11,10 +11,14 @@ import { requireUser } from "@/lib/auth";
 
 export default async function EditPelangganPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
+  const qs = await searchParams;
+  const error = qs.error ? decodeURIComponent(qs.error) : "";
   const user = await requireUser(["owner", "admin"]);
   const tenantId = user.tenantId!;
   const [cust, paket, routers] = await Promise.all([
@@ -27,6 +31,11 @@ export default async function EditPelangganPage({
   return (
     <>
       <PageHeader title={`Edit: ${cust.nama}`} description="Perbarui data pelanggan." />
+      {error && (
+        <Card className="mb-4 border-destructive/30 bg-destructive/5">
+          <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      )}
       <Card>
         <CardContent className="p-5">
           <form action={updatePelangganAction} className="space-y-4">
