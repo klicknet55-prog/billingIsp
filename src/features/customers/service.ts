@@ -1,7 +1,14 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { paketInternet, pelanggan, routers, type Pelanggan } from "@/lib/db/schema";
+import {
+  packageTenants,
+  paketInternet,
+  pelanggan,
+  routers,
+  subscriptions,
+  type Pelanggan,
+} from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
 import { createLogger } from "@/lib/logger";
 import { newId } from "@/lib/utils";
@@ -51,6 +58,26 @@ export async function createPelanggan(
   input: PelangganInput,
   createdBy: string
 ) {
+  // Enforce limit pelanggan sesuai paket SaaS tenant.
+  const sub = await db.query.subscriptions.findFirst({
+    where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
+    orderBy: [desc(subscriptions.mulai)],
+  });
+  if (sub) {
+    const pkg = await db.query.packageTenants.findFirst({
+      where: eq(packageTenants.id, sub.packageTenantId),
+    });
+    const maxPelanggan = pkg?.limitasi?.maxPelanggan;
+    if (typeof maxPelanggan === "number" && maxPelanggan > 0) {
+      const totalPelanggan = await db.$count(pelanggan, eq(pelanggan.tenantId, tenantId));
+      if (totalPelanggan >= maxPelanggan) {
+        throw new Error(
+          `Limit pelanggan paket SaaS tercapai (${totalPelanggan}/${maxPelanggan}). Upgrade paket untuk menambah pelanggan baru.`
+        );
+      }
+    }
+  }
+
   const id = newId("pel");
   await db.insert(pelanggan).values({
     id,

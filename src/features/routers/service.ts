@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { routers, type Router } from "@/lib/db/schema";
+import { packageTenants, routers, subscriptions, type Router } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
 import { newId } from "@/lib/utils";
 
@@ -22,6 +22,26 @@ export interface RouterInput {
 }
 
 export async function createRouter(tenantId: string, input: RouterInput) {
+  // Enforce limit router sesuai paket SaaS tenant.
+  const sub = await db.query.subscriptions.findFirst({
+    where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
+    orderBy: [desc(subscriptions.mulai)],
+  });
+  if (sub) {
+    const pkg = await db.query.packageTenants.findFirst({
+      where: eq(packageTenants.id, sub.packageTenantId),
+    });
+    const maxRouter = pkg?.limitasi?.maxRouter;
+    if (typeof maxRouter === "number" && maxRouter > 0) {
+      const totalRouter = await db.$count(routers, eq(routers.tenantId, tenantId));
+      if (totalRouter >= maxRouter) {
+        throw new Error(
+          `Limit router paket SaaS tercapai (${totalRouter}/${maxRouter}). Upgrade paket untuk menambah router baru.`
+        );
+      }
+    }
+  }
+
   await db.insert(routers).values({
     id: newId("rtr"),
     tenantId,

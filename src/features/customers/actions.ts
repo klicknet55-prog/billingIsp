@@ -36,7 +36,12 @@ function parseInput(formData: FormData): PelangganInput {
 
 export async function createPelangganAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
-  await createPelanggan(user.tenantId!, parseInput(formData), user.id);
+  try {
+    await createPelanggan(user.tenantId!, parseInput(formData), user.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal menambah pelanggan.";
+    redirect(`/isp/pelanggan?error=${encodeURIComponent(msg)}`);
+  }
   revalidatePath("/isp/pelanggan");
 }
 

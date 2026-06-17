@@ -21,17 +21,32 @@ import {
   refreshRouterAction,
 } from "@/features/routers/actions";
 import { listRouters } from "@/features/routers/service";
+import { getTenantQuotaSnapshot } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
 
-export default async function RouterPage() {
+export default async function RouterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const qs = await searchParams;
+  const error = qs.error ? decodeURIComponent(qs.error) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
-  const rows = await listRouters(user.tenantId!);
+  const [rows, quota] = await Promise.all([
+    listRouters(user.tenantId!),
+    getTenantQuotaSnapshot(user.tenantId!),
+  ]);
+  const routerQuotaText = quota
+    ? `${quota.totalRouter}/${quota.maxRouter ?? "∞"}`
+    : `${rows.length}/-`;
 
   return (
     <>
       <PageHeader
         title="Router Mikrotik"
-        description="Kelola perangkat & pantau status koneksi."
+        description={`Kelola perangkat & pantau status koneksi. Kuota: ${routerQuotaText}${
+          quota ? ` (Paket ${quota.paketNama})` : ""
+        }`}
         action={
           <Disclosure label="Tambah Router">
             <form action={createRouterAction} className="grid gap-4 sm:grid-cols-2">
@@ -69,6 +84,12 @@ export default async function RouterPage() {
           </Disclosure>
         }
       />
+
+      {error && (
+        <Card className="mb-4 border-destructive/30 bg-destructive/5">
+          <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">

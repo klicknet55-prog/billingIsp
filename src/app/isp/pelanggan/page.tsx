@@ -22,24 +22,37 @@ import { PelangganFields } from "@/features/customers/components/pelanggan-field
 import { listPelanggan } from "@/features/customers/service";
 import { listPaket } from "@/features/packages/service";
 import { listRouters } from "@/features/routers/service";
+import { getTenantQuotaSnapshot } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
 import { getMapsClient } from "@/lib/integrations/maps";
 
-export default async function PelangganPage() {
+export default async function PelangganPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const qs = await searchParams;
+  const error = qs.error ? decodeURIComponent(qs.error) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
-  const [rows, paket, routers] = await Promise.all([
+  const [rows, paket, routers, quota] = await Promise.all([
     listPelanggan(tenantId),
     listPaket(tenantId),
     listRouters(tenantId),
+    getTenantQuotaSnapshot(tenantId),
   ]);
   const maps = getMapsClient();
+  const pelangganQuotaText = quota
+    ? `${quota.totalPelanggan}/${quota.maxPelanggan ?? "∞"}`
+    : `${rows.length}/-`;
 
   return (
     <>
       <PageHeader
         title="Pelanggan"
-        description="Kelola data pelanggan, koordinat, dan status koneksi."
+        description={`Kelola data pelanggan, koordinat, dan status koneksi. Kuota: ${pelangganQuotaText}${
+          quota ? ` (Paket ${quota.paketNama})` : ""
+        }`}
         action={
           <Disclosure label="Tambah Pelanggan">
             <form action={createPelangganAction} className="space-y-4">
@@ -52,6 +65,12 @@ export default async function PelangganPage() {
           </Disclosure>
         }
       />
+
+      {error && (
+        <Card className="mb-4 border-destructive/30 bg-destructive/5">
+          <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">
