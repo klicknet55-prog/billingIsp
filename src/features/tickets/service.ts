@@ -15,7 +15,7 @@ export interface TicketRow extends Ticket {
   teknisiNama: string | null;
 }
 
-export async function listTickets(tenantId: string): Promise<TicketRow[]> {
+export async function listTickets(tenantId: string, pelangganId?: string): Promise<TicketRow[]> {
   const teknisi = aliasedTable(users, "teknisi");
   const rows = await db
     .select({
@@ -27,7 +27,11 @@ export async function listTickets(tenantId: string): Promise<TicketRow[]> {
     .innerJoin(pelanggan, eq(tickets.pelangganId, pelanggan.id))
     .leftJoin(ticketAssignments, eq(ticketAssignments.ticketId, tickets.id))
     .leftJoin(teknisi, eq(ticketAssignments.userId, teknisi.id))
-    .where(eq(tickets.tenantId, tenantId))
+    .where(
+      pelangganId
+        ? and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, pelangganId))
+        : eq(tickets.tenantId, tenantId)
+    )
     .orderBy(desc(tickets.createdAt));
   return rows.map((r) => ({ ...r.t, pelangganNama: r.pelangganNama, teknisiNama: r.teknisiNama }));
 }

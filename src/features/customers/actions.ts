@@ -65,7 +65,13 @@ export async function updatePelangganAction(formData: FormData) {
 
 export async function deletePelangganAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
-  await deletePelanggan(user.tenantId!, String(formData.get("id") ?? ""));
+  const id = String(formData.get("id") ?? "");
+  try {
+    await deletePelanggan(user.tenantId!, id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal menghapus pelanggan.";
+    redirect(`/isp/pelanggan?error=${encodeURIComponent(msg)}&pelangganId=${encodeURIComponent(id)}`);
+  }
   revalidatePath("/isp/pelanggan");
 }
 

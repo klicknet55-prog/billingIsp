@@ -24,11 +24,17 @@ import { formatDate, formatRupiah } from "@/lib/utils";
 const statusVariant = { unpaid: "warning", paid: "success", overdue: "destructive" } as const;
 const statusLabel = { unpaid: "Belum bayar", paid: "Lunas", overdue: "Jatuh tempo" } as const;
 
-export default async function InvoicePage() {
+export default async function InvoicePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pelangganId?: string }>;
+}) {
+  const qs = await searchParams;
+  const pelangganId = qs.pelangganId ? decodeURIComponent(qs.pelangganId) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
   const [rows, pelanggan] = await Promise.all([
-    listInvoices(tenantId),
+    listInvoices(tenantId, pelangganId || undefined),
     listPelanggan(tenantId),
   ]);
 
@@ -66,6 +72,16 @@ export default async function InvoicePage() {
           </Disclosure>
         }
       />
+      {pelangganId && (
+        <Card className="mb-4 border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
+            <span className="text-primary">Filter aktif: menampilkan invoice pelanggan terpilih.</span>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/isp/invoice">Reset Filter</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">

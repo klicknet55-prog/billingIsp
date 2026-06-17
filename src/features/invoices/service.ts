@@ -22,10 +22,13 @@ export interface InvoiceRow extends Invoice {
   alamat: string | null;
 }
 
-async function joinedInvoices(tenantId: string, onlyUnpaid = false) {
-  const where = onlyUnpaid
+async function joinedInvoices(tenantId: string, onlyUnpaid = false, pelangganId?: string) {
+  const whereBase = onlyUnpaid
     ? and(eq(invoices.tenantId, tenantId), eq(invoices.status, "unpaid"))
     : eq(invoices.tenantId, tenantId);
+  const where = pelangganId
+    ? and(whereBase, eq(invoices.pelangganId, pelangganId))
+    : whereBase;
   const rows = await db
     .select({
       i: invoices,
@@ -49,8 +52,8 @@ async function joinedInvoices(tenantId: string, onlyUnpaid = false) {
   }));
 }
 
-export function listInvoices(tenantId: string) {
-  return joinedInvoices(tenantId);
+export function listInvoices(tenantId: string, pelangganId?: string) {
+  return joinedInvoices(tenantId, false, pelangganId);
 }
 
 export function listUnpaidInvoices(tenantId: string) {

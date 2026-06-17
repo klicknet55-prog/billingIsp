@@ -2,11 +2,13 @@ import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
+  invoices,
   packageTenants,
   paketInternet,
   pelanggan,
   routers,
   subscriptions,
+  tickets,
   type Pelanggan,
 } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
@@ -192,6 +194,18 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
 }
 
 export async function deletePelanggan(tenantId: string, id: string) {
+  const [invoiceCount, ticketCount] = await Promise.all([
+    db.$count(
+      invoices,
+      and(eq(invoices.tenantId, tenantId), eq(invoices.pelangganId, id))
+    ),
+    db.$count(tickets, and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, id))),
+  ]);
+  if (invoiceCount > 0 || ticketCount > 0) {
+    throw new Error(
+      `Pelanggan tidak dapat dihapus karena masih memiliki ${invoiceCount} invoice dan ${ticketCount} tiket.`
+    );
+  }
   await db
     .delete(pelanggan)
     .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));

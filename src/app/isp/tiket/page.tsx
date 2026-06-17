@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,11 +31,17 @@ const statusLabel = { open: "Open", in_progress: "Dikerjakan", resolved: "Selesa
 const nextStatus = { open: "in_progress", in_progress: "resolved", resolved: "open" } as const;
 const nextLabel = { open: "Mulai Tangani", in_progress: "Selesaikan", resolved: "Buka Lagi" } as const;
 
-export default async function TiketPage() {
+export default async function TiketPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pelangganId?: string }>;
+}) {
+  const qs = await searchParams;
+  const pelangganId = qs.pelangganId ? decodeURIComponent(qs.pelangganId) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
   const [rows, pelanggan, teknisi] = await Promise.all([
-    listTickets(tenantId),
+    listTickets(tenantId, pelangganId || undefined),
     listPelanggan(tenantId),
     listTeknisi(tenantId),
   ]);
@@ -73,6 +80,16 @@ export default async function TiketPage() {
           </Disclosure>
         }
       />
+      {pelangganId && (
+        <Card className="mb-4 border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
+            <span className="text-primary">Filter aktif: menampilkan tiket pelanggan terpilih.</span>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/isp/tiket">Reset Filter</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">
