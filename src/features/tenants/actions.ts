@@ -6,14 +6,31 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { createSession } from "@/lib/auth/session";
 import type { ActionState } from "@/features/auth/actions";
+import { getDuitkuClient } from "@/lib/integrations/duitku";
+import { newId } from "@/lib/utils";
 import { parseForm } from "@/lib/validation";
 import {
+  changeTenantSubscriptionPackage,
   createSaasPackage,
   deleteSaasPackage,
+  deleteTenantIfInactive,
+  getTenantSubscriptionStatus,
+  listActiveSaasPackages,
+  logSaasTransaction,
   registerTenant,
   setTenantStatus,
   updateSaasPackage,
 } from "./service";
+
+function isNextRedirectError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    typeof (err as { digest?: unknown }).digest === "string" &&
+    (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
 
 export async function registerTenantAction(
   _prev: ActionState,
@@ -46,6 +63,76 @@ export async function setTenantStatusAction(formData: FormData) {
   const status = String(formData.get("status") ?? "") as "active" | "suspended";
   await setTenantStatus(id, status);
   revalidatePath("/superadmin/tenants");
+}
+
+export async function deleteTenantAction(formData: FormData) {
+  await requireUser(["superadmin"]);
+  const id = String(formData.get("id") ?? "");
+  try {
+    await deleteTenantIfInactive(id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal menghapus tenant.";
+    redirect(`/superadmin/tenants?error=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/superadmin/tenants");
+}
+
+export async function changeSubscriptionPackageAction(formData: FormData) {
+  const user = await requireUser(["owner", "admin"]);
+  const tenantId = user.tenantId;
+  if (!tenantId) redirect("/login");
+
+  const packageId = String(formData.get("packageId") ?? "");
+  const returnTo = String(formData.get("returnTo") ?? "/isp/langganan");
+
+  try {
+    const current = await getTenantSubscriptionStatus(tenantId);
+    const allPackages = await listActiveSaasPackages();
+    const nextPkg = allPackages.find((p) => p.id === packageId);
+    if (!nextPkg) throw new Error("Paket tujuan tidak ditemukan.");
+    if (current && current.packageId === nextPkg.id) {
+      throw new Error("Paket yang dipilih sama dengan paket aktif saat ini.");
+    }
+    const orderId = `SUP-${newId("upg")}`;
+    const duitku = getDuitkuClient();
+    const trx = await duitku.createTransaction({
+      orderId,
+      amount: nextPkg.hargaBulanan,
+      productName: `Upgrade paket ${nextPkg.nama}`,
+      customerName: user.nama,
+      tenantId,
+    });
+
+    if (process.env.DUITKU_DRIVER === "real") {
+      await logSaasTransaction({
+        tenantId,
+        referenceId: `UPG:${nextPkg.id}`,
+        orderId,
+        status: "pending",
+        amount: nextPkg.hargaBulanan,
+        paymentMethod: process.env.DUITKU_PAYMENT_METHOD ?? null,
+      });
+      redirect(trx.paymentUrl);
+    }
+
+    const paid = duitku.simulatePaid(orderId, nextPkg.hargaBulanan);
+    await changeTenantSubscriptionPackage(tenantId, nextPkg.id);
+    await logSaasTransaction({
+      tenantId,
+      referenceId: `UPG:${nextPkg.id}`,
+      orderId,
+      status: paid.status,
+      amount: paid.amount,
+      paymentMethod: paid.paymentMethod,
+    });
+    revalidatePath("/isp");
+    revalidatePath("/isp", "layout");
+    redirect(`${returnTo}?ok=1`);
+  } catch (err) {
+    if (isNextRedirectError(err)) throw err;
+    const msg = err instanceof Error ? err.message : "Gagal mengubah paket langganan.";
+    redirect(`${returnTo}?error=${encodeURIComponent(msg)}`);
+  }
 }
 
 const saasPackageSchema = z.object({

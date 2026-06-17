@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
+import { changeTenantSubscriptionPackage } from "@/features/tenants/service";
 import { markInvoicePaid } from "@/features/invoices/service";
 import { getTenantDuitkuConfig } from "@/features/integrations/service";
 import { db } from "@/lib/db";
-import { invoices, subscriptions, tenants } from "@/lib/db/schema";
+import { invoices, paymentGatewayLogs, subscriptions, tenants } from "@/lib/db/schema";
 import { getDuitkuClient } from "@/lib/integrations/duitku";
 import { createLogger } from "@/lib/logger";
 
@@ -18,8 +19,13 @@ export async function POST(req: Request) {
   form.forEach((v, k) => (payload[k] = v));
 
   const orderId = String(payload.merchantOrderId ?? payload.orderId ?? "");
+  const txLogByOrder = await db.query.paymentGatewayLogs.findFirst({
+    where: eq(paymentGatewayLogs.duitkuOrderId, orderId),
+  });
   let tenantIdForSignature: string | null = null;
-  if (orderId.startsWith("SUB-")) {
+  if (orderId.startsWith("SUP-")) {
+    tenantIdForSignature = txLogByOrder?.tenantId ?? null;
+  } else if (orderId.startsWith("SUB-")) {
     tenantIdForSignature = orderId.slice(4);
   } else if (orderId.startsWith("INV-")) {
     const invoiceId = orderId.slice(4);
@@ -34,6 +40,20 @@ export async function POST(req: Request) {
     apiKey: tenantDuitkuCfg?.apiKey,
   });
   log.info(`Callback ${result.orderId} -> ${result.status}`);
+
+  const txLog = txLogByOrder ?? (await db.query.paymentGatewayLogs.findFirst({
+    where: eq(paymentGatewayLogs.duitkuOrderId, result.orderId),
+  }));
+  if (txLog) {
+    await db
+      .update(paymentGatewayLogs)
+      .set({
+        status: result.status,
+        paymentMethod: result.paymentMethod || txLog.paymentMethod,
+        amount: result.amount || txLog.amount,
+      })
+      .where(eq(paymentGatewayLogs.id, txLog.id));
+  }
 
   if (result.status !== "success") {
     return new Response("OK", { status: 200 });
@@ -52,6 +72,15 @@ export async function POST(req: Request) {
       .update(subscriptions)
       .set({ status: "active" })
       .where(eq(subscriptions.tenantId, tenantId));
+  } else if (result.orderId.startsWith("SUP-")) {
+    const packageId =
+      txLog?.referenceType === "subscription" && txLog.referenceId.startsWith("UPG:")
+        ? txLog.referenceId.slice(4)
+        : "";
+    const tenantId = txLog?.tenantId ?? "";
+    if (tenantId && packageId) {
+      await changeTenantSubscriptionPackage(tenantId, packageId);
+    }
   }
 
   return new Response("OK", { status: 200 });

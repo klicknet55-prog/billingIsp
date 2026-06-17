@@ -4,6 +4,7 @@ import {
   BarChart3,
   Building2,
   CreditCard,
+  ChevronDown,
   FileText,
   LayoutDashboard,
   ListChecks,
@@ -62,6 +63,7 @@ export function AppShell({
   userRole,
   brandName = "NetManage",
   brandLogoUrl,
+  subscriptionInfo,
   children,
 }: {
   variant: keyof typeof NAV;
@@ -69,10 +71,16 @@ export function AppShell({
   userRole: string;
   brandName?: string;
   brandLogoUrl?: string | null;
+  subscriptionInfo?: {
+    packageName: string;
+    status: "active" | "expired";
+    expiresAt: string;
+  } | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   // Menu tertentu dibatasi per role.
   const items = NAV[variant].filter(
     (item) =>
@@ -159,9 +167,53 @@ export function AppShell({
             <Menu />
           </Button>
           <div className="flex flex-1 items-center justify-end gap-3">
-            <div className="text-right text-sm">
-              <div className="font-medium leading-none">{userName}</div>
-              <div className="text-xs capitalize text-muted-foreground">{userRole}</div>
+            <div className="relative">
+              <button
+                type="button"
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-right text-sm hover:bg-accent"
+                onClick={() => setProfileOpen((v) => !v)}
+              >
+                <div>
+                  <div className="font-medium leading-none">{userName}</div>
+                  <div className="text-xs capitalize text-muted-foreground">{userRole}</div>
+                </div>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </button>
+              {profileOpen && (
+                <div className="absolute right-0 top-11 z-50 w-72 rounded-md border bg-popover p-3 shadow-md">
+                  {variant === "isp" ? (
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <div className="text-xs uppercase text-muted-foreground">Status Paket SaaS</div>
+                        {subscriptionInfo ? (
+                          <div className="mt-1">
+                            <div className="font-medium">{subscriptionInfo.packageName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {subscriptionInfo.status === "active" ? "Aktif" : "Expired"} • Berakhir{" "}
+                              {subscriptionInfo.expiresAt}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Belum ada paket langganan.
+                          </div>
+                        )}
+                      </div>
+                      {(userRole === "owner" || userRole === "admin") && (
+                        <Link
+                          href="/isp/langganan"
+                          className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                          onClick={() => setProfileOpen(false)}
+                        >
+                          Upgrade Paket Berlangganan
+                        </Link>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">Tidak ada pengaturan paket.</div>
+                  )}
+                </div>
+              )}
             </div>
             <ThemeSwitcher />
             <form action={logoutAction}>

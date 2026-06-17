@@ -1,13 +1,24 @@
 import "server-only";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import {
+  invoices,
+  kategoriPengeluaran,
   packageTenants,
+  pelanggan,
+  pengeluaran,
+  paketInternet,
   paymentGatewayLogs,
+  routers,
+  ticketAssignments,
+  tickets,
   subscriptions,
+  tenantDuitkuConfigs,
+  tenantWhatsAppConfigs,
   tenants,
   users,
+  sessions,
   type PackageTenant,
   type Tenant,
   type User,
@@ -25,6 +36,56 @@ export async function listTenants(): Promise<Tenant[]> {
 export async function setTenantStatus(id: string, status: "active" | "suspended") {
   await db.update(tenants).set({ status }).where(eq(tenants.id, id));
   log.info(`Tenant ${id} -> ${status}`);
+}
+
+/**
+ * Hapus tenant secara permanen hanya jika status nonaktif.
+ * Dipakai oleh superadmin untuk membersihkan akun yang tidak aktif.
+ */
+export async function deleteTenantIfInactive(id: string) {
+  const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, id) });
+  if (!tenant) throw new Error("Tenant tidak ditemukan.");
+  if (tenant.status === "active") {
+    throw new Error("Tenant aktif tidak bisa dihapus. Nonaktifkan dulu.");
+  }
+
+  await db.transaction(async (tx) => {
+    const tenantUsers = await tx.query.users.findMany({
+      where: eq(users.tenantId, id),
+      columns: { id: true },
+    });
+    const userIds = tenantUsers.map((u) => u.id);
+
+    const tenantTickets = await tx.query.tickets.findMany({
+      where: eq(tickets.tenantId, id),
+      columns: { id: true },
+    });
+    const ticketIds = tenantTickets.map((t) => t.id);
+
+    if (ticketIds.length > 0) {
+      await tx.delete(ticketAssignments).where(inArray(ticketAssignments.ticketId, ticketIds));
+    }
+    if (userIds.length > 0) {
+      await tx.delete(ticketAssignments).where(inArray(ticketAssignments.userId, userIds));
+    }
+
+    await tx.delete(tickets).where(eq(tickets.tenantId, id));
+    await tx.delete(invoices).where(eq(invoices.tenantId, id));
+    await tx.delete(pelanggan).where(eq(pelanggan.tenantId, id));
+    await tx.delete(pengeluaran).where(eq(pengeluaran.tenantId, id));
+    await tx.delete(kategoriPengeluaran).where(eq(kategoriPengeluaran.tenantId, id));
+    await tx.delete(routers).where(eq(routers.tenantId, id));
+    await tx.delete(paketInternet).where(eq(paketInternet.tenantId, id));
+    await tx.delete(subscriptions).where(eq(subscriptions.tenantId, id));
+    await tx.delete(paymentGatewayLogs).where(eq(paymentGatewayLogs.tenantId, id));
+    await tx.delete(tenantDuitkuConfigs).where(eq(tenantDuitkuConfigs.tenantId, id));
+    await tx.delete(tenantWhatsAppConfigs).where(eq(tenantWhatsAppConfigs.tenantId, id));
+    await tx.delete(sessions).where(eq(sessions.tenantId, id));
+    await tx.delete(users).where(eq(users.tenantId, id));
+    await tx.delete(tenants).where(eq(tenants.id, id));
+  });
+
+  log.info(`Tenant ${id} dihapus permanen`);
 }
 
 export async function listPackages(): Promise<PackageTenant[]> {
@@ -84,6 +145,143 @@ export async function listSaasTransactions() {
     where: eq(paymentGatewayLogs.referenceType, "subscription"),
     orderBy: [desc(paymentGatewayLogs.createdAt)],
   });
+}
+
+export async function logSaasTransaction(input: {
+  tenantId: string;
+  referenceId: string;
+  orderId: string;
+  status: "pending" | "success" | "failed";
+  amount: number;
+  paymentMethod?: string | null;
+}) {
+  await db.insert(paymentGatewayLogs).values({
+    id: newId("pgl"),
+    tenantId: input.tenantId,
+    referenceType: "subscription",
+    referenceId: input.referenceId,
+    duitkuOrderId: input.orderId,
+    status: input.status,
+    amount: input.amount,
+    paymentMethod: input.paymentMethod ?? null,
+  });
+}
+
+export interface TenantQuotaSnapshot {
+  paketNama: string;
+  totalPelanggan: number;
+  totalRouter: number;
+  maxPelanggan: number | null;
+  maxRouter: number | null;
+}
+
+/** Kuota tenant berdasarkan subscription aktif + pemakaian saat ini. */
+export async function getTenantQuotaSnapshot(
+  tenantId: string
+): Promise<TenantQuotaSnapshot | null> {
+  const sub = await db.query.subscriptions.findFirst({
+    where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
+    orderBy: [desc(subscriptions.mulai)],
+  });
+  if (!sub) return null;
+  const pkg = await db.query.packageTenants.findFirst({
+    where: eq(packageTenants.id, sub.packageTenantId),
+  });
+  if (!pkg) return null;
+
+  const [totalPelanggan, totalRouter] = await Promise.all([
+    db.$count(pelanggan, eq(pelanggan.tenantId, tenantId)),
+    db.$count(routers, eq(routers.tenantId, tenantId)),
+  ]);
+
+  return {
+    paketNama: pkg.nama,
+    totalPelanggan,
+    totalRouter,
+    maxPelanggan:
+      typeof pkg.limitasi?.maxPelanggan === "number" ? pkg.limitasi.maxPelanggan : null,
+    maxRouter: typeof pkg.limitasi?.maxRouter === "number" ? pkg.limitasi.maxRouter : null,
+  };
+}
+
+export interface TenantSubscriptionStatus {
+  packageId: string;
+  packageName: string;
+  packagePrice: number;
+  status: "active" | "expired";
+  mulai: Date;
+  akhir: Date;
+}
+
+export async function getTenantSubscriptionStatus(
+  tenantId: string
+): Promise<TenantSubscriptionStatus | null> {
+  const sub = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.tenantId, tenantId),
+    orderBy: [desc(subscriptions.mulai)],
+  });
+  if (!sub) return null;
+  const pkg = await db.query.packageTenants.findFirst({
+    where: eq(packageTenants.id, sub.packageTenantId),
+  });
+  if (!pkg) return null;
+
+  return {
+    packageId: pkg.id,
+    packageName: pkg.nama,
+    packagePrice: pkg.hargaBulanan,
+    status: sub.status,
+    mulai: sub.mulai,
+    akhir: sub.akhir,
+  };
+}
+
+export async function listActiveSaasPackages() {
+  return db.query.packageTenants.findMany({
+    where: eq(packageTenants.isActive, true),
+    orderBy: [asc(packageTenants.hargaBulanan), asc(packageTenants.nama)],
+  });
+}
+
+/**
+ * Upgrade/downgrade paket langganan tenant.
+ * Untuk saat ini perpindahan paket dilakukan langsung saat disubmit.
+ */
+export async function changeTenantSubscriptionPackage(tenantId: string, packageId: string) {
+  const pkg = await db.query.packageTenants.findFirst({
+    where: and(eq(packageTenants.id, packageId), eq(packageTenants.isActive, true)),
+  });
+  if (!pkg) throw new Error("Paket tujuan tidak ditemukan atau tidak aktif.");
+
+  const activeSub = await db.query.subscriptions.findFirst({
+    where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
+    orderBy: [desc(subscriptions.mulai)],
+  });
+
+  const day = 24 * 60 * 60 * 1000;
+  if (activeSub) {
+    await db
+      .update(subscriptions)
+      .set({
+        packageTenantId: pkg.id,
+        mulai: new Date(),
+        akhir: new Date(Date.now() + 30 * day),
+        status: "active",
+      })
+      .where(eq(subscriptions.id, activeSub.id));
+  } else {
+    await db.insert(subscriptions).values({
+      id: newId("sub"),
+      tenantId,
+      packageTenantId: pkg.id,
+      mulai: new Date(),
+      akhir: new Date(Date.now() + 30 * day),
+      status: "active",
+    });
+  }
+
+  await db.update(tenants).set({ status: "active" }).where(eq(tenants.id, tenantId));
+  log.info(`Tenant ${tenantId} pindah paket -> ${pkg.nama}`);
 }
 
 export interface RegisterTenantInput {
