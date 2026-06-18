@@ -77,7 +77,7 @@ export function RegisterForm({ packages }: { packages: Pkg[] }) {
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Memproses pembayaran..." : "Daftar & Bayar (simulasi)"}
+        {pending ? "Memproses pembayaran..." : "Daftar & Bayar"}
       </Button>
     </form>
   );
