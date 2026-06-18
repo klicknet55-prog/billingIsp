@@ -42,7 +42,7 @@ export default function Home() {
       <main className="flex-1">
         <section className="mx-auto max-w-5xl px-6 py-20 text-center">
           <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-            Otak bisnis ISP & RT-RW Net Anda
+            Managemen Billing & Jaringan ISP & RT-RW Net
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground">
             Kelola pelanggan, billing, perangkat Mikrotik, penagihan lapangan, dan portal

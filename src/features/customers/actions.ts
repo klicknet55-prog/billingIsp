@@ -6,9 +6,12 @@ import { requireUser } from "@/lib/auth";
 import { normalizePhone } from "@/lib/auth/otp";
 import {
   createPelanggan,
-  deletePelanggan,
+  deletePelangganRecords,
+  removePelangganFromMikrotik,
   setIsolasi,
   updatePelanggan,
+  type DeletePelangganStats,
+  type DeletePelangganStepResult,
   type PelangganInput,
 } from "./service";
 
@@ -63,16 +66,50 @@ export async function updatePelangganAction(formData: FormData) {
   redirect("/isp/pelanggan");
 }
 
-export async function deletePelangganAction(formData: FormData) {
+export async function deletePelangganCompleteAction(id: string): Promise<{
+  mikrotik: DeletePelangganStepResult;
+  records: { ok: true; stats: DeletePelangganStats } | { ok: false; message: string };
+}> {
   const user = await requireUser(ISP_ROLES);
-  const id = String(formData.get("id") ?? "");
+  const tenantId = user.tenantId!;
+  const mikrotik = await removePelangganFromMikrotik(tenantId, id);
   try {
-    await deletePelanggan(user.tenantId!, id);
+    const stats = await deletePelangganRecords(tenantId, id);
+    return { mikrotik, records: { ok: true, stats } };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Gagal menghapus pelanggan.";
-    redirect(`/isp/pelanggan?error=${encodeURIComponent(msg)}&pelangganId=${encodeURIComponent(id)}`);
+    return {
+      mikrotik,
+      records: {
+        ok: false,
+        message: err instanceof Error ? err.message : "Gagal menghapus data pelanggan.",
+      },
+    };
   }
-  revalidatePath("/isp/pelanggan");
+}
+
+export async function removePelangganMikrotikAction(
+  id: string
+): Promise<DeletePelangganStepResult> {
+  const user = await requireUser(ISP_ROLES);
+  return removePelangganFromMikrotik(user.tenantId!, id);
+}
+
+export async function deletePelangganRecordsAction(
+  id: string
+): Promise<{ ok: true; stats: DeletePelangganStats } | { ok: false; message: string }> {
+  const user = await requireUser(ISP_ROLES);
+  try {
+    const stats = await deletePelangganRecords(user.tenantId!, id);
+    revalidatePath("/isp/pelanggan");
+    revalidatePath("/isp/invoice");
+    revalidatePath("/isp/tiket");
+    return { ok: true, stats };
+  } catch (err) {
+    return {
+      ok: false,
+      message: err instanceof Error ? err.message : "Gagal menghapus data pelanggan.",
+    };
+  }
 }
 
 export async function toggleIsolasiAction(formData: FormData) {

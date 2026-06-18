@@ -1,8 +1,9 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { packageTenants, pelanggan, routers, subscriptions, type Router } from "@/lib/db/schema";
+import { paketInternet, packageTenants, pelanggan, routers, subscriptions, type Router } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
+import type { RouterCredentials } from "@/lib/integrations/mikrotik/types";
 import { newId } from "@/lib/utils";
 
 export async function listRouters(tenantId: string): Promise<Router[]> {
@@ -10,6 +11,32 @@ export async function listRouters(tenantId: string): Promise<Router[]> {
     where: eq(routers.tenantId, tenantId),
     orderBy: [desc(routers.createdAt)],
   });
+}
+
+export function routerToCredentials(router: Router): RouterCredentials {
+  return {
+    connectionMode: router.connectionMode,
+    ipAddress: router.ipAddress,
+    apiPort: router.apiPort,
+    username: router.username,
+    password: router.passwordEncrypted,
+  };
+}
+
+export async function getRouterForTenant(tenantId: string, id: string) {
+  return db.query.routers.findFirst({
+    where: and(eq(routers.tenantId, tenantId), eq(routers.id, id)),
+  });
+}
+
+export async function listMikrotikProfiles(
+  tenantId: string,
+  routerId: string,
+  type: "pppoe" | "hotspot"
+): Promise<string[]> {
+  const router = await getRouterForTenant(tenantId, routerId);
+  if (!router) throw new Error("Router tidak ditemukan.");
+  return getMikrotikClient().listProfiles(routerToCredentials(router), type);
 }
 
 export interface RouterInput {
@@ -57,6 +84,30 @@ export async function createRouter(tenantId: string, input: RouterInput) {
   });
 }
 
+export async function updateRouter(
+  tenantId: string,
+  id: string,
+  input: Omit<RouterInput, "password"> & { password?: string }
+) {
+  const existing = await db.query.routers.findFirst({
+    where: and(eq(routers.tenantId, tenantId), eq(routers.id, id)),
+  });
+  if (!existing) throw new Error("Router tidak ditemukan.");
+
+  await db
+    .update(routers)
+    .set({
+      nama: input.nama,
+      connectionMode: input.connectionMode,
+      ipAddress: input.ipAddress,
+      apiPort: input.apiPort,
+      username: input.username,
+      tipe: input.tipe,
+      ...(input.password?.trim() ? { passwordEncrypted: input.password.trim() } : {}),
+    })
+    .where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));
+}
+
 export async function deleteRouter(tenantId: string, id: string) {
   const usedByCustomers = await db.$count(
     pelanggan,
@@ -67,15 +118,28 @@ export async function deleteRouter(tenantId: string, id: string) {
       `Router masih dipakai oleh ${usedByCustomers} pelanggan. Pindahkan/hapus pelanggan terkait terlebih dahulu.`
     );
   }
+  const usedByPaket = await db.$count(
+    paketInternet,
+    and(eq(paketInternet.tenantId, tenantId), eq(paketInternet.routerId, id))
+  );
+  if (usedByPaket > 0) {
+    throw new Error(
+      `Router masih dipakai oleh ${usedByPaket} paket internet. Ubah/hapus paket terkait terlebih dahulu.`
+    );
+  }
   await db.delete(routers).where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));
 }
 
-/** Cek status router via Mikrotik (mock) lalu simpan ke DB. */
-export async function refreshRouterStatus(tenantId: string, id: string) {
+/** Cek status router via Mikrotik lalu simpan ke DB. */
+export async function refreshRouterStatus(
+  tenantId: string,
+  id: string
+): Promise<{ error?: string }> {
   const router = await db.query.routers.findFirst({
     where: and(eq(routers.tenantId, tenantId), eq(routers.id, id)),
   });
-  if (!router) return;
+  if (!router) return { error: "Router tidak ditemukan." };
+
   const status = await getMikrotikClient().getStatus({
     connectionMode: router.connectionMode,
     ipAddress: router.ipAddress,
@@ -83,5 +147,9 @@ export async function refreshRouterStatus(tenantId: string, id: string) {
     username: router.username,
     password: router.passwordEncrypted,
   });
+
   await db.update(routers).set({ isOnline: status.online }).where(eq(routers.id, id));
+
+  if (!status.online && status.error) return { error: status.error };
+  return {};
 }

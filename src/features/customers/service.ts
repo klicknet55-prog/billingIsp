@@ -1,19 +1,23 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   invoices,
   packageTenants,
   paketInternet,
+  paymentGatewayLogs,
   pelanggan,
   routers,
+  sessions,
   subscriptions,
+  ticketAssignments,
   tickets,
   type Pelanggan,
 } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
 import { createLogger } from "@/lib/logger";
 import { newId } from "@/lib/utils";
+import { routerToCredentials } from "@/features/routers/service";
 
 const log = createLogger("customers");
 
@@ -64,6 +68,17 @@ export interface PelangganInput {
 function assertConnectionCredentials(input: PelangganInput) {
   if (!input.connectionUsername?.trim() || !input.connectionPassword?.trim()) {
     throw new Error("Username dan password pelanggan wajib diisi.");
+  }
+}
+
+async function assertPaketMatchesRouter(tenantId: string, input: PelangganInput) {
+  if (!input.paketInternetId || !input.routerId) return;
+  const paket = await db.query.paketInternet.findFirst({
+    where: and(eq(paketInternet.tenantId, tenantId), eq(paketInternet.id, input.paketInternetId)),
+  });
+  if (!paket) throw new Error("Paket internet tidak ditemukan.");
+  if (paket.routerId !== input.routerId) {
+    throw new Error("Paket internet tidak sesuai dengan router yang dipilih.");
   }
 }
 
@@ -127,6 +142,7 @@ export async function createPelanggan(
   createdBy: string
 ) {
   assertConnectionCredentials(input);
+  await assertPaketMatchesRouter(tenantId, input);
   // Enforce limit pelanggan sesuai paket SaaS tenant.
   const sub = await db.query.subscriptions.findFirst({
     where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
@@ -173,6 +189,7 @@ export async function createPelanggan(
 
 export async function updatePelanggan(tenantId: string, id: string, input: PelangganInput) {
   assertConnectionCredentials(input);
+  await assertPaketMatchesRouter(tenantId, input);
   await syncCustomerConnection(tenantId, input, input.nama);
   await db
     .update(pelanggan)
@@ -193,22 +210,119 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
     .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));
 }
 
-export async function deletePelanggan(tenantId: string, id: string) {
-  const [invoiceCount, ticketCount] = await Promise.all([
-    db.$count(
-      invoices,
-      and(eq(invoices.tenantId, tenantId), eq(invoices.pelangganId, id))
-    ),
-    db.$count(tickets, and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, id))),
-  ]);
-  if (invoiceCount > 0 || ticketCount > 0) {
-    throw new Error(
-      `Pelanggan tidak dapat dihapus karena masih memiliki ${invoiceCount} invoice dan ${ticketCount} tiket.`
-    );
+export interface DeletePelangganStats {
+  invoiceCount: number;
+  ticketCount: number;
+}
+
+export interface DeletePelangganStepResult {
+  ok: boolean;
+  message: string;
+  skipped?: boolean;
+  stats?: DeletePelangganStats;
+}
+
+export async function removePelangganFromMikrotik(
+  tenantId: string,
+  id: string
+): Promise<DeletePelangganStepResult> {
+  const cust = await getPelanggan(tenantId, id);
+  if (!cust) {
+    return { ok: false, message: "Pelanggan tidak ditemukan." };
   }
+  if (!cust.routerId) {
+    return { ok: true, skipped: true, message: "Tidak ada router — lewati hapus Mikrotik." };
+  }
+
+  const username = cust.connectionUsername?.trim();
+  if (!username) {
+    return { ok: true, skipped: true, message: "Username koneksi kosong — lewati hapus Mikrotik." };
+  }
+
+  const router = await db.query.routers.findFirst({
+    where: and(eq(routers.tenantId, tenantId), eq(routers.id, cust.routerId)),
+  });
+  if (!router) {
+    return { ok: true, skipped: true, message: "Router tidak ditemukan — lewati hapus Mikrotik." };
+  }
+
+  try {
+    const result = await getMikrotikClient().removeConnectionUser(routerToCredentials(router), {
+      connectionType: cust.connectionType,
+      username,
+    });
+    if (!result.exists) {
+      return {
+        ok: true,
+        skipped: true,
+        message: `User '${username}' tidak ada di Mikrotik — lanjut hapus data billing.`,
+      };
+    }
+    return { ok: true, message: `User '${username}' dihapus dari Mikrotik.` };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal menghapus user di Mikrotik.";
+    return { ok: false, message: msg };
+  }
+}
+
+export async function deletePelangganRecords(
+  tenantId: string,
+  id: string
+): Promise<DeletePelangganStats> {
+  const existing = await db.query.pelanggan.findFirst({
+    where: and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)),
+  });
+  if (!existing) throw new Error("Pelanggan tidak ditemukan.");
+
+  const customerInvoices = await db.query.invoices.findMany({
+    where: and(eq(invoices.tenantId, tenantId), eq(invoices.pelangganId, id)),
+    columns: { id: true },
+  });
+  const invoiceIds = customerInvoices.map((row) => row.id);
+
+  const customerTickets = await db.query.tickets.findMany({
+    where: and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, id)),
+    columns: { id: true },
+  });
+  const ticketIds = customerTickets.map((row) => row.id);
+
+  if (invoiceIds.length > 0) {
+    await db
+      .delete(paymentGatewayLogs)
+      .where(
+        and(
+          eq(paymentGatewayLogs.referenceType, "invoice"),
+          inArray(paymentGatewayLogs.referenceId, invoiceIds)
+        )
+      );
+    await db
+      .delete(invoices)
+      .where(and(eq(invoices.tenantId, tenantId), eq(invoices.pelangganId, id)));
+  }
+
+  if (ticketIds.length > 0) {
+    await db.delete(ticketAssignments).where(inArray(ticketAssignments.ticketId, ticketIds));
+    await db
+      .delete(tickets)
+      .where(and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, id)));
+  }
+
   await db
-    .delete(pelanggan)
-    .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));
+    .delete(sessions)
+    .where(and(eq(sessions.subjectType, "pelanggan"), eq(sessions.subjectId, id)));
+
+  await db.delete(pelanggan).where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));
+
+  const stillExists = await db.query.pelanggan.findFirst({
+    where: and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)),
+    columns: { id: true },
+  });
+  if (stillExists) {
+    throw new Error("Gagal menghapus data pelanggan dari database.");
+  }
+
+  log.info(`Pelanggan dihapus ${id} (${invoiceIds.length} invoice, ${ticketIds.length} tiket)`);
+  return { invoiceCount: invoiceIds.length, ticketCount: ticketIds.length };
 }
 
 /** Set isolasi pelanggan + sinkron ke Mikrotik (mock). */

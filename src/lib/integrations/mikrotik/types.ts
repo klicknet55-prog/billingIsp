@@ -12,6 +12,8 @@ export interface RouterStatus {
   online: boolean;
   uptime?: string;
   activeUsers?: number;
+  /** Pesan diagnosa saat online=false */
+  error?: string;
 }
 
 export interface PppoeSecretInput {
@@ -35,6 +37,11 @@ export interface HotspotUserInput {
  */
 export interface MikrotikClient {
   getStatus(router: RouterCredentials): Promise<RouterStatus>;
+  /** Daftar nama profile PPPoE atau Hotspot dari router. */
+  listProfiles(
+    router: RouterCredentials,
+    type: "pppoe" | "hotspot"
+  ): Promise<string[]>;
   upsertPppoeSecret(router: RouterCredentials, input: PppoeSecretInput): Promise<void>;
   upsertHotspotUser(router: RouterCredentials, input: HotspotUserInput): Promise<void>;
   /** Isolir pelanggan (mis. pindah ke profile "isolir"). */
@@ -47,4 +54,9 @@ export interface MikrotikClient {
     router: RouterCredentials,
     ref: { connectionType: "pppoe" | "hotspot"; username: string }
   ): Promise<void>;
+  /** Hapus secret PPPoE atau user Hotspot dari router. */
+  removeConnectionUser(
+    router: RouterCredentials,
+    ref: { connectionType: "pppoe" | "hotspot"; username: string }
+  ): Promise<{ removed: boolean; exists: boolean }>;
 }

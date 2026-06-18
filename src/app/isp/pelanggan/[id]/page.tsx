@@ -42,8 +42,16 @@ export default async function EditPelangganPage({
             <input type="hidden" name="id" value={cust.id} />
             <PelangganFields
               defaults={cust}
-              paketOptions={paket.map((p) => ({ id: p.id, label: `${p.nama} (${p.kecepatan})` }))}
-              routerOptions={routers.map((r) => ({ id: r.id, label: r.nama }))}
+              paketOptions={paket.map((p) => ({
+                id: p.id,
+                label: `${p.nama} (${p.kecepatan})`,
+                routerId: p.routerId,
+              }))}
+              routerOptions={routers.map((r) => ({
+                id: r.id,
+                label: r.nama,
+                tipe: r.tipe,
+              }))}
             />
             <Button type="submit">Simpan Perubahan</Button>
           </form>

@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/table";
 import {
   createPelangganAction,
-  deletePelangganAction,
   toggleIsolasiAction,
 } from "@/features/customers/actions";
+import { PelangganDeleteDialog } from "@/features/customers/components/pelanggan-delete-dialog";
 import { PelangganFields } from "@/features/customers/components/pelanggan-fields";
 import { listPelanggan } from "@/features/customers/service";
 import { listPaket } from "@/features/packages/service";
@@ -29,12 +29,11 @@ import { getMapsClient } from "@/lib/integrations/maps";
 export default async function PelangganPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; routerId?: string; pelangganId?: string }>;
+  searchParams: Promise<{ error?: string; routerId?: string }>;
 }) {
   const qs = await searchParams;
   const error = qs.error ? decodeURIComponent(qs.error) : "";
   const routerId = qs.routerId ? decodeURIComponent(qs.routerId) : "";
-  const pelangganId = qs.pelangganId ? decodeURIComponent(qs.pelangganId) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
   const [rows, paket, routers, quota] = await Promise.all([
@@ -59,8 +58,16 @@ export default async function PelangganPage({
           <Disclosure label="Tambah Pelanggan">
             <form action={createPelangganAction} className="space-y-4">
               <PelangganFields
-                paketOptions={paket.map((p) => ({ id: p.id, label: `${p.nama} (${p.kecepatan})` }))}
-                routerOptions={routers.map((r) => ({ id: r.id, label: r.nama }))}
+                paketOptions={paket.map((p) => ({
+                  id: p.id,
+                  label: `${p.nama} (${p.kecepatan})`,
+                  routerId: p.routerId,
+                }))}
+                routerOptions={routers.map((r) => ({
+                  id: r.id,
+                  label: r.nama,
+                  tipe: r.tipe,
+                }))}
               />
               <Button type="submit">Simpan</Button>
             </form>
@@ -70,23 +77,7 @@ export default async function PelangganPage({
 
       {error && (
         <Card className="mb-4 border-destructive/30 bg-destructive/5">
-          <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
-            <span className="text-destructive">{error}</span>
-            {pelangganId && (
-              <div className="flex items-center gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/isp/invoice?pelangganId=${encodeURIComponent(pelangganId)}`}>
-                    Lihat Invoice
-                  </Link>
-                </Button>
-                <Button asChild variant="outline" size="sm">
-                  <Link href={`/isp/tiket?pelangganId=${encodeURIComponent(pelangganId)}`}>
-                    Lihat Tiket
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
+          <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
         </Card>
       )}
       {routerId && (
@@ -150,12 +141,7 @@ export default async function PelangganPage({
                             {p.isIsolated ? "Aktifkan" : "Isolir"}
                           </Button>
                         </form>
-                        <form action={deletePelangganAction}>
-                          <input type="hidden" name="id" value={p.id} />
-                          <Button variant="ghost" size="sm" type="submit">
-                            Hapus
-                          </Button>
-                        </form>
+                        <PelangganDeleteDialog pelangganId={p.id} pelangganNama={p.nama} />
                       </div>
                     </TableCell>
                   </TableRow>

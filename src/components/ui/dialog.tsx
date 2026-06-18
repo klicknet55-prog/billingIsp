@@ -15,26 +15,34 @@ export function Dialog({
   description,
   children,
   className,
+  dismissible = true,
 }: {
   trigger: React.ReactNode;
   title: string;
   description?: string;
   children: React.ReactNode | ((close: () => void) => React.ReactNode);
   className?: string;
+  /** false = tidak bisa tutup via backdrop, Escape, atau tombol X */
+  dismissible?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
+  const close = () => {
+    if (!dismissible) return;
+    setOpen(false);
+  };
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && dismissible) setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
     };
-  }, [open]);
+  }, [open, dismissible]);
 
   return (
     <>
@@ -45,6 +53,7 @@ export function Dialog({
             aria-hidden
             className="absolute inset-0 bg-black/50"
             onClick={close}
+            disabled={!dismissible}
           />
           <div
             role="dialog"
@@ -61,7 +70,13 @@ export function Dialog({
                   <p className="mt-1 text-sm text-muted-foreground">{description}</p>
                 )}
               </div>
-              <Button variant="ghost" size="icon" onClick={close} aria-label="Tutup">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={close}
+                aria-label="Tutup"
+                disabled={!dismissible}
+              >
                 <X />
               </Button>
             </div>

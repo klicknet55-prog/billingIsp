@@ -37,4 +37,13 @@ export const mikrotikMock: MikrotikClient = {
   async activate(router, ref) {
     log.info(`activate ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
   },
+  async listProfiles(_router, type) {
+    return type === "pppoe"
+      ? ["default", "pppoe-10mb", "pppoe-20mb", "isolir"]
+      : ["default", "hs-10mb", "hs-20mb", "isolir"];
+  },
+  async removeConnectionUser(router, ref) {
+    log.info(`removeConnectionUser ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
+    return { removed: true, exists: true };
+  },
 };

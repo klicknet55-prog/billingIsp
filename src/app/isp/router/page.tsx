@@ -1,4 +1,4 @@
-import { RefreshCw } from "lucide-react";
+import { Pencil, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import {
 import { listRouters } from "@/features/routers/service";
 import { getTenantQuotaSnapshot } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
+import { RouterFormDialog } from "./router-form-dialog";
 
 export default async function RouterPage({
   searchParams,
@@ -51,6 +52,9 @@ export default async function RouterPage({
         }`}
         action={
           <Disclosure label="Tambah Router">
+            <p className="mb-3 text-xs text-muted-foreground">
+              Kredensial Mikrotik disimpan per tenant (ISP → Router). Setiap ISP mengelola router sendiri.
+            </p>
             <form action={createRouterAction} className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="nama">Nama</Label>
@@ -65,7 +69,7 @@ export default async function RouterPage({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ipAddress">IP Address</Label>
-                <Input id="ipAddress" name="ipAddress" required placeholder="192.168.88.1" />
+                <Input id="ipAddress" name="ipAddress" required placeholder="192.168.88.1 atau hostname DDNS" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="apiPort">Port API / HTTPS</Label>
@@ -136,6 +140,14 @@ export default async function RouterPage({
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1">
+                      <RouterFormDialog
+                        router={r}
+                        trigger={
+                          <Button variant="ghost" size="icon" title="Edit">
+                            <Pencil />
+                          </Button>
+                        }
+                      />
                       <form action={refreshRouterAction}>
                         <input type="hidden" name="id" value={r.id} />
                         <Button variant="ghost" size="icon" title="Cek status" type="submit">

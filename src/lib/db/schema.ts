@@ -99,6 +99,7 @@ export const paketInternet = sqliteTable("paket_internet", {
   tenantId: text("tenant_id")
     .notNull()
     .references(() => tenants.id),
+  routerId: text("router_id").references(() => routers.id),
   nama: text("nama").notNull(),
   kecepatan: text("kecepatan").notNull(),
   mikrotikProfilePppoe: text("mikrotik_profile_pppoe"),

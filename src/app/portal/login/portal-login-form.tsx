@@ -41,7 +41,7 @@ export function PortalLoginForm() {
           {reqPending ? "Mengirim..." : "Kirim OTP"}
         </Button>
         <p className="text-center text-xs text-muted-foreground">
-          Coba demo: 081200000001 (kode OTP muncul di console server).
+          Masukan Nomor WhatsApp Anda untuk mendapatkan Kode OTP.
         </p>
       </form>
     );

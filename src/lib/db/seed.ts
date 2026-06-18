@@ -126,26 +126,41 @@ async function main() {
     { id: newId("usr"), tenantId, nama: "Doni Teknisi", email: "teknisi@demo.net", passwordHash: PW, role: "teknisi", phone: "628111111114" },
   ]);
 
-  // --- Router ---
+  // --- Router (isi kredensial nyata via ISP → Router setelah seed) ---
   const routerId = newId("rtr");
   await db.insert(routers).values({
     id: routerId,
     tenantId,
     nama: "Router Pusat",
+    connectionMode: "rest",
     ipAddress: "192.168.88.1",
-    apiPort: "8728",
+    apiPort: "443",
     username: "admin",
-    passwordEncrypted: "enc:demo",
+    passwordEncrypted: "ganti-via-menu-router",
     tipe: "pppoe",
-    isOnline: true,
+    isOnline: false,
   });
 
   // --- Paket internet ---
   const paket10 = newId("pkt");
   const paket20 = newId("pkt");
   await db.insert(paketInternet).values([
-    { id: paket10, tenantId, nama: "Home 10", kecepatan: "10 Mbps", hargaBulanan: 150000 },
-    { id: paket20, tenantId, nama: "Home 20", kecepatan: "20 Mbps", hargaBulanan: 250000 },
+    {
+      id: paket10,
+      tenantId,
+      nama: "Home 10",
+      kecepatan: "10 Mbps",
+      hargaBulanan: 150000,
+      mikrotikProfilePppoe: "default",
+    },
+    {
+      id: paket20,
+      tenantId,
+      nama: "Home 20",
+      kecepatan: "20 Mbps",
+      hargaBulanan: 250000,
+      mikrotikProfilePppoe: "default",
+    },
   ]);
 
   // --- Pelanggan (dengan koordinat sekitar Jakarta) ---
