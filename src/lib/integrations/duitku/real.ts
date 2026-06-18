@@ -8,6 +8,7 @@ import type {
   ParseWebhookOverrides,
   WebhookResult,
 } from "./types";
+import { resolveDuitkuReturnUrl } from "./urls";
 
 const log = createLogger("duitku:real");
 
@@ -51,6 +52,7 @@ export const duitkuReal: DuitkuClient = {
         "Konfigurasi Duitku belum lengkap (DUITKU_MERCHANT_CODE / DUITKU_API_KEY / DUITKU_CALLBACK_URL)."
       );
     }
+    const returnUrl = resolveDuitkuReturnUrl(callbackUrl);
     const signature = md5(`${merchantCode}${p.orderId}${p.amount}${apiKey}`);
     const body = {
       merchantCode,
@@ -60,7 +62,7 @@ export const duitkuReal: DuitkuClient = {
       customerVaName: p.customerName ?? "Pelanggan",
       phoneNumber: p.customerPhone ?? "",
       callbackUrl,
-      returnUrl: callbackUrl,
+      returnUrl,
       signature,
       paymentMethod,
       expiryPeriod: 60,

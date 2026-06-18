@@ -67,8 +67,12 @@ export function DuitkuConfigForm({
         <input
           name="callbackUrl"
           defaultValue={defaults.callbackUrl ?? ""}
+          placeholder="https://domain-anda.com/api/webhook/duitku"
           className="h-9 w-full rounded-md border px-3 text-sm"
         />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Webhook server (POST). Return URL browser otomatis: origin yang sama + /bayar/selesai
+        </p>
         {fe.callbackUrl && <p className="text-xs text-destructive">{fe.callbackUrl}</p>}
       </div>
       <div>
