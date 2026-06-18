@@ -23,10 +23,15 @@ export default function LoginPage() {
             Masuk portal
           </Link>
         </p>
-        <div className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
-          Demo: super@netmanage.app / owner@demo.net / kolektor@demo.net — sandi:
-          password123
-        </div>
+        <p className="text-center text-sm text-muted-foreground">
+          Belum punya akun ISP?{" "}
+          <Link href="/register-tenant" className="text-primary hover:underline">
+            Daftar
+          </Link>
+        </p>
+        <p className="text-center text-xs text-muted-foreground">
+          Daftarkan RT-RW Net atau ISP Anda,Gratis!!
+        </p>
       </CardContent>
     </Card>
   );

@@ -1,5 +1,5 @@
-import { Network } from "lucide-react";
-import Link from "next/link";
+import { SiteBrand } from "@/components/layout/site-brand";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import {
   Card,
@@ -14,10 +14,7 @@ export default function PortalLoginPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Network className="text-primary" />
-          NetManage
-        </Link>
+        <SiteBrand />
         <ThemeSwitcher />
       </header>
       <main className="flex flex-1 items-center justify-center p-6">
@@ -31,6 +28,7 @@ export default function PortalLoginPage() {
           </CardContent>
         </Card>
       </main>
+      <SiteFooter />
     </div>
   );
 }

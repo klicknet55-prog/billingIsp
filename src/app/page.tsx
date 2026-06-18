@@ -8,6 +8,8 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { SiteBrand } from "@/components/layout/site-brand";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,10 +27,7 @@ export default function Home() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b px-6 py-4">
-        <div className="flex items-center gap-2 font-semibold">
-          <Network className="text-primary" />
-          NetManage
-        </div>
+        <SiteBrand />
         <div className="flex items-center gap-2">
           <ThemeSwitcher />
           <Button asChild variant="ghost" size="sm">
@@ -76,9 +75,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="border-t px-6 py-6 text-center text-sm text-muted-foreground">
-        NetManage SaaS — Fondasi & Modul Inti
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

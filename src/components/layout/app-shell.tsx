@@ -26,7 +26,9 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { Button } from "@/components/ui/button";
+import { SiteFooterContent } from "@/components/layout/site-footer";
 import { logoutAction } from "@/features/auth/actions";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
 interface NavItem {
@@ -61,8 +63,9 @@ export function AppShell({
   variant,
   userName,
   userRole,
-  brandName = "NetManage",
+  brandName = DEFAULT_BRAND_NAME,
   brandLogoUrl,
+  appOrigin = "",
   subscriptionInfo,
   children,
 }: {
@@ -71,6 +74,7 @@ export function AppShell({
   userRole: string;
   brandName?: string;
   brandLogoUrl?: string | null;
+  appOrigin?: string;
   subscriptionInfo?: {
     packageName: string;
     status: "active" | "expired";
@@ -224,6 +228,11 @@ export function AppShell({
           </div>
         </header>
         <main className="flex-1 p-4 md:p-6">{children}</main>
+        <SiteFooterContent
+          appOrigin={appOrigin}
+          brandName={brandName}
+          className="print:hidden"
+        />
       </div>
     </div>
   );

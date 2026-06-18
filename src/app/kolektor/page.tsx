@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { listUnpaidInvoices } from "@/features/invoices/service";
 import { requireUser } from "@/lib/auth";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import { KolektorTasks, type Task } from "./kolektor-tasks";
 
@@ -27,7 +28,7 @@ export default async function KolektorPage() {
         title="Tugas Penagihan"
         description="Tagihan belum lunas, diurutkan dari yang terdekat."
       />
-      <KolektorTasks tasks={tasks} namaUsaha={tenant?.namaUsaha ?? "NetManage"} />
+      <KolektorTasks tasks={tasks} namaUsaha={tenant?.namaUsaha ?? DEFAULT_BRAND_NAME} />
     </>
   );
 }

@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { tenants } from "@/lib/db/schema";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { eq } from "drizzle-orm";
 import { AdminProfileForm, CompanyProfileForm } from "./settings-forms";
 
@@ -41,7 +42,7 @@ export default async function PengaturanPage() {
           <CardContent>
             <CompanyProfileForm
               defaults={{
-                namaUsaha: tenant?.namaUsaha ?? "NetManage",
+                namaUsaha: tenant?.namaUsaha ?? DEFAULT_BRAND_NAME,
                 logoUrl: tenant?.logoUrl ?? null,
               }}
             />

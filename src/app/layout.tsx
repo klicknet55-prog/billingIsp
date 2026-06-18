@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { PwaRegister } from "@/components/pwa-register";
 import { ThemeProvider, ThemeScript } from "@/components/theme/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NetManage — Manajemen ISP & RT-RW Net",
-  description: "Platform SaaS billing & manajemen jaringan untuk ISP dan RT-RW Net.",
+  title: `${DEFAULT_BRAND_NAME} — Manajemen ISP & RT-RW Net`,
+  description: "Platform billing & manajemen jaringan untuk ISP dan RT-RW Net.",
 };
 
 export default async function RootLayout({
