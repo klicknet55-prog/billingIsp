@@ -28,6 +28,35 @@ import { createLogger } from "@/lib/logger";
 import { newId } from "@/lib/utils";
 
 const log = createLogger("tenants");
+export type BillingPeriod = "monthly" | "yearly";
+
+const SUBSCRIPTION_DURATION_DAYS: Record<BillingPeriod, number> = {
+  monthly: 30,
+  yearly: 365,
+};
+
+export function calculateSaasPackageAmount(
+  pkg: Pick<PackageTenant, "hargaBulanan" | "diskonTahunanPersen">,
+  billingPeriod: BillingPeriod
+) {
+  const effectivePeriod = normalizeSaasBillingPeriod(pkg, billingPeriod);
+  if (effectivePeriod === "monthly") return pkg.hargaBulanan;
+  const annualBase = pkg.hargaBulanan * 12;
+  const discount = Math.min(Math.max(pkg.diskonTahunanPersen ?? 0, 0), 100);
+  return Math.round(annualBase * (100 - discount) / 100);
+}
+
+export function normalizeSaasBillingPeriod(
+  pkg: Pick<PackageTenant, "hargaBulanan">,
+  billingPeriod: BillingPeriod
+): BillingPeriod {
+  return pkg.hargaBulanan <= 0 ? "monthly" : billingPeriod;
+}
+
+function getSubscriptionEndDate(billingPeriod: BillingPeriod) {
+  const day = 24 * 60 * 60 * 1000;
+  return new Date(Date.now() + SUBSCRIPTION_DURATION_DAYS[billingPeriod] * day);
+}
 
 export async function listTenants(): Promise<Tenant[]> {
   return db.query.tenants.findMany({ orderBy: [desc(tenants.createdAt)] });
@@ -99,6 +128,7 @@ export async function getPackage(id: string) {
 export interface SaasPackageInput {
   nama: string;
   hargaBulanan: number;
+  diskonTahunanPersen: number;
   maxPelanggan: number;
   maxRouter: number;
   fitur: string[];
@@ -110,6 +140,7 @@ export async function createSaasPackage(input: SaasPackageInput) {
     id: newId("pkg"),
     nama: input.nama,
     hargaBulanan: input.hargaBulanan,
+    diskonTahunanPersen: input.diskonTahunanPersen,
     limitasi: {
       maxPelanggan: input.maxPelanggan,
       maxRouter: input.maxRouter,
@@ -126,6 +157,7 @@ export async function updateSaasPackage(id: string, input: SaasPackageInput) {
     .set({
       nama: input.nama,
       hargaBulanan: input.hargaBulanan,
+      diskonTahunanPersen: input.diskonTahunanPersen,
       limitasi: {
         maxPelanggan: input.maxPelanggan,
         maxRouter: input.maxRouter,
@@ -208,6 +240,7 @@ export interface TenantSubscriptionStatus {
   packageId: string;
   packageName: string;
   packagePrice: number;
+  billingPeriod: BillingPeriod;
   status: "active" | "expired";
   mulai: Date;
   akhir: Date;
@@ -230,6 +263,7 @@ export async function getTenantSubscriptionStatus(
     packageId: pkg.id,
     packageName: pkg.nama,
     packagePrice: pkg.hargaBulanan,
+    billingPeriod: sub.billingPeriod,
     status: sub.status,
     mulai: sub.mulai,
     akhir: sub.akhir,
@@ -245,27 +279,32 @@ export async function listActiveSaasPackages() {
 
 /**
  * Upgrade/downgrade paket langganan tenant.
- * Untuk saat ini perpindahan paket dilakukan langsung saat disubmit.
+ * Untuk mode mock perpindahan paket dilakukan langsung saat disubmit.
  */
-export async function changeTenantSubscriptionPackage(tenantId: string, packageId: string) {
+export async function changeTenantSubscriptionPackage(
+  tenantId: string,
+  packageId: string,
+  billingPeriod: BillingPeriod
+) {
   const pkg = await db.query.packageTenants.findFirst({
     where: and(eq(packageTenants.id, packageId), eq(packageTenants.isActive, true)),
   });
   if (!pkg) throw new Error("Paket tujuan tidak ditemukan atau tidak aktif.");
+  const effectivePeriod = normalizeSaasBillingPeriod(pkg, billingPeriod);
 
   const activeSub = await db.query.subscriptions.findFirst({
     where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
     orderBy: [desc(subscriptions.mulai)],
   });
 
-  const day = 24 * 60 * 60 * 1000;
   if (activeSub) {
     await db
       .update(subscriptions)
       .set({
         packageTenantId: pkg.id,
+        billingPeriod: effectivePeriod,
         mulai: new Date(),
-        akhir: new Date(Date.now() + 30 * day),
+        akhir: getSubscriptionEndDate(effectivePeriod),
         status: "active",
       })
       .where(eq(subscriptions.id, activeSub.id));
@@ -274,14 +313,15 @@ export async function changeTenantSubscriptionPackage(tenantId: string, packageI
       id: newId("sub"),
       tenantId,
       packageTenantId: pkg.id,
+      billingPeriod: effectivePeriod,
       mulai: new Date(),
-      akhir: new Date(Date.now() + 30 * day),
+      akhir: getSubscriptionEndDate(effectivePeriod),
       status: "active",
     });
   }
 
   await db.update(tenants).set({ status: "active" }).where(eq(tenants.id, tenantId));
-  log.info(`Tenant ${tenantId} pindah paket -> ${pkg.nama}`);
+  log.info(`Tenant ${tenantId} pindah paket -> ${pkg.nama} (${effectivePeriod})`);
 }
 
 export interface RegisterTenantInput {
@@ -291,6 +331,7 @@ export interface RegisterTenantInput {
   email: string;
   password: string;
   packageId: string;
+  billingPeriod: BillingPeriod;
 }
 
 type RegisterTenantResult =
@@ -318,14 +359,15 @@ export async function registerTenant(
   if (existsEmail) return { error: "Email sudah terdaftar." };
 
   const pkg = await db.query.packageTenants.findFirst({
-    where: eq(packageTenants.id, input.packageId),
+    where: and(eq(packageTenants.id, input.packageId), eq(packageTenants.isActive, true)),
   });
-  if (!pkg) return { error: "Paket tidak ditemukan." };
+  if (!pkg) return { error: "Paket tidak ditemukan atau tidak aktif." };
 
-  const day = 24 * 60 * 60 * 1000;
   const tenantId = newId("tnt");
   const ownerId = newId("usr");
   const orderId = `SUB-${tenantId}`;
+  const billingPeriod = normalizeSaasBillingPeriod(pkg, input.billingPeriod);
+  const amount = calculateSaasPackageAmount(pkg, billingPeriod);
   const tenant: Tenant = {
     id: tenantId,
     namaUsaha: input.namaUsaha.trim(),
@@ -341,8 +383,9 @@ export async function registerTenant(
     id: newId("sub"),
     tenantId,
     packageTenantId: pkg.id,
+    billingPeriod,
     mulai: new Date(),
-    akhir: new Date(Date.now() + 30 * day),
+    akhir: getSubscriptionEndDate(billingPeriod),
     status: process.env.DUITKU_DRIVER === "real" ? "expired" : "active",
   });
 
@@ -360,7 +403,7 @@ export async function registerTenant(
   await db.insert(users).values(owner);
 
   // Paket gratis tidak perlu lewat payment gateway.
-  if (pkg.hargaBulanan <= 0) {
+  if (amount <= 0) {
     await db.update(tenants).set({ status: "active" }).where(eq(tenants.id, tenantId));
     await db
       .update(subscriptions)
@@ -384,8 +427,8 @@ export async function registerTenant(
   try {
     trx = await duitku.createTransaction({
       orderId,
-      amount: pkg.hargaBulanan,
-      productName: `Langganan ${pkg.nama}`,
+      amount,
+      productName: `Langganan ${pkg.nama} ${billingPeriod === "yearly" ? "Tahunan" : "Bulanan"}`,
       customerName: input.adminNama,
       tenantId,
     });
@@ -406,7 +449,7 @@ export async function registerTenant(
       referenceId: tenantId,
       duitkuOrderId: orderId,
       status: "pending",
-      amount: pkg.hargaBulanan,
+      amount,
       paymentMethod: process.env.DUITKU_PAYMENT_METHOD ?? null,
     });
     log.info(`Tenant pending payment: ${domain}`);
@@ -414,7 +457,7 @@ export async function registerTenant(
   }
 
   // Mode mock: dianggap sukses instan.
-  const paid = duitku.simulatePaid(orderId, pkg.hargaBulanan);
+  const paid = duitku.simulatePaid(orderId, amount);
   await db.insert(paymentGatewayLogs).values({
     id: newId("pgl"),
     tenantId,

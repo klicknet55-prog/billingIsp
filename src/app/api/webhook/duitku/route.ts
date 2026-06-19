@@ -81,13 +81,15 @@ export async function POST(req: Request) {
       .set({ status: "active" })
       .where(eq(subscriptions.tenantId, tenantId));
   } else if (result.orderId.startsWith("SUP-")) {
-    const packageId =
+    const upgradeRef =
       txLog?.referenceType === "subscription" && txLog.referenceId.startsWith("UPG:")
-        ? txLog.referenceId.slice(4)
-        : "";
+        ? txLog.referenceId.slice(4).split(":")
+        : [];
+    const packageId = upgradeRef[0] ?? "";
+    const billingPeriod = upgradeRef[1] === "yearly" ? "yearly" : "monthly";
     const tenantId = txLog?.tenantId ?? "";
     if (tenantId && packageId) {
-      await changeTenantSubscriptionPackage(tenantId, packageId);
+      await changeTenantSubscriptionPackage(tenantId, packageId, billingPeriod);
     }
   }
 

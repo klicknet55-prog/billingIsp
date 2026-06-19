@@ -58,8 +58,17 @@ export default async function SubscriptionPage({
                   <span className="font-medium">{current.packageName}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Biaya Bulanan</span>
-                  <span className="font-medium">{formatRupiah(current.packagePrice)}</span>
+                  <span className="text-muted-foreground">Harga Paket</span>
+                  <span className="font-medium">
+                    {formatRupiah(current.packagePrice)}
+                    <span className="text-muted-foreground">/bln</span>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Periode Tagihan</span>
+                  <span className="font-medium">
+                    {current.billingPeriod === "yearly" ? "Tahunan" : "Bulanan"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Status</span>
@@ -83,7 +92,11 @@ export default async function SubscriptionPage({
             <CardTitle>Upgrade Paket</CardTitle>
           </CardHeader>
           <CardContent>
-            <UpgradePackageDialog packages={packages} currentPackageId={current?.packageId} />
+            <UpgradePackageDialog
+              packages={packages}
+              currentPackageId={current?.packageId}
+              currentBillingPeriod={current?.billingPeriod}
+            />
           </CardContent>
         </Card>
       </div>

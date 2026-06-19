@@ -52,7 +52,7 @@ export default async function IntegrasiPage() {
                 Digunakan untuk OTP login pelanggan dan notifikasi otomatis.
               </CardDescription>
             </div>
-            <TunnelhostServiceLinks className="shrink-0" />
+            <TunnelhostServiceLinks className="shrink-0" showVpn={false} />
           </CardHeader>
           <CardContent>
             <WhatsAppConfigForm

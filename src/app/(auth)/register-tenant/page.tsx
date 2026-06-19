@@ -5,18 +5,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { listPackages } from "@/features/tenants/service";
+import { listActiveSaasPackages } from "@/features/tenants/service";
 import { RegisterForm } from "./register-form";
 
 export default async function RegisterTenantPage() {
-  const packages = await listPackages();
+  const packages = await listActiveSaasPackages();
 
   return (
     <Card className="w-full max-w-3xl">
       <CardHeader>
         <CardTitle className="text-xl">Daftar ISP Baru</CardTitle>
         <CardDescription>
-          Pilih paket, isi data, dan langsung aktif. Pembayaran disimulasikan (mode mock).
+          Pilih paket, isi data, dan langsung aktif.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -25,6 +25,7 @@ export default async function RegisterTenantPage() {
             id: p.id,
             nama: p.nama,
             hargaBulanan: p.hargaBulanan,
+            diskonTahunanPersen: p.diskonTahunanPersen,
             limitasi: p.limitasi,
           }))}
         />

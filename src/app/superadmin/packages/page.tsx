@@ -42,6 +42,14 @@ export default async function PackagesPage() {
                   <span className="text-sm font-normal text-muted-foreground">/bln</span>
                 )}
               </p>
+              {p.hargaBulanan > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  Tahunan: {formatRupiah(Math.round((p.hargaBulanan * 12 * (100 - p.diskonTahunanPersen)) / 100))}
+                  {p.diskonTahunanPersen > 0 && (
+                    <span className="ml-1 text-primary">diskon {p.diskonTahunanPersen}%</span>
+                  )}
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm">

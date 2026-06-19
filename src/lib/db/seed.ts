@@ -60,12 +60,14 @@ async function main() {
       id: pkgFree,
       nama: "Free",
       hargaBulanan: 0,
+      diskonTahunanPersen: 0,
       limitasi: { maxPelanggan: 25, maxRouter: 1, fitur: ["pelanggan", "invoice"] },
     },
     {
       id: pkgStandard,
       nama: "Standard",
       hargaBulanan: 149000,
+      diskonTahunanPersen: 10,
       limitasi: {
         maxPelanggan: 250,
         maxRouter: 5,
@@ -76,6 +78,7 @@ async function main() {
       id: pkgPremium,
       nama: "Premium",
       hargaBulanan: 399000,
+      diskonTahunanPersen: 15,
       limitasi: {
         maxPelanggan: 2000,
         maxRouter: 50,
@@ -111,6 +114,7 @@ async function main() {
     id: newId("sub"),
     tenantId,
     packageTenantId: pkgStandard,
+    billingPeriod: "monthly",
     mulai: new Date(now - 10 * day),
     akhir: new Date(now + 20 * day),
     status: "active",

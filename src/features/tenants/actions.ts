@@ -11,12 +11,14 @@ import { newId } from "@/lib/utils";
 import { parseForm } from "@/lib/validation";
 import {
   changeTenantSubscriptionPackage,
+  calculateSaasPackageAmount,
   createSaasPackage,
   deleteSaasPackage,
   deleteTenantIfInactive,
   getTenantSubscriptionStatus,
   listActiveSaasPackages,
   logSaasTransaction,
+  normalizeSaasBillingPeriod,
   registerTenant,
   setTenantStatus,
   updateSaasPackage,
@@ -43,6 +45,7 @@ export async function registerTenantAction(
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
     packageId: String(formData.get("packageId") ?? ""),
+    billingPeriod: String(formData.get("billingPeriod") ?? "monthly") === "yearly" ? "yearly" : "monthly",
   });
   if ("error" in result) return { error: result.error };
   if ("checkoutUrl" in result) {
@@ -83,6 +86,7 @@ export async function changeSubscriptionPackageAction(formData: FormData) {
   if (!tenantId) redirect("/login");
 
   const packageId = String(formData.get("packageId") ?? "");
+  const billingPeriod = String(formData.get("billingPeriod") ?? "monthly") === "yearly" ? "yearly" : "monthly";
   const returnTo = String(formData.get("returnTo") ?? "/isp/langganan");
 
   try {
@@ -90,15 +94,19 @@ export async function changeSubscriptionPackageAction(formData: FormData) {
     const allPackages = await listActiveSaasPackages();
     const nextPkg = allPackages.find((p) => p.id === packageId);
     if (!nextPkg) throw new Error("Paket tujuan tidak ditemukan.");
+    const effectiveBillingPeriod = normalizeSaasBillingPeriod(nextPkg, billingPeriod);
     if (current && current.packageId === nextPkg.id) {
-      throw new Error("Paket yang dipilih sama dengan paket aktif saat ini.");
+      if (current.billingPeriod === effectiveBillingPeriod) {
+        throw new Error("Paket dan periode yang dipilih sama dengan langganan aktif saat ini.");
+      }
     }
+    const amount = calculateSaasPackageAmount(nextPkg, effectiveBillingPeriod);
     const orderId = `SUP-${newId("upg")}`;
     const duitku = getDuitkuClient();
     const trx = await duitku.createTransaction({
       orderId,
-      amount: nextPkg.hargaBulanan,
-      productName: `Upgrade paket ${nextPkg.nama}`,
+      amount,
+      productName: `Upgrade paket ${nextPkg.nama} ${effectiveBillingPeriod === "yearly" ? "Tahunan" : "Bulanan"}`,
       customerName: user.nama,
       tenantId,
     });
@@ -106,20 +114,20 @@ export async function changeSubscriptionPackageAction(formData: FormData) {
     if (process.env.DUITKU_DRIVER === "real") {
       await logSaasTransaction({
         tenantId,
-        referenceId: `UPG:${nextPkg.id}`,
+        referenceId: `UPG:${nextPkg.id}:${effectiveBillingPeriod}`,
         orderId,
         status: "pending",
-        amount: nextPkg.hargaBulanan,
+        amount,
         paymentMethod: process.env.DUITKU_PAYMENT_METHOD ?? null,
       });
       redirect(trx.paymentUrl);
     }
 
-    const paid = duitku.simulatePaid(orderId, nextPkg.hargaBulanan);
-    await changeTenantSubscriptionPackage(tenantId, nextPkg.id);
+    const paid = duitku.simulatePaid(orderId, amount);
+    await changeTenantSubscriptionPackage(tenantId, nextPkg.id, effectiveBillingPeriod);
     await logSaasTransaction({
       tenantId,
-      referenceId: `UPG:${nextPkg.id}`,
+      referenceId: `UPG:${nextPkg.id}:${effectiveBillingPeriod}`,
       orderId,
       status: paid.status,
       amount: paid.amount,
@@ -138,6 +146,7 @@ export async function changeSubscriptionPackageAction(formData: FormData) {
 const saasPackageSchema = z.object({
   nama: z.string().trim().min(1, "Nama wajib diisi"),
   hargaBulanan: z.coerce.number().int().min(0, "Harga tidak valid"),
+  diskonTahunanPersen: z.coerce.number().int().min(0, "Minimal 0").max(100, "Maksimal 100"),
   maxPelanggan: z.coerce.number().int().min(1, "Minimal 1"),
   maxRouter: z.coerce.number().int().min(1, "Minimal 1"),
   fitur: z.string().optional().default(""),
@@ -163,6 +172,7 @@ export async function saveSaasPackageAction(
   const input = {
     nama: parsed.data.nama,
     hargaBulanan: parsed.data.hargaBulanan,
+    diskonTahunanPersen: parsed.data.diskonTahunanPersen,
     maxPelanggan: parsed.data.maxPelanggan,
     maxRouter: parsed.data.maxRouter,
     fitur: toFitur(parsed.data.fitur),

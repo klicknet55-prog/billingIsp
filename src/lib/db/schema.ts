@@ -48,6 +48,7 @@ export const packageTenants = sqliteTable("package_tenant", {
   id: text("id").primaryKey(),
   nama: text("nama").notNull(),
   hargaBulanan: integer("harga_bulanan").notNull().default(0),
+  diskonTahunanPersen: integer("diskon_tahunan_persen").notNull().default(0),
   // limitasi: { maxPelanggan, maxRouter, fitur: string[] }
   limitasi: text("limitasi", { mode: "json" })
     .$type<{ maxPelanggan: number; maxRouter: number; fitur: string[] }>()
@@ -63,6 +64,9 @@ export const subscriptions = sqliteTable("subscription", {
   packageTenantId: text("package_tenant_id")
     .notNull()
     .references(() => packageTenants.id),
+  billingPeriod: text("billing_period", { enum: ["monthly", "yearly"] })
+    .notNull()
+    .default("monthly"),
   mulai: integer("mulai", { mode: "timestamp" }).notNull().default(now),
   akhir: integer("akhir", { mode: "timestamp" }).notNull(),
   status: text("status", { enum: ["active", "expired"] })
