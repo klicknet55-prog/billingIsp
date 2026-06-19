@@ -10,7 +10,28 @@ import {
 } from "@/components/ui/card";
 import { PortalLoginForm } from "./portal-login-form";
 
-export default function PortalLoginPage() {
+function loginErrorMessage(error?: string): string | null {
+  switch (error) {
+    case "expired":
+      return "Link masuk kedaluwarsa. Minta OTP baru di bawah.";
+    case "invalid":
+    case "link":
+      return "Link masuk tidak valid. Minta OTP baru di bawah.";
+    case "config":
+      return "Auto-login belum dikonfigurasi di server.";
+    default:
+      return null;
+  }
+}
+
+export default async function PortalLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+  const errorMessage = loginErrorMessage(error);
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between px-6 py-4">
@@ -24,6 +45,9 @@ export default function PortalLoginPage() {
             <CardDescription>Masuk tanpa password menggunakan OTP WhatsApp.</CardDescription>
           </CardHeader>
           <CardContent>
+            {errorMessage && (
+              <p className="mb-4 text-sm text-destructive">{errorMessage}</p>
+            )}
             <PortalLoginForm />
           </CardContent>
         </Card>

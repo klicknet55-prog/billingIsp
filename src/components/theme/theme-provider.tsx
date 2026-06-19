@@ -70,9 +70,3 @@ export function useTheme() {
   if (!ctx) throw new Error("useTheme harus dipakai di dalam ThemeProvider");
   return ctx;
 }
-
-/** Script anti-flash: set tema sebelum hidrasi. Dipasang di <head>. */
-export function ThemeScript() {
-  const code = `(function(){try{var p=localStorage.getItem('${PRESET_KEY}')||'${DEFAULT_PRESET}';var m=localStorage.getItem('${MODE_KEY}')||'light';document.documentElement.dataset.theme=p;if(m==='dark')document.documentElement.classList.add('dark');}catch(e){}})();`;
-  return <script dangerouslySetInnerHTML={{ __html: code }} />;
-}

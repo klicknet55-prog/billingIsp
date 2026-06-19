@@ -13,7 +13,10 @@ export function proxy(req: NextRequest) {
   const hasSession = req.cookies.has(COOKIE);
 
   const isStaffArea = STAFF_PREFIXES.some((p) => pathname.startsWith(p));
-  const isPortalArea = pathname.startsWith("/portal") && pathname !== "/portal/login";
+  const isPortalArea =
+    pathname.startsWith("/portal") &&
+    pathname !== "/portal/login" &&
+    pathname !== "/portal/masuk";
 
   if (!hasSession && isStaffArea) {
     const url = req.nextUrl.clone();

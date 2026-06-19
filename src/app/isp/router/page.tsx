@@ -1,6 +1,7 @@
 import { Pencil, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
+import { TunnelhostServiceLinks } from "@/components/integrations/tunnelhost-service-links";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,7 +52,9 @@ export default async function RouterPage({
           quota ? ` (Paket ${quota.paketNama})` : ""
         }`}
         action={
-          <Disclosure label="Tambah Router">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <TunnelhostServiceLinks />
+            <Disclosure label="Tambah Router">
             <p className="mb-3 text-xs text-muted-foreground">
               Kredensial Mikrotik disimpan per tenant (ISP → Router). Setiap ISP mengelola router sendiri.
             </p>
@@ -94,7 +97,8 @@ export default async function RouterPage({
                 <Button type="submit">Simpan</Button>
               </div>
             </form>
-          </Disclosure>
+            </Disclosure>
+          </div>
         }
       />
 

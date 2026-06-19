@@ -146,6 +146,7 @@ export const invoices = sqliteTable("invoice", {
     .notNull()
     .default("unpaid"),
   tglJatuhTempo: integer("tgl_jatuh_tempo", { mode: "timestamp" }),
+  preDueRemindedAt: integer("pre_due_reminded_at", { mode: "timestamp" }),
   tglLunas: integer("tgl_lunas", { mode: "timestamp" }),
   metodeBayar: text("metode_bayar"),
   createdBy: text("created_by").references(() => users.id),

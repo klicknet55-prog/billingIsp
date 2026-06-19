@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/layout/page-header";
+import { TunnelhostServiceLinks } from "@/components/integrations/tunnelhost-service-links";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import {
@@ -44,11 +45,14 @@ export default async function IntegrasiPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>WhatsApp API</CardTitle>
-            <CardDescription>
-              Digunakan untuk OTP login pelanggan dan notifikasi otomatis.
-            </CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+            <div className="space-y-1.5">
+              <CardTitle>WhatsApp API</CardTitle>
+              <CardDescription>
+                Digunakan untuk OTP login pelanggan dan notifikasi otomatis.
+              </CardDescription>
+            </div>
+            <TunnelhostServiceLinks className="shrink-0" />
           </CardHeader>
           <CardContent>
             <WhatsAppConfigForm

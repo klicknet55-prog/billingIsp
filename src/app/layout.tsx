@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PwaRegister } from "@/components/pwa-register";
-import { ThemeProvider, ThemeScript } from "@/components/theme/theme-provider";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { ThemeScript } from "@/components/theme/theme-script";
 import { ToastProvider } from "@/components/ui/toast";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
