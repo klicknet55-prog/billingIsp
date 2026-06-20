@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
+    "db:push": "node --env-file=.env ./node_modules/drizzle-kit/bin.cjs push",
+    "db:ensure-schema": "tsx --env-file=.env src/lib/db/ensure-schema.ts",
     "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
     "db:backfill-integrations": "tsx --env-file=.env src/lib/db/backfill-tenant-integrations.ts"
   },
