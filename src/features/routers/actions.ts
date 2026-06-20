@@ -21,9 +21,10 @@ const routerSchema = z.object({
 
 export async function createRouterAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
+  const nama = String(formData.get("nama") ?? "").trim();
   try {
-    await createRouter(user.tenantId!, {
-      nama: String(formData.get("nama") ?? "").trim(),
+    const id = await createRouter(user.tenantId!, {
+      nama,
       connectionMode: (String(formData.get("connectionMode") ?? "rest") as
         | "rest"
         | "legacy_api"),
@@ -32,11 +33,18 @@ export async function createRouterAction(formData: FormData) {
       username: String(formData.get("username") ?? "").trim(),
       password: String(formData.get("password") ?? ""),
     });
+    const status = await refreshRouterStatus(user.tenantId!, id);
+    revalidatePath("/isp/router");
+    if (status.online) {
+      redirect(`/isp/router?success=${encodeURIComponent(status.message ?? `Router "${nama}" tersimpan dan terhubung.`)}`);
+    }
+    redirect(
+      `/isp/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi belum terhubung. ${status.error ?? ""}`)}`
+    );
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah router.";
     redirect(`/isp/router?error=${encodeURIComponent(msg)}`);
   }
-  revalidatePath("/isp/router");
 }
 
 export async function updateRouterAction(
@@ -81,9 +89,11 @@ export async function deleteRouterAction(formData: FormData) {
 
 export async function refreshRouterAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
-  const result = await refreshRouterStatus(user.tenantId!, String(formData.get("id") ?? ""));
-  if (result.error) {
-    redirect(`/isp/router?error=${encodeURIComponent(result.error)}`);
-  }
+  const id = String(formData.get("id") ?? "");
+  const result = await refreshRouterStatus(user.tenantId!, id);
   revalidatePath("/isp/router");
+  if (result.online) {
+    redirect(`/isp/router?success=${encodeURIComponent(result.message ?? "Router terhubung.")}`);
+  }
+  redirect(`/isp/router?error=${encodeURIComponent(result.error ?? "Router tidak dapat dijangkau.")}`);
 }

@@ -27,8 +27,9 @@ async function withApi<T>(r: RouterCredentials, fn: (api: RouterOSAPI) => Promis
     return await fn(api);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    log.error(`Koneksi legacy ${r.ipAddress}:${port(r)}`, msg);
-    throw new Error(`Tidak dapat terhubung ke Mikrotik (${r.ipAddress}): ${msg}`);
+    const detail = msg.trim() || "Koneksi ditolak atau timeout";
+    log.error(`Koneksi legacy ${r.ipAddress}:${port(r)}`, detail);
+    throw new Error(`Tidak dapat terhubung ke Mikrotik (${r.ipAddress}): ${detail}`);
   } finally {
     await api.close().catch(() => {});
   }
@@ -54,7 +55,11 @@ export async function legacyGetStatus(r: RouterCredentials): Promise<RouterStatu
       return { online: true, uptime, activeUsers };
     });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const raw = err instanceof Error ? err.message : String(err);
+    const msg = raw.replace(
+      /^Tidak dapat terhubung ke Mikrotik \([^)]+\):\s*/i,
+      ""
+    ).trim() || raw.trim() || "Koneksi ditolak atau timeout";
     const hint =
       msg.includes("ECONNREFUSED") || msg.includes("ETIMEDOUT") || msg.includes("timeout")
         ? " Pastikan server aplikasi dapat menjangkau IP router (VPN/LAN)."

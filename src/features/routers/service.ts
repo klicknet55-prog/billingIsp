@@ -69,8 +69,9 @@ export async function createRouter(tenantId: string, input: RouterInput) {
     }
   }
 
+  const id = newId("rtr");
   await db.insert(routers).values({
-    id: newId("rtr"),
+    id,
     tenantId,
     nama: input.nama,
     connectionMode: input.connectionMode,
@@ -80,6 +81,7 @@ export async function createRouter(tenantId: string, input: RouterInput) {
     // Catatan: di produksi enkripsi password sebelum disimpan.
     passwordEncrypted: input.password,
   });
+  return id;
 }
 
 export async function updateRouter(
@@ -131,7 +133,7 @@ export async function deleteRouter(tenantId: string, id: string) {
 export async function refreshRouterStatus(
   tenantId: string,
   id: string
-): Promise<{ error?: string }> {
+): Promise<{ online?: boolean; message?: string; error?: string }> {
   const router = await db.query.routers.findFirst({
     where: and(eq(routers.tenantId, tenantId), eq(routers.id, id)),
   });
@@ -147,6 +149,18 @@ export async function refreshRouterStatus(
 
   await db.update(routers).set({ isOnline: status.online }).where(eq(routers.id, id));
 
-  if (!status.online && status.error) return { error: status.error };
-  return {};
+  if (status.online) {
+    const parts = [`Router "${router.nama}" terhubung`];
+    if (status.uptime) parts.push(`uptime ${status.uptime}`);
+    if (typeof status.activeUsers === "number") {
+      parts.push(`${status.activeUsers} sesi PPPoE aktif`);
+    }
+    return { online: true, message: parts.join(" · ") };
+  }
+
+  const detail = status.error?.trim() || "Periksa IP, port, username, password, dan koneksi VPN/LAN.";
+  return {
+    online: false,
+    error: `Tidak dapat terhubung ke Mikrotik (${router.ipAddress}): ${detail}`,
+  };
 }
