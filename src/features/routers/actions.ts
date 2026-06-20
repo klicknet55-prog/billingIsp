@@ -17,7 +17,6 @@ const routerSchema = z.object({
   apiPort: z.string().trim().min(1, "Port wajib diisi"),
   username: z.string().trim().min(1, "Username wajib diisi"),
   password: z.string().optional(),
-  tipe: z.enum(["pppoe", "hotspot"]),
 });
 
 export async function createRouterAction(formData: FormData) {
@@ -32,7 +31,6 @@ export async function createRouterAction(formData: FormData) {
       apiPort: String(formData.get("apiPort") ?? "443").trim(),
       username: String(formData.get("username") ?? "").trim(),
       password: String(formData.get("password") ?? ""),
-      tipe: (String(formData.get("tipe") ?? "pppoe") as "pppoe" | "hotspot"),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah router.";
@@ -59,7 +57,6 @@ export async function updateRouterAction(
       ipAddress: parsed.data.ipAddress,
       apiPort: parsed.data.apiPort,
       username: parsed.data.username,
-      tipe: parsed.data.tipe,
       password: parsed.data.password,
     });
   } catch (err) {

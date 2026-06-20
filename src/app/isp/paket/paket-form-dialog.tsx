@@ -14,13 +14,13 @@ import { fetchMikrotikProfilesAction, updatePaketAction } from "@/features/packa
 interface RouterOption {
   id: string;
   nama: string;
-  tipe: "pppoe" | "hotspot";
 }
 
 interface PaketRow {
   id: string;
   nama: string;
   kecepatan: string;
+  tipe: "pppoe" | "hotspot";
   routerId: string | null;
   mikrotikProfilePppoe: string | null;
   mikrotikProfileHotspot: string | null;
@@ -39,8 +39,11 @@ function FormBody({
   close: () => void;
 }) {
   const initialProfile =
-    paket.mikrotikProfilePppoe ?? paket.mikrotikProfileHotspot ?? "";
+    paket.tipe === "hotspot"
+      ? (paket.mikrotikProfileHotspot ?? "")
+      : (paket.mikrotikProfilePppoe ?? "");
   const [routerId, setRouterId] = useState(paket.routerId ?? "");
+  const [tipe, setTipe] = useState<"pppoe" | "hotspot">(paket.tipe);
   const [profile, setProfile] = useState(initialProfile);
   const [profiles, setProfiles] = useState<string[]>(initialProfile ? [initialProfile] : []);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -48,19 +51,16 @@ function FormBody({
   const [state, action] = useActionState(updatePaketAction, initial);
   const { toast } = useToast();
 
-  const selectedRouter = routers.find((r) => r.id === routerId);
-  const routerTipe = selectedRouter?.tipe;
-
   const profileOptions = useMemo(() => {
     const names = new Set(profiles);
     if (profile.trim()) names.add(profile.trim());
     return [...names].sort();
   }, [profiles, profile]);
 
-  const loadProfiles = useCallback((id: string, tipe: "pppoe" | "hotspot") => {
+  const loadProfiles = useCallback((id: string, connectionTipe: "pppoe" | "hotspot") => {
     startTransition(async () => {
       setProfileError(null);
-      const result = await fetchMikrotikProfilesAction(id, tipe);
+      const result = await fetchMikrotikProfilesAction(id, connectionTipe);
       if (result.error) {
         setProfileError(result.error);
         return;
@@ -78,13 +78,13 @@ function FormBody({
   }, [state.ok, state.error, toast, close]);
 
   useEffect(() => {
-    if (!routerId || !routerTipe) {
+    if (!routerId) {
       setProfiles([]);
       setProfileError(null);
       return;
     }
-    loadProfiles(routerId, routerTipe);
-  }, [routerId, routerTipe, loadProfiles]);
+    loadProfiles(routerId, tipe);
+  }, [routerId, tipe, loadProfiles]);
 
   const fe = state.fieldErrors ?? {};
 
@@ -118,6 +118,21 @@ function FormBody({
         {fe.hargaBulanan && <p className="text-xs text-destructive">{fe.hargaBulanan}</p>}
       </div>
       <div className="space-y-2">
+        <Label htmlFor={`tipe-${paket.id}`}>Tipe Layanan</Label>
+        <Select
+          id={`tipe-${paket.id}`}
+          name="tipe"
+          value={tipe}
+          onChange={(e) => {
+            setTipe(e.target.value === "hotspot" ? "hotspot" : "pppoe");
+            setProfile("");
+          }}
+        >
+          <option value="pppoe">PPPoE</option>
+          <option value="hotspot">Hotspot</option>
+        </Select>
+      </div>
+      <div className="space-y-2 sm:col-span-2">
         <Label htmlFor={`routerId-${paket.id}`}>Router Mikrotik</Label>
         <Select
           id={`routerId-${paket.id}`}
@@ -131,13 +146,13 @@ function FormBody({
           <option value="">— Pilih router —</option>
           {routers.map((r) => (
             <option key={r.id} value={r.id}>
-              {r.nama} ({r.tipe.toUpperCase()})
+              {r.nama}
             </option>
           ))}
         </Select>
       </div>
 
-      {routerTipe === "pppoe" && (
+      {tipe === "pppoe" && (
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor={`mikrotikProfilePppoe-${paket.id}`}>Profile PPPoE Mikrotik</Label>
           <Select
@@ -159,7 +174,7 @@ function FormBody({
         </div>
       )}
 
-      {routerTipe === "hotspot" && (
+      {tipe === "hotspot" && (
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor={`mikrotikProfileHotspot-${paket.id}`}>Profile Hotspot Mikrotik</Label>
           <Select

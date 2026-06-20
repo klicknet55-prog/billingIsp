@@ -21,7 +21,11 @@ async function sendText(to: string, body: string, tenantId?: string) {
   const url = tenantCfg?.apiUrl ?? process.env.WHATSAPP_API_URL ?? "";
   const token = tenantCfg?.apiToken ?? process.env.WHATSAPP_API_TOKEN ?? "";
   const provider = tenantCfg?.provider ?? "waba";
-  if (!url || !token) throw new Error("WHATSAPP_API_URL / WHATSAPP_API_TOKEN belum diisi");
+  if (!url || !token) {
+    throw new Error(
+      "WhatsApp belum dikonfigurasi. Isi di ISP → Integrasi, atau set WHATSAPP_API_URL & WHATSAPP_API_TOKEN di .env. Untuk development, gunakan WHATSAPP_DRIVER=mock."
+    );
+  }
   const phone = normalizePhone(to);
 
   // Mode gateway siap pakai: GET ...?phone=...&message=...&secret=...

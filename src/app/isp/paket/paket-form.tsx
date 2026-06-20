@@ -10,23 +10,20 @@ import { createPaketAction, fetchMikrotikProfilesAction } from "@/features/packa
 interface RouterOption {
   id: string;
   nama: string;
-  tipe: "pppoe" | "hotspot";
 }
 
 export function PaketForm({ routers }: { routers: RouterOption[] }) {
   const [routerId, setRouterId] = useState("");
+  const [tipe, setTipe] = useState<"pppoe" | "hotspot">("pppoe");
   const [profiles, setProfiles] = useState<string[]>([]);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const selectedRouter = routers.find((r) => r.id === routerId);
-  const routerTipe = selectedRouter?.tipe;
-
-  const loadProfiles = useCallback((id: string, tipe: "pppoe" | "hotspot") => {
+  const loadProfiles = useCallback((id: string, connectionTipe: "pppoe" | "hotspot") => {
     startTransition(async () => {
       setProfileError(null);
       setProfiles([]);
-      const result = await fetchMikrotikProfilesAction(id, tipe);
+      const result = await fetchMikrotikProfilesAction(id, connectionTipe);
       if (result.error) {
         setProfileError(result.error);
         return;
@@ -36,13 +33,13 @@ export function PaketForm({ routers }: { routers: RouterOption[] }) {
   }, []);
 
   useEffect(() => {
-    if (!routerId || !routerTipe) {
+    if (!routerId) {
       setProfiles([]);
       setProfileError(null);
       return;
     }
-    loadProfiles(routerId, routerTipe);
-  }, [routerId, routerTipe, loadProfiles]);
+    loadProfiles(routerId, tipe);
+  }, [routerId, tipe, loadProfiles]);
 
   return (
     <form action={createPaketAction} className="grid gap-4 sm:grid-cols-2">
@@ -59,6 +56,18 @@ export function PaketForm({ routers }: { routers: RouterOption[] }) {
         <Input id="hargaBulanan" name="hargaBulanan" type="number" required placeholder="150000" />
       </div>
       <div className="space-y-2">
+        <Label htmlFor="tipe">Tipe Layanan</Label>
+        <Select
+          id="tipe"
+          name="tipe"
+          value={tipe}
+          onChange={(e) => setTipe(e.target.value === "hotspot" ? "hotspot" : "pppoe")}
+        >
+          <option value="pppoe">PPPoE</option>
+          <option value="hotspot">Hotspot</option>
+        </Select>
+      </div>
+      <div className="space-y-2 sm:col-span-2">
         <Label htmlFor="routerId">Router Mikrotik</Label>
         <Select
           id="routerId"
@@ -69,16 +78,19 @@ export function PaketForm({ routers }: { routers: RouterOption[] }) {
           <option value="">— Pilih router —</option>
           {routers.map((r) => (
             <option key={r.id} value={r.id}>
-              {r.nama} ({r.tipe.toUpperCase()})
+              {r.nama}
             </option>
           ))}
         </Select>
         {routers.length === 0 && (
           <p className="text-xs text-muted-foreground">Belum ada router. Tambah di menu Router.</p>
         )}
+        <p className="text-xs text-muted-foreground">
+          Satu router dapat dipakai untuk paket PPPoE dan Hotspot sekaligus.
+        </p>
       </div>
 
-      {routerTipe === "pppoe" && (
+      {tipe === "pppoe" && (
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="mikrotikProfilePppoe">Profile PPPoE Mikrotik</Label>
           <Select
@@ -100,7 +112,7 @@ export function PaketForm({ routers }: { routers: RouterOption[] }) {
         </div>
       )}
 
-      {routerTipe === "hotspot" && (
+      {tipe === "hotspot" && (
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="mikrotikProfileHotspot">Profile Hotspot Mikrotik</Label>
           <Select

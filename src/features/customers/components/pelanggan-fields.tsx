@@ -9,13 +9,13 @@ import type { Pelanggan } from "@/lib/db/schema";
 interface RouterOption {
   id: string;
   label: string;
-  tipe: "pppoe" | "hotspot";
 }
 
 interface PaketOption {
   id: string;
   label: string;
   routerId: string | null;
+  tipe: "pppoe" | "hotspot";
 }
 
 function dateValue(d: Date | null | undefined): string {
@@ -34,10 +34,6 @@ export function PelangganFields({
 }) {
   const [routerId, setRouterId] = useState(defaults?.routerId ?? "");
   const [paketId, setPaketId] = useState(defaults?.paketInternetId ?? "");
-  const selectedRouter = routerOptions.find((r) => r.id === routerId);
-  const [connectionType, setConnectionType] = useState<"pppoe" | "hotspot">(
-    defaults?.connectionType ?? selectedRouter?.tipe ?? "pppoe"
-  );
 
   const filteredPakets = useMemo(
     () => (routerId ? paketOptions.filter((p) => p.routerId === routerId) : []),
@@ -46,11 +42,11 @@ export function PelangganFields({
 
   const paketValid = !paketId || filteredPakets.some((p) => p.id === paketId);
   const effectivePaketId = paketValid ? paketId : "";
+  const selectedPaket = filteredPakets.find((p) => p.id === effectivePaketId);
+  const connectionType = selectedPaket?.tipe ?? defaults?.connectionType ?? "pppoe";
 
   function onRouterChange(nextRouterId: string) {
     setRouterId(nextRouterId);
-    const router = routerOptions.find((r) => r.id === nextRouterId);
-    if (router) setConnectionType(router.tipe);
     const nextPakets = nextRouterId
       ? paketOptions.filter((p) => p.routerId === nextRouterId)
       : [];
@@ -80,7 +76,7 @@ export function PelangganFields({
           <option value="">- Pilih router -</option>
           {routerOptions.map((o) => (
             <option key={o.id} value={o.id}>
-              {o.label} ({o.tipe.toUpperCase()})
+              {o.label}
             </option>
           ))}
         </Select>
@@ -99,7 +95,7 @@ export function PelangganFields({
           </option>
           {filteredPakets.map((o) => (
             <option key={o.id} value={o.id}>
-              {o.label}
+              {o.label} ({o.tipe.toUpperCase()})
             </option>
           ))}
         </Select>
@@ -108,24 +104,13 @@ export function PelangganFields({
             Belum ada paket untuk router ini. Tambah paket di menu Paket Internet.
           </p>
         )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="connectionType">Tipe Koneksi</Label>
-        <Select
-          id="connectionType"
-          name="connectionType"
-          value={connectionType}
-          onChange={(e) => setConnectionType(e.target.value === "hotspot" ? "hotspot" : "pppoe")}
-        >
-          <option value="pppoe">PPPoE</option>
-          <option value="hotspot">Hotspot</option>
-        </Select>
-        {selectedRouter && connectionType !== selectedRouter.tipe && (
-          <p className="text-xs text-amber-600">
-            Router ini bertipe {selectedRouter.tipe.toUpperCase()}. Disarankan samakan tipe koneksi.
+        {selectedPaket && (
+          <p className="text-xs text-muted-foreground">
+            Tipe koneksi mengikuti paket: {selectedPaket.tipe.toUpperCase()}.
           </p>
         )}
       </div>
+      <input type="hidden" name="connectionType" value={connectionType} />
       <div className="space-y-2">
         <Label htmlFor="connectionUsername">Username</Label>
         <Input

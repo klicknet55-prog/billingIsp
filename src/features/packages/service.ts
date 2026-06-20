@@ -14,6 +14,7 @@ export async function listPaket(tenantId: string): Promise<PaketInternet[]> {
 export interface PaketInput {
   nama: string;
   kecepatan: string;
+  tipe: "pppoe" | "hotspot";
   routerId?: string | null;
   mikrotikProfilePppoe?: string | null;
   mikrotikProfileHotspot?: string | null;
@@ -25,10 +26,11 @@ export async function createPaket(tenantId: string, input: PaketInput) {
     id: newId("pkt"),
     tenantId,
     routerId: input.routerId ?? null,
+    tipe: input.tipe,
     nama: input.nama,
     kecepatan: input.kecepatan,
-    mikrotikProfilePppoe: input.mikrotikProfilePppoe ?? null,
-    mikrotikProfileHotspot: input.mikrotikProfileHotspot ?? null,
+    mikrotikProfilePppoe: input.tipe === "pppoe" ? (input.mikrotikProfilePppoe ?? null) : null,
+    mikrotikProfileHotspot: input.tipe === "hotspot" ? (input.mikrotikProfileHotspot ?? null) : null,
     hargaBulanan: input.hargaBulanan,
   });
 }
@@ -45,8 +47,9 @@ export async function updatePaket(tenantId: string, id: string, input: PaketInpu
       nama: input.nama,
       kecepatan: input.kecepatan,
       routerId: input.routerId ?? null,
-      mikrotikProfilePppoe: input.mikrotikProfilePppoe ?? null,
-      mikrotikProfileHotspot: input.mikrotikProfileHotspot ?? null,
+      tipe: input.tipe,
+      mikrotikProfilePppoe: input.tipe === "pppoe" ? (input.mikrotikProfilePppoe ?? null) : null,
+      mikrotikProfileHotspot: input.tipe === "hotspot" ? (input.mikrotikProfileHotspot ?? null) : null,
       hargaBulanan: input.hargaBulanan,
     })
     .where(and(eq(paketInternet.tenantId, tenantId), eq(paketInternet.id, id)));

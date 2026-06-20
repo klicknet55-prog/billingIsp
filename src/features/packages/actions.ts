@@ -6,23 +6,27 @@ import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { parseForm } from "@/lib/validation";
 import { listMikrotikProfiles } from "@/features/routers/service";
-import { createPaket, deletePaket, updatePaket } from "./service";
+import { createPaket, deletePaket, updatePaket, type PaketInput } from "./service";
 
 const ISP_ROLES = ["owner", "admin"] as const;
 
 const paketSchema = z.object({
   nama: z.string().trim().min(1, "Nama wajib diisi"),
   kecepatan: z.string().trim().min(1, "Kecepatan wajib diisi"),
+  tipe: z.enum(["pppoe", "hotspot"]),
   routerId: z.string().optional(),
   mikrotikProfilePppoe: z.string().optional(),
   mikrotikProfileHotspot: z.string().optional(),
   hargaBulanan: z.coerce.number().min(0, "Harga tidak valid"),
 });
 
-function paketFromForm(formData: FormData) {
+function paketFromForm(formData: FormData): PaketInput {
+  const tipe: "pppoe" | "hotspot" =
+    String(formData.get("tipe") ?? "pppoe") === "hotspot" ? "hotspot" : "pppoe";
   return {
     nama: String(formData.get("nama") ?? "").trim(),
     kecepatan: String(formData.get("kecepatan") ?? "").trim(),
+    tipe,
     routerId: String(formData.get("routerId") ?? "").trim() || null,
     mikrotikProfilePppoe: String(formData.get("mikrotikProfilePppoe") ?? "").trim() || null,
     mikrotikProfileHotspot: String(formData.get("mikrotikProfileHotspot") ?? "").trim() || null,
@@ -62,6 +66,7 @@ export async function updatePaketAction(
     await updatePaket(user.tenantId!, id, {
       nama: parsed.data.nama,
       kecepatan: parsed.data.kecepatan,
+      tipe: parsed.data.tipe,
       routerId: parsed.data.routerId?.trim() || null,
       mikrotikProfilePppoe: parsed.data.mikrotikProfilePppoe?.trim() || null,
       mikrotikProfileHotspot: parsed.data.mikrotikProfileHotspot?.trim() || null,

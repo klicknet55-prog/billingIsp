@@ -48,7 +48,13 @@ export async function requestOtpAction(
     where: eq(pelanggan.noWa, phone),
   });
   if (!cust) return { error: "Nomor tidak terdaftar sebagai pelanggan." };
-  await requestOtp(phone, cust.tenantId);
+  try {
+    await requestOtp(phone, cust.tenantId);
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Gagal mengirim OTP. Coba lagi nanti.",
+    };
+  }
   return { ok: true };
 }
 

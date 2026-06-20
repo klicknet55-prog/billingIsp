@@ -25,7 +25,7 @@ export default async function PaketPage() {
     listPaket(user.tenantId!),
     listRouters(user.tenantId!),
   ]);
-  const routerOptions = routerRows.map((r) => ({ id: r.id, nama: r.nama, tipe: r.tipe }));
+  const routerOptions = routerRows.map((r) => ({ id: r.id, nama: r.nama }));
   const routerById = new Map(routerRows.map((r) => [r.id, r]));
 
   return (
@@ -47,6 +47,7 @@ export default async function PaketPage() {
               <TableRow>
                 <TableHead>Nama</TableHead>
                 <TableHead>Kecepatan</TableHead>
+                <TableHead>Tipe</TableHead>
                 <TableHead>Router</TableHead>
                 <TableHead>Profile</TableHead>
                 <TableHead>Harga</TableHead>
@@ -57,13 +58,12 @@ export default async function PaketPage() {
               {rows.map((p) => {
                 const router = p.routerId ? routerById.get(p.routerId) : undefined;
                 const profile =
-                  router?.tipe === "hotspot"
-                    ? p.mikrotikProfileHotspot
-                    : p.mikrotikProfilePppoe ?? p.mikrotikProfileHotspot;
+                  p.tipe === "hotspot" ? p.mikrotikProfileHotspot : p.mikrotikProfilePppoe;
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nama}</TableCell>
                     <TableCell>{p.kecepatan}</TableCell>
+                    <TableCell className="uppercase">{p.tipe}</TableCell>
                     <TableCell>{router?.nama ?? "-"}</TableCell>
                     <TableCell className="font-mono text-xs">{profile ?? "-"}</TableCell>
                     <TableCell>{formatRupiah(p.hargaBulanan)}</TableCell>
@@ -91,7 +91,7 @@ export default async function PaketPage() {
               })}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     Belum ada paket.
                   </TableCell>
                 </TableRow>

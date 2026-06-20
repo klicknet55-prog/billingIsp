@@ -29,6 +29,11 @@ const patches: { table: string; column: string; sql: string }[] = [
     column: "pre_due_reminded_at",
     sql: "ALTER TABLE invoice ADD COLUMN pre_due_reminded_at INTEGER",
   },
+  {
+    table: "paket_internet",
+    column: "tipe",
+    sql: "ALTER TABLE paket_internet ADD COLUMN tipe TEXT NOT NULL DEFAULT 'pppoe'",
+  },
 ];
 
 const db = new Database(DB_PATH);
@@ -43,6 +48,25 @@ for (const patch of patches) {
   db.exec(patch.sql);
   applied++;
   console.log(`[ok]   ${patch.table}.${patch.column} ditambahkan`);
+}
+
+if (hasColumn(db, "paket_internet", "tipe") && hasColumn(db, "router", "tipe")) {
+  const result = db
+    .prepare(
+      `UPDATE paket_internet
+       SET tipe = (
+         SELECT r.tipe FROM router r WHERE r.id = paket_internet.router_id
+       )
+       WHERE router_id IS NOT NULL
+         AND EXISTS (
+           SELECT 1 FROM router r
+           WHERE r.id = paket_internet.router_id AND r.tipe IS NOT NULL
+         )`
+    )
+    .run();
+  if (result.changes > 0) {
+    console.log(`[ok]   paket_internet.tipe di-backfill dari router (${result.changes} baris)`);
+  }
 }
 
 db.close();

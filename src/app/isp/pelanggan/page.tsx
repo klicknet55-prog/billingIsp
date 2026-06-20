@@ -62,11 +62,11 @@ export default async function PelangganPage({
                   id: p.id,
                   label: `${p.nama} (${p.kecepatan})`,
                   routerId: p.routerId,
+                  tipe: p.tipe,
                 }))}
                 routerOptions={routers.map((r) => ({
                   id: r.id,
                   label: r.nama,
-                  tipe: r.tipe,
                 }))}
               />
               <Button type="submit">Simpan</Button>

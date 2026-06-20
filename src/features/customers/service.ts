@@ -82,6 +82,19 @@ async function assertPaketMatchesRouter(tenantId: string, input: PelangganInput)
   }
 }
 
+/** Tipe koneksi pelanggan mengikuti paket internet terpilih. */
+async function alignConnectionTypeWithPaket(
+  tenantId: string,
+  input: PelangganInput
+): Promise<PelangganInput> {
+  if (!input.paketInternetId) return input;
+  const paket = await db.query.paketInternet.findFirst({
+    where: and(eq(paketInternet.tenantId, tenantId), eq(paketInternet.id, input.paketInternetId)),
+  });
+  if (!paket) throw new Error("Paket internet tidak ditemukan.");
+  return { ...input, connectionType: paket.tipe };
+}
+
 async function syncCustomerConnection(
   tenantId: string,
   input: PelangganInput,
@@ -109,7 +122,7 @@ async function syncCustomerConnection(
     password: router.passwordEncrypted,
   } as const;
 
-  if (input.connectionType === "pppoe") {
+  if (paket.tipe === "pppoe") {
     const profile = paket.mikrotikProfilePppoe?.trim();
     if (!profile) {
       throw new Error("Profile PPPoE pada paket internet belum diisi.");
@@ -142,7 +155,8 @@ export async function createPelanggan(
   createdBy: string
 ) {
   assertConnectionCredentials(input);
-  await assertPaketMatchesRouter(tenantId, input);
+  const aligned = await alignConnectionTypeWithPaket(tenantId, input);
+  await assertPaketMatchesRouter(tenantId, aligned);
   // Enforce limit pelanggan sesuai paket SaaS tenant.
   const sub = await db.query.subscriptions.findFirst({
     where: and(eq(subscriptions.tenantId, tenantId), eq(subscriptions.status, "active")),
@@ -163,24 +177,24 @@ export async function createPelanggan(
     }
   }
 
-  await syncCustomerConnection(tenantId, input, input.nama);
+  await syncCustomerConnection(tenantId, aligned, aligned.nama);
 
   const id = newId("pel");
   await db.insert(pelanggan).values({
     id,
     tenantId,
-    nama: input.nama,
-    noWa: input.noWa,
-    connectionType: input.connectionType,
-    connectionUsername: input.connectionUsername ?? null,
-    connectionPassword: input.connectionPassword ?? null,
-    alamat: input.alamat ?? null,
-    latitude: input.latitude ?? null,
-    longitude: input.longitude ?? null,
-    ipAddress: input.ipAddress ?? null,
-    paketInternetId: input.paketInternetId || null,
-    routerId: input.routerId || null,
-    tglJatuhTempo: input.tglJatuhTempo ?? null,
+    nama: aligned.nama,
+    noWa: aligned.noWa,
+    connectionType: aligned.connectionType,
+    connectionUsername: aligned.connectionUsername ?? null,
+    connectionPassword: aligned.connectionPassword ?? null,
+    alamat: aligned.alamat ?? null,
+    latitude: aligned.latitude ?? null,
+    longitude: aligned.longitude ?? null,
+    ipAddress: aligned.ipAddress ?? null,
+    paketInternetId: aligned.paketInternetId || null,
+    routerId: aligned.routerId || null,
+    tglJatuhTempo: aligned.tglJatuhTempo ?? null,
     createdBy,
   });
   log.info(`Pelanggan dibuat ${id}`);
@@ -189,23 +203,24 @@ export async function createPelanggan(
 
 export async function updatePelanggan(tenantId: string, id: string, input: PelangganInput) {
   assertConnectionCredentials(input);
-  await assertPaketMatchesRouter(tenantId, input);
-  await syncCustomerConnection(tenantId, input, input.nama);
+  const aligned = await alignConnectionTypeWithPaket(tenantId, input);
+  await assertPaketMatchesRouter(tenantId, aligned);
+  await syncCustomerConnection(tenantId, aligned, aligned.nama);
   await db
     .update(pelanggan)
     .set({
-      nama: input.nama,
-      noWa: input.noWa,
-      connectionType: input.connectionType,
-      connectionUsername: input.connectionUsername ?? null,
-      connectionPassword: input.connectionPassword ?? null,
-      alamat: input.alamat ?? null,
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-      ipAddress: input.ipAddress ?? null,
-      paketInternetId: input.paketInternetId || null,
-      routerId: input.routerId || null,
-      tglJatuhTempo: input.tglJatuhTempo ?? null,
+      nama: aligned.nama,
+      noWa: aligned.noWa,
+      connectionType: aligned.connectionType,
+      connectionUsername: aligned.connectionUsername ?? null,
+      connectionPassword: aligned.connectionPassword ?? null,
+      alamat: aligned.alamat ?? null,
+      latitude: aligned.latitude ?? null,
+      longitude: aligned.longitude ?? null,
+      ipAddress: aligned.ipAddress ?? null,
+      paketInternetId: aligned.paketInternetId || null,
+      routerId: aligned.routerId || null,
+      tglJatuhTempo: aligned.tglJatuhTempo ?? null,
     })
     .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));
 }

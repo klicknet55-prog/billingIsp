@@ -18,7 +18,6 @@ interface RouterRow {
   ipAddress: string;
   apiPort: string;
   username: string;
-  tipe: "pppoe" | "hotspot";
 }
 
 const initial: ActionState = {};
@@ -71,13 +70,6 @@ function FormBody({ router, close }: { router: RouterRow; close: () => void }) {
         <Label htmlFor={`apiPort-${router.id}`}>Port API / HTTPS</Label>
         <Input id={`apiPort-${router.id}`} name="apiPort" defaultValue={router.apiPort} />
         {fe.apiPort && <p className="text-xs text-destructive">{fe.apiPort}</p>}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor={`tipe-${router.id}`}>Tipe</Label>
-        <Select id={`tipe-${router.id}`} name="tipe" defaultValue={router.tipe}>
-          <option value="pppoe">PPPoE</option>
-          <option value="hotspot">Hotspot</option>
-        </Select>
       </div>
       <div className="space-y-2">
         <Label htmlFor={`username-${router.id}`}>Username</Label>

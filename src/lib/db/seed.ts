@@ -141,7 +141,6 @@ async function main() {
     apiPort: "443",
     username: "admin",
     passwordEncrypted: "ganti-via-menu-router",
-    tipe: "pppoe",
     isOnline: false,
   });
 
@@ -152,6 +151,8 @@ async function main() {
     {
       id: paket10,
       tenantId,
+      routerId,
+      tipe: "pppoe",
       nama: "Home 10",
       kecepatan: "10 Mbps",
       hargaBulanan: 150000,
@@ -160,6 +161,8 @@ async function main() {
     {
       id: paket20,
       tenantId,
+      routerId,
+      tipe: "pppoe",
       nama: "Home 20",
       kecepatan: "20 Mbps",
       hargaBulanan: 250000,

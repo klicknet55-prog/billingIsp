@@ -79,13 +79,6 @@ export default async function RouterPage({
                 <Input id="apiPort" name="apiPort" defaultValue="443" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="tipe">Tipe</Label>
-                <Select id="tipe" name="tipe" defaultValue="pppoe">
-                  <option value="pppoe">PPPoE</option>
-                  <option value="hotspot">Hotspot</option>
-                </Select>
-              </div>
-              <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
                 <Input id="username" name="username" required placeholder="admin" />
               </div>
@@ -125,7 +118,6 @@ export default async function RouterPage({
                 <TableHead>Nama</TableHead>
                 <TableHead>IP</TableHead>
                 <TableHead>Mode</TableHead>
-                <TableHead>Tipe</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
@@ -136,7 +128,6 @@ export default async function RouterPage({
                   <TableCell className="font-medium">{r.nama}</TableCell>
                   <TableCell className="font-mono text-xs">{r.ipAddress}:{r.apiPort}</TableCell>
                   <TableCell className="uppercase">{r.connectionMode === "rest" ? "REST" : "LEGACY"}</TableCell>
-                  <TableCell className="uppercase">{r.tipe}</TableCell>
                   <TableCell>
                     <Badge variant={r.isOnline ? "success" : "destructive"}>
                       {r.isOnline ? "Online" : "Offline"}
@@ -170,7 +161,7 @@ export default async function RouterPage({
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
                     Belum ada router.
                   </TableCell>
                 </TableRow>

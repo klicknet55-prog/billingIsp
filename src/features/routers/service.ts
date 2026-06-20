@@ -46,7 +46,6 @@ export interface RouterInput {
   apiPort: string;
   username: string;
   password: string;
-  tipe: "pppoe" | "hotspot";
 }
 
 export async function createRouter(tenantId: string, input: RouterInput) {
@@ -80,7 +79,6 @@ export async function createRouter(tenantId: string, input: RouterInput) {
     username: input.username,
     // Catatan: di produksi enkripsi password sebelum disimpan.
     passwordEncrypted: input.password,
-    tipe: input.tipe,
   });
 }
 
@@ -102,7 +100,6 @@ export async function updateRouter(
       ipAddress: input.ipAddress,
       apiPort: input.apiPort,
       username: input.username,
-      tipe: input.tipe,
       ...(input.password?.trim() ? { passwordEncrypted: input.password.trim() } : {}),
     })
     .where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));

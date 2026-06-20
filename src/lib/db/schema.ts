@@ -91,9 +91,6 @@ export const routers = sqliteTable("router", {
   apiPort: text("api_port").notNull().default("8728"),
   username: text("username").notNull(),
   passwordEncrypted: text("password_encrypted").notNull(),
-  tipe: text("tipe", { enum: ["pppoe", "hotspot"] })
-    .notNull()
-    .default("pppoe"),
   isOnline: integer("is_online", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
@@ -104,6 +101,7 @@ export const paketInternet = sqliteTable("paket_internet", {
     .notNull()
     .references(() => tenants.id),
   routerId: text("router_id").references(() => routers.id),
+  tipe: text("tipe", { enum: ["pppoe", "hotspot"] }).notNull().default("pppoe"),
   nama: text("nama").notNull(),
   kecepatan: text("kecepatan").notNull(),
   mikrotikProfilePppoe: text("mikrotik_profile_pppoe"),
