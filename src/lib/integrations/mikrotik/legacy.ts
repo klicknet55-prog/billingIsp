@@ -14,7 +14,11 @@ function port(r: RouterCredentials): number {
   return Number.isFinite(p) && p > 0 ? p : 8728;
 }
 
-async function withApi<T>(r: RouterCredentials, fn: (api: RouterOSAPI) => Promise<T>): Promise<T> {
+async function withApi<T>(
+  r: RouterCredentials,
+  fn: (api: RouterOSAPI) => Promise<T>,
+  opts?: { quiet?: boolean }
+): Promise<T> {
   const api = new RouterOSAPI({
     host: r.ipAddress,
     port: port(r),
@@ -28,7 +32,9 @@ async function withApi<T>(r: RouterCredentials, fn: (api: RouterOSAPI) => Promis
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const detail = msg.trim() || "Koneksi ditolak atau timeout";
-    log.error(`Koneksi legacy ${r.ipAddress}:${port(r)}`, detail);
+    if (!opts?.quiet) {
+      log.error(`Koneksi legacy ${r.ipAddress}:${port(r)}`, detail);
+    }
     throw new Error(`Tidak dapat terhubung ke Mikrotik (${r.ipAddress}): ${detail}`);
   } finally {
     await api.close().catch(() => {});
@@ -40,20 +46,27 @@ function rowId(row: Record<string, unknown>): string | null {
   return typeof id === "string" ? id : null;
 }
 
-export async function legacyGetStatus(r: RouterCredentials): Promise<RouterStatus> {
+export async function legacyGetStatus(
+  r: RouterCredentials,
+  opts?: { quiet?: boolean }
+): Promise<RouterStatus> {
   try {
-    return await withApi(r, async (api) => {
-      const resource = (await api.write("/system/resource/print")) as Record<string, unknown>[];
-      const uptime = typeof resource[0]?.uptime === "string" ? resource[0].uptime : undefined;
-      let activeUsers = 0;
-      try {
-        const active = (await api.write("/ppp/active/print")) as unknown[];
-        activeUsers = active.length;
-      } catch {
-        /* router hotspot-only mungkin tidak punya ppp */
-      }
-      return { online: true, uptime, activeUsers };
-    });
+    return await withApi(
+      r,
+      async (api) => {
+        const resource = (await api.write("/system/resource/print")) as Record<string, unknown>[];
+        const uptime = typeof resource[0]?.uptime === "string" ? resource[0].uptime : undefined;
+        let activeUsers = 0;
+        try {
+          const active = (await api.write("/ppp/active/print")) as unknown[];
+          activeUsers = active.length;
+        } catch {
+          /* router hotspot-only mungkin tidak punya ppp */
+        }
+        return { online: true, uptime, activeUsers };
+      },
+      opts
+    );
   } catch (err) {
     const raw = err instanceof Error ? err.message : String(err);
     const msg = raw.replace(
@@ -195,5 +208,64 @@ export async function legacyListProfiles(
   return withApi(r, async (api) => {
     const rows = (await api.write(cmd)) as Record<string, unknown>[];
     return [...new Set(rows.map((row) => String(row.name ?? "").trim()).filter(Boolean))].sort();
+  });
+}
+
+function parseLegacyDisabled(value: unknown): boolean {
+  return value === true || value === "true" || value === "yes";
+}
+
+export async function legacySnapshotConnections(
+  r: RouterCredentials,
+  type: "pppoe" | "hotspot"
+): Promise<import("./types").ConnectionSnapshot[]> {
+  return withApi(r, async (api) => {
+    if (type === "pppoe") {
+      const secrets = (await api.write("/ppp/secret/print")) as Record<string, unknown>[];
+      let active: Record<string, unknown>[] = [];
+      try {
+        active = (await api.write("/ppp/active/print")) as Record<string, unknown>[];
+      } catch {
+        /* hotspot-only router */
+      }
+      const activeNames = new Set(
+        active.map((row) => String(row.name ?? "").trim()).filter(Boolean)
+      );
+      return secrets
+        .map((s) => String(s.name ?? "").trim())
+        .filter(Boolean)
+        .map((name) => {
+          const row = secrets.find((s) => String(s.name ?? "").trim() === name)!;
+          return {
+            username: name,
+            disabled: parseLegacyDisabled(row.disabled),
+            isOnline: activeNames.has(name),
+          };
+        });
+    }
+
+    const users = (await api.write("/ip/hotspot/user/print")) as Record<string, unknown>[];
+    let active: Record<string, unknown>[] = [];
+    try {
+      active = (await api.write("/ip/hotspot/active/print")) as Record<string, unknown>[];
+    } catch {
+      /* ignore */
+    }
+    const activeNames = new Set(
+      active
+        .map((row) => String(row.user ?? row.name ?? "").trim())
+        .filter(Boolean)
+    );
+    return users
+      .map((u) => String(u.name ?? "").trim())
+      .filter(Boolean)
+      .map((name) => {
+        const row = users.find((u) => String(u.name ?? "").trim() === name)!;
+        return {
+          username: name,
+          disabled: parseLegacyDisabled(row.disabled),
+          isOnline: activeNames.has(name),
+        };
+      });
   });
 }

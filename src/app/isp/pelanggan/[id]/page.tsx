@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { updatePelangganAction } from "@/features/customers/actions";
 import { PelangganFields } from "@/features/customers/components/pelanggan-fields";
 import { getPelanggan } from "@/features/customers/service";
+import { listOdpOptions } from "@/features/odp/service";
 import { listPaket } from "@/features/packages/service";
 import { listRouters } from "@/features/routers/service";
 import { requireUser } from "@/lib/auth";
@@ -21,10 +22,11 @@ export default async function EditPelangganPage({
   const error = qs.error ? decodeURIComponent(qs.error) : "";
   const user = await requireUser(["owner", "admin"]);
   const tenantId = user.tenantId!;
-  const [cust, paket, routers] = await Promise.all([
+  const [cust, paket, routers, odpOptions] = await Promise.all([
     getPelanggan(tenantId, id),
     listPaket(tenantId),
     listRouters(tenantId),
+    listOdpOptions(tenantId),
   ]);
   if (!cust) notFound();
 
@@ -52,6 +54,7 @@ export default async function EditPelangganPage({
                 id: r.id,
                 label: r.nama,
               }))}
+              odpOptions={odpOptions}
             />
             <Button type="submit">Simpan Perubahan</Button>
           </form>

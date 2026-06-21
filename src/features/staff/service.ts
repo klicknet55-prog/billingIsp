@@ -3,6 +3,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import { users, type User } from "@/lib/db/schema";
+import { clearKolektorAssignments } from "@/features/kolektor-assignments/service";
 import { createLogger } from "@/lib/logger";
 import { newId } from "@/lib/utils";
 
@@ -88,5 +89,8 @@ export async function setStaffActive(tenantId: string, id: string, isActive: boo
 export async function deleteStaff(tenantId: string, id: string) {
   const staff = await getStaff(tenantId, id);
   if (!staff || staff.role === "owner") return;
+  if (staff.role === "kolektor") {
+    await clearKolektorAssignments(tenantId, id);
+  }
   await db.delete(users).where(and(eq(users.tenantId, tenantId), eq(users.id, id)));
 }

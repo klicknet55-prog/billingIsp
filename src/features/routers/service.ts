@@ -107,6 +107,51 @@ export async function updateRouter(
     .where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));
 }
 
+export interface RouterMapRow extends Router {
+  pelangganCount: number;
+}
+
+export async function listRoutersForMap(tenantId: string): Promise<RouterMapRow[]> {
+  const rows = await listRouters(tenantId);
+  const result: RouterMapRow[] = [];
+  for (const row of rows) {
+    const pelangganCount = await db.$count(
+      pelanggan,
+      and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.routerId, row.id))
+    );
+    result.push({ ...row, pelangganCount });
+  }
+  return result;
+}
+
+export async function updateRouterLocation(
+  tenantId: string,
+  id: string,
+  latitude: number | null,
+  longitude: number | null
+) {
+  const existing = await getRouterForTenant(tenantId, id);
+  if (!existing) throw new Error("Router tidak ditemukan.");
+
+  const hasLat = latitude != null && Number.isFinite(latitude);
+  const hasLng = longitude != null && Number.isFinite(longitude);
+  if (hasLat !== hasLng) {
+    throw new Error("Latitude dan longitude harus diisi keduanya, atau kosongkan keduanya.");
+  }
+
+  await db
+    .update(routers)
+    .set({
+      latitude: hasLat ? latitude : null,
+      longitude: hasLng ? longitude : null,
+    })
+    .where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));
+}
+
+export async function clearRouterLocation(tenantId: string, id: string) {
+  await updateRouterLocation(tenantId, id, null, null);
+}
+
 export async function deleteRouter(tenantId: string, id: string) {
   const usedByCustomers = await db.$count(
     pelanggan,

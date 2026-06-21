@@ -25,7 +25,9 @@ export async function markPaidAction(formData: FormData) {
   const user = await requireUser(["owner", "admin", "kolektor"]);
   const id = String(formData.get("id") ?? "");
   const metode = String(formData.get("metode") ?? "Tunai");
-  await markInvoicePaid(user.tenantId!, id, metode);
+  await markInvoicePaid(user.tenantId!, id, metode, {
+    kolektorUserId: user.role === "kolektor" ? user.id : undefined,
+  });
   revalidatePath("/isp/invoice");
   revalidatePath("/kolektor");
 }

@@ -61,6 +61,37 @@ export function listUnpaidInvoices(tenantId: string) {
   return joinedInvoices(tenantId, true);
 }
 
+/** Tagihan belum lunas untuk pelanggan yang ditugaskan ke kolektor tertentu. */
+export async function listUnpaidInvoicesForKolektor(tenantId: string, kolektorId: string) {
+  const rows = await db
+    .select({
+      i: invoices,
+      nama: pelanggan.nama,
+      wa: pelanggan.noWa,
+      lat: pelanggan.latitude,
+      lng: pelanggan.longitude,
+      alamat: pelanggan.alamat,
+    })
+    .from(invoices)
+    .innerJoin(pelanggan, eq(invoices.pelangganId, pelanggan.id))
+    .where(
+      and(
+        eq(invoices.tenantId, tenantId),
+        eq(invoices.status, "unpaid"),
+        eq(pelanggan.kolektorId, kolektorId)
+      )
+    )
+    .orderBy(desc(invoices.createdAt));
+  return rows.map<InvoiceRow>((r) => ({
+    ...r.i,
+    pelangganNama: r.nama,
+    pelangganWa: r.wa,
+    latitude: r.lat,
+    longitude: r.lng,
+    alamat: r.alamat,
+  }));
+}
+
 export async function getInvoice(tenantId: string, id: string) {
   return db.query.invoices.findFirst({
     where: and(eq(invoices.tenantId, tenantId), eq(invoices.id, id)),
@@ -166,10 +197,20 @@ export function createSystemInvoice(tenantId: string, input: InvoiceInput) {
 export async function markInvoicePaid(
   tenantId: string,
   invoiceId: string,
-  metode: string
+  metode: string,
+  opts?: { kolektorUserId?: string }
 ) {
   const inv = await getInvoice(tenantId, invoiceId);
   if (!inv || inv.status === "paid") return;
+
+  if (opts?.kolektorUserId) {
+    const cust = await db.query.pelanggan.findFirst({
+      where: and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, inv.pelangganId)),
+    });
+    if (!cust || cust.kolektorId !== opts.kolektorUserId) {
+      throw new Error("Invoice ini bukan area penagihan Anda.");
+    }
+  }
 
   await db
     .update(invoices)

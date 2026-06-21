@@ -101,7 +101,10 @@ async function setHotspotDisabled(r: RouterCredentials, name: string, disabled: 
   await assertOk(res, `Nonaktifkan Hotspot '${name}'`);
 }
 
-export async function restGetStatus(r: RouterCredentials): Promise<RouterStatus> {
+export async function restGetStatus(
+  r: RouterCredentials,
+  opts?: { quiet?: boolean }
+): Promise<RouterStatus> {
   try {
     const res = await routerOsFetch(`${baseUrl(r)}/system/resource`, { headers: authHeader(r) });
     if (!res.ok) {
@@ -118,7 +121,11 @@ export async function restGetStatus(r: RouterCredentials): Promise<RouterStatus>
     return { online: true, uptime: data.uptime, activeUsers };
   } catch (err) {
     const msg = formatFetchError(err);
-    log.error("getStatus gagal", msg);
+    if (opts?.quiet) {
+      log.debug("getStatus offline (quiet)", msg);
+    } else {
+      log.error("getStatus gagal", msg);
+    }
     return { online: false, error: msg };
   }
 }
@@ -219,4 +226,62 @@ export async function restListProfiles(
   await assertOk(res, `Load profile ${type}`);
   const data = (await res.json()) as Array<{ name?: string }>;
   return [...new Set(data.map((row) => row.name?.trim()).filter(Boolean) as string[])].sort();
+}
+
+function parseDisabled(value: unknown): boolean {
+  return value === true || value === "true" || value === "yes";
+}
+
+export async function restSnapshotConnections(
+  r: RouterCredentials,
+  type: "pppoe" | "hotspot"
+): Promise<import("./types").ConnectionSnapshot[]> {
+  if (type === "pppoe") {
+    const [secretsRes, activeRes] = await Promise.all([
+      routerOsFetch(`${baseUrl(r)}/ppp/secret`, { headers: authHeader(r) }),
+      routerOsFetch(`${baseUrl(r)}/ppp/active`, { headers: authHeader(r) }),
+    ]);
+    if (!secretsRes.ok) {
+      throw new Error(await readRouterOsError(secretsRes, "Load PPPoE secrets"));
+    }
+    const secrets = (await secretsRes.json()) as Array<{ name?: string; disabled?: unknown }>;
+    const activeNames = new Set<string>();
+    if (activeRes.ok) {
+      const active = (await activeRes.json()) as Array<{ name?: string }>;
+      for (const row of active) {
+        if (row.name?.trim()) activeNames.add(row.name.trim());
+      }
+    }
+    return secrets
+      .filter((s) => s.name?.trim())
+      .map((s) => ({
+        username: s.name!.trim(),
+        disabled: parseDisabled(s.disabled),
+        isOnline: activeNames.has(s.name!.trim()),
+      }));
+  }
+
+  const [usersRes, activeRes] = await Promise.all([
+    routerOsFetch(`${baseUrl(r)}/ip/hotspot/user`, { headers: authHeader(r) }),
+    routerOsFetch(`${baseUrl(r)}/ip/hotspot/active`, { headers: authHeader(r) }),
+  ]);
+  if (!usersRes.ok) {
+    throw new Error(await readRouterOsError(usersRes, "Load Hotspot users"));
+  }
+  const users = (await usersRes.json()) as Array<{ name?: string; disabled?: unknown }>;
+  const activeNames = new Set<string>();
+  if (activeRes.ok) {
+    const active = (await activeRes.json()) as Array<{ user?: string; name?: string }>;
+    for (const row of active) {
+      const n = (row.user ?? row.name)?.trim();
+      if (n) activeNames.add(n);
+    }
+  }
+  return users
+    .filter((u) => u.name?.trim())
+    .map((u) => ({
+      username: u.name!.trim(),
+      disabled: parseDisabled(u.disabled),
+      isOnline: activeNames.has(u.name!.trim()),
+    }));
 }

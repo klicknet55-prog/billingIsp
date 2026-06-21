@@ -92,6 +92,8 @@ export const routers = sqliteTable("router", {
   username: text("username").notNull(),
   passwordEncrypted: text("password_encrypted").notNull(),
   isOnline: integer("is_online", { mode: "boolean" }).notNull().default(false),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
@@ -108,6 +110,29 @@ export const paketInternet = sqliteTable("paket_internet", {
   mikrotikProfileHotspot: text("mikrotik_profile_hotspot"),
   hargaBulanan: integer("harga_bulanan").notNull().default(0),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+});
+
+export const odp = sqliteTable("odp", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  kode: text("kode").notNull(),
+  nama: text("nama"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  splitterRasio: text("splitter_rasio"),
+  redamanInputDb: real("redaman_input_db"),
+  redamanOutputDb: real("redaman_output_db"),
+  splitterPasif: text("splitter_pasif"),
+  kapasitasPort: integer("kapasitas_port").notNull().default(8),
+  /** Sumber input fiber: router/server (titik awal) */
+  inputRouterId: text("input_router_id").references(() => routers.id),
+  /** Sumber input fiber: ODP induk (cabang dari ODP lain) */
+  inputOdpId: text("input_odp_id"),
+  catatan: text("catatan"),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
 export const pelanggan = sqliteTable("pelanggan", {
@@ -128,6 +153,10 @@ export const pelanggan = sqliteTable("pelanggan", {
   ipAddress: text("ip_address"),
   paketInternetId: text("paket_internet_id").references(() => paketInternet.id),
   routerId: text("router_id").references(() => routers.id),
+  /** Kolektor penagihan yang ditugaskan ke pelanggan ini. */
+  kolektorId: text("kolektor_id").references(() => users.id),
+  odpId: text("odp_id").references(() => odp.id),
+  odpPort: text("odp_port"),
   tglJatuhTempo: integer("tgl_jatuh_tempo", { mode: "timestamp" }),
   isIsolated: integer("is_isolated", { mode: "boolean" }).notNull().default(false),
   createdBy: text("created_by").references(() => users.id),
@@ -298,6 +327,7 @@ export type PackageTenant = typeof packageTenants.$inferSelect;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type Router = typeof routers.$inferSelect;
 export type PaketInternet = typeof paketInternet.$inferSelect;
+export type Odp = typeof odp.$inferSelect;
 export type Pelanggan = typeof pelanggan.$inferSelect;
 export type Invoice = typeof invoices.$inferSelect;
 export type Ticket = typeof tickets.$inferSelect;

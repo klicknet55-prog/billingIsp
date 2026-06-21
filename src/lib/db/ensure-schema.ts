@@ -13,6 +13,13 @@ function hasColumn(db: Database.Database, table: string, column: string) {
   return rows.some((r) => r.name === column);
 }
 
+function hasTable(db: Database.Database, table: string) {
+  const row = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+    .get(table) as { name: string } | undefined;
+  return !!row;
+}
+
 const patches: { table: string; column: string; sql: string }[] = [
   {
     table: "subscription",
@@ -34,6 +41,41 @@ const patches: { table: string; column: string; sql: string }[] = [
     column: "tipe",
     sql: "ALTER TABLE paket_internet ADD COLUMN tipe TEXT NOT NULL DEFAULT 'pppoe'",
   },
+  {
+    table: "pelanggan",
+    column: "kolektor_id",
+    sql: "ALTER TABLE pelanggan ADD COLUMN kolektor_id TEXT REFERENCES user(id)",
+  },
+  {
+    table: "pelanggan",
+    column: "odp_id",
+    sql: "ALTER TABLE pelanggan ADD COLUMN odp_id TEXT REFERENCES odp(id)",
+  },
+  {
+    table: "pelanggan",
+    column: "odp_port",
+    sql: "ALTER TABLE pelanggan ADD COLUMN odp_port TEXT",
+  },
+  {
+    table: "router",
+    column: "latitude",
+    sql: "ALTER TABLE router ADD COLUMN latitude REAL",
+  },
+  {
+    table: "router",
+    column: "longitude",
+    sql: "ALTER TABLE router ADD COLUMN longitude REAL",
+  },
+  {
+    table: "odp",
+    column: "input_router_id",
+    sql: "ALTER TABLE odp ADD COLUMN input_router_id TEXT REFERENCES router(id)",
+  },
+  {
+    table: "odp",
+    column: "input_odp_id",
+    sql: "ALTER TABLE odp ADD COLUMN input_odp_id TEXT REFERENCES odp(id)",
+  },
 ];
 
 const db = new Database(DB_PATH);
@@ -48,6 +90,30 @@ for (const patch of patches) {
   db.exec(patch.sql);
   applied++;
   console.log(`[ok]   ${patch.table}.${patch.column} ditambahkan`);
+}
+
+if (!hasTable(db, "odp")) {
+  db.exec(`
+    CREATE TABLE odp (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL REFERENCES tenant(id),
+      kode TEXT NOT NULL,
+      nama TEXT,
+      latitude REAL,
+      longitude REAL,
+      splitter_rasio TEXT,
+      redaman_input_db REAL,
+      redaman_output_db REAL,
+      splitter_pasif TEXT,
+      kapasitas_port INTEGER NOT NULL DEFAULT 8,
+      catatan TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS odp_tenant_kode ON odp(tenant_id, kode);
+  `);
+  applied++;
+  console.log("[ok]   tabel odp dibuat");
 }
 
 if (hasColumn(db, "paket_internet", "tipe") && hasColumn(db, "router", "tipe")) {

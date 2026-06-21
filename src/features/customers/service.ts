@@ -18,6 +18,7 @@ import { getMikrotikClient } from "@/lib/integrations/mikrotik";
 import { createLogger } from "@/lib/logger";
 import { newId } from "@/lib/utils";
 import { routerToCredentials } from "@/features/routers/service";
+import { assertPelangganOdpCapacity } from "@/features/odp/service";
 
 const log = createLogger("customers");
 
@@ -62,6 +63,8 @@ export interface PelangganInput {
   ipAddress?: string | null;
   paketInternetId?: string | null;
   routerId?: string | null;
+  odpId?: string | null;
+  odpPort?: string | null;
   tglJatuhTempo?: Date | null;
 }
 
@@ -177,6 +180,7 @@ export async function createPelanggan(
     }
   }
 
+  await assertPelangganOdpCapacity(tenantId, aligned.odpId);
   await syncCustomerConnection(tenantId, aligned, aligned.nama);
 
   const id = newId("pel");
@@ -194,6 +198,8 @@ export async function createPelanggan(
     ipAddress: aligned.ipAddress ?? null,
     paketInternetId: aligned.paketInternetId || null,
     routerId: aligned.routerId || null,
+    odpId: aligned.odpId || null,
+    odpPort: aligned.odpPort?.trim() || null,
     tglJatuhTempo: aligned.tglJatuhTempo ?? null,
     createdBy,
   });
@@ -205,6 +211,7 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
   assertConnectionCredentials(input);
   const aligned = await alignConnectionTypeWithPaket(tenantId, input);
   await assertPaketMatchesRouter(tenantId, aligned);
+  await assertPelangganOdpCapacity(tenantId, aligned.odpId, id);
   await syncCustomerConnection(tenantId, aligned, aligned.nama);
   await db
     .update(pelanggan)
@@ -220,6 +227,8 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
       ipAddress: aligned.ipAddress ?? null,
       paketInternetId: aligned.paketInternetId || null,
       routerId: aligned.routerId || null,
+      odpId: aligned.odpId || null,
+      odpPort: aligned.odpPort?.trim() || null,
       tglJatuhTempo: aligned.tglJatuhTempo ?? null,
     })
     .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));

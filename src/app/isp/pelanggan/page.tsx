@@ -20,6 +20,7 @@ import {
 import { PelangganDeleteDialog } from "@/features/customers/components/pelanggan-delete-dialog";
 import { PelangganFields } from "@/features/customers/components/pelanggan-fields";
 import { listPelanggan } from "@/features/customers/service";
+import { listOdpOptions } from "@/features/odp/service";
 import { listPaket } from "@/features/packages/service";
 import { listRouters } from "@/features/routers/service";
 import { getTenantQuotaSnapshot } from "@/features/tenants/service";
@@ -36,11 +37,12 @@ export default async function PelangganPage({
   const routerId = qs.routerId ? decodeURIComponent(qs.routerId) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
-  const [rows, paket, routers, quota] = await Promise.all([
+  const [rows, paket, routers, quota, odpOptions] = await Promise.all([
     listPelanggan(tenantId, routerId || undefined),
     listPaket(tenantId),
     listRouters(tenantId),
     getTenantQuotaSnapshot(tenantId),
+    listOdpOptions(tenantId),
   ]);
   const maps = getMapsClient();
   const pelangganQuotaText = quota
@@ -68,6 +70,7 @@ export default async function PelangganPage({
                   id: r.id,
                   label: r.nama,
                 }))}
+                odpOptions={odpOptions}
               />
               <Button type="submit">Simpan</Button>
             </form>

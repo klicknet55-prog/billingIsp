@@ -13,6 +13,7 @@ import { db } from "./index";
 import {
   invoices,
   kategoriPengeluaran,
+  odp,
   packageTenants,
   paketInternet,
   paymentGatewayLogs,
@@ -123,10 +124,12 @@ async function main() {
   // --- Staf tenant ---
   const ownerId = newId("usr");
   const kolektorId = newId("usr");
+  const kolektor2Id = newId("usr");
   await db.insert(users).values([
     { id: ownerId, tenantId, nama: "Budi Owner", email: "owner@demo.net", passwordHash: PW, role: "owner", phone: "628111111111" },
     { id: newId("usr"), tenantId, nama: "Andi Admin", email: "admin@demo.net", passwordHash: PW, role: "admin", phone: "628111111112" },
     { id: kolektorId, tenantId, nama: "Cipto Kolektor", email: "kolektor@demo.net", passwordHash: PW, role: "kolektor", phone: "628111111113" },
+    { id: kolektor2Id, tenantId, nama: "Dewi Kolektor", email: "kolektor2@demo.net", passwordHash: PW, role: "kolektor", phone: "628111111115" },
     { id: newId("usr"), tenantId, nama: "Doni Teknisi", email: "teknisi@demo.net", passwordHash: PW, role: "teknisi", phone: "628111111114" },
   ]);
 
@@ -141,6 +144,8 @@ async function main() {
     apiPort: "443",
     username: "admin",
     passwordEncrypted: "ganti-via-menu-router",
+    latitude: -6.198,
+    longitude: 106.812,
     isOnline: false,
   });
 
@@ -170,15 +175,52 @@ async function main() {
     },
   ]);
 
+  // --- ODP demo (sekitar Jakarta) ---
+  const odp1Id = newId("odp");
+  const odp2Id = newId("odp");
+  await db.insert(odp).values([
+    {
+      id: odp1Id,
+      tenantId,
+      kode: "ODP-001",
+      nama: "Gang RT 05",
+      latitude: -6.205,
+      longitude: 106.818,
+      splitterPasif: "1:8",
+      splitterRasio: "10:90",
+      redamanInputDb: -20.5,
+      redamanOutputDb: -23.2,
+      kapasitasPort: 8,
+      inputRouterId: routerId,
+      isActive: true,
+    },
+    {
+      id: odp2Id,
+      tenantId,
+      kode: "ODP-002",
+      nama: "Depan masjid",
+      latitude: -6.215,
+      longitude: 106.825,
+      splitterPasif: "1:4",
+      splitterRasio: "5:95",
+      redamanInputDb: -19.8,
+      redamanOutputDb: -22.1,
+      kapasitasPort: 4,
+      inputOdpId: odp1Id,
+      isActive: true,
+    },
+  ]);
+
   // --- Pelanggan (dengan koordinat sekitar Jakarta) ---
   const custs = [
-    { nama: "Eka Pratama", wa: "081200000001", lat: -6.2, lng: 106.816, paket: paket10, isolated: false },
-    { nama: "Fitri Handayani", wa: "081200000002", lat: -6.21, lng: 106.82, paket: paket20, isolated: false },
-    { nama: "Gunawan", wa: "081200000003", lat: -6.18, lng: 106.83, paket: paket10, isolated: true },
-    { nama: "Hesti", wa: "081200000004", lat: -6.25, lng: 106.79, paket: paket20, isolated: false },
+    { nama: "Eka Pratama", wa: "081200000001", user: "eka001", lat: -6.2, lng: 106.816, paket: paket10, isolated: false, odpId: odp1Id, odpPort: "P1" },
+    { nama: "Fitri Handayani", wa: "081200000002", user: "fitri002", lat: -6.21, lng: 106.82, paket: paket20, isolated: false, odpId: odp1Id, odpPort: "P2" },
+    { nama: "Gunawan", wa: "081200000003", user: "gwn003", lat: -6.18, lng: 106.83, paket: paket10, isolated: true, odpId: odp2Id, odpPort: "P1" },
+    { nama: "Hesti", wa: "081200000004", user: "hesti004", lat: -6.25, lng: 106.79, paket: paket20, isolated: false, odpId: null, odpPort: null },
   ];
   const custIds: string[] = [];
-  for (const c of custs) {
+  for (let i = 0; i < custs.length; i++) {
+    const c = custs[i];
     const id = newId("pel");
     custIds.push(id);
     await db.insert(pelanggan).values({
@@ -186,12 +228,18 @@ async function main() {
       tenantId,
       nama: c.nama,
       noWa: `62${c.wa.slice(1)}`,
+      connectionType: "pppoe",
+      connectionUsername: c.user,
+      connectionPassword: "demo123",
       alamat: "Jl. Contoh No. 1, Jakarta",
       latitude: c.lat,
       longitude: c.lng,
       ipAddress: `10.10.10.${custIds.length + 10}`,
       paketInternetId: c.paket,
       routerId,
+      odpId: c.odpId,
+      odpPort: c.odpPort,
+      kolektorId: i < 2 ? kolektorId : kolektor2Id,
       tglJatuhTempo: new Date(now + (custIds.length - 2) * 5 * day),
       isIsolated: c.isolated,
       createdBy: ownerId,
@@ -260,7 +308,7 @@ async function main() {
     });
   }
 
-  console.log("Seed selesai. Login: super@netmanage.app / owner@demo.net / kolektor@demo.net (password123)");
+  console.log("Seed selesai. Login: super@netmanage.app / owner@demo.net / kolektor@demo.net / kolektor2@demo.net (password123)");
 }
 
 main()

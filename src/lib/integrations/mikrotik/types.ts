@@ -16,6 +16,11 @@ export interface RouterStatus {
   error?: string;
 }
 
+/** Opsi probe status — `quiet` menekan log error untuk kegagalan koneksi yang diharapkan. */
+export interface MikrotikStatusOptions {
+  quiet?: boolean;
+}
+
 export interface PppoeSecretInput {
   username: string;
   password: string;
@@ -31,12 +36,20 @@ export interface HotspotUserInput {
   comment?: string;
 }
 
+export type ModemMapStatus = "aktif" | "isolir" | "gangguan" | "unknown";
+
+export interface ConnectionSnapshot {
+  username: string;
+  disabled: boolean;
+  isOnline: boolean;
+}
+
 /**
  * Kontrak komunikasi dengan Mikrotik RouterOS.
  * Implementasi nyata (REST/SSH) tinggal mengikuti interface ini.
  */
 export interface MikrotikClient {
-  getStatus(router: RouterCredentials): Promise<RouterStatus>;
+  getStatus(router: RouterCredentials, opts?: MikrotikStatusOptions): Promise<RouterStatus>;
   /** Daftar nama profile PPPoE atau Hotspot dari router. */
   listProfiles(
     router: RouterCredentials,
@@ -59,4 +72,9 @@ export interface MikrotikClient {
     router: RouterCredentials,
     ref: { connectionType: "pppoe" | "hotspot"; username: string }
   ): Promise<{ removed: boolean; exists: boolean }>;
+  /** Snapshot secret/user + sesi aktif per router (batch, bukan per pelanggan). */
+  snapshotConnections(
+    router: RouterCredentials,
+    type: "pppoe" | "hotspot"
+  ): Promise<ConnectionSnapshot[]>;
 }

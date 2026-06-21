@@ -17,10 +17,14 @@
     "db:backfill-integrations": "tsx --env-file=.env src/lib/db/backfill-tenant-integrations.ts"
   },
   "dependencies": {
+    "@types/leaflet": "^1.9.21",
+    "@types/leaflet.markercluster": "^1.5.6",
     "better-sqlite3": "^12.11.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
+    "leaflet": "^1.9.4",
+    "leaflet.markercluster": "^1.5.3",
     "lucide-react": "^1.20.0",
     "next": "^16.2.9",
     "node-routeros": "^1.6.8",

@@ -38,6 +38,8 @@ function parseInput(formData: FormData): PelangganInput {
     ipAddress: String(formData.get("ipAddress") ?? "") || null,
     paketInternetId: String(formData.get("paketInternetId") ?? "") || null,
     routerId: String(formData.get("routerId") ?? "") || null,
+    odpId: String(formData.get("odpId") ?? "") || null,
+    odpPort: String(formData.get("odpPort") ?? "").trim() || null,
     tglJatuhTempo: tgl ? new Date(tgl) : null,
   };
 }

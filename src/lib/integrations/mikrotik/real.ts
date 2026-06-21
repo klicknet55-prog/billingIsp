@@ -1,6 +1,7 @@
 import type {
   HotspotUserInput,
   MikrotikClient,
+  MikrotikStatusOptions,
   PppoeSecretInput,
   RouterCredentials,
   RouterStatus,
@@ -11,6 +12,7 @@ import {
   legacyIsolate,
   legacyListProfiles,
   legacyRemoveConnectionUser,
+  legacySnapshotConnections,
   legacyUpsertHotspotUser,
   legacyUpsertPppoeSecret,
 } from "./legacy";
@@ -20,6 +22,7 @@ import {
   restIsolate,
   restListProfiles,
   restRemoveConnectionUser,
+  restSnapshotConnections,
   restUpsertHotspotUser,
   restUpsertPppoeSecret,
 } from "./rest";
@@ -30,8 +33,8 @@ function isLegacyMode(r: RouterCredentials) {
 
 /** Implementasi Mikrotik: REST (RouterOS v7+) atau Legacy API (port 8728). */
 export const mikrotikReal: MikrotikClient = {
-  getStatus(r: RouterCredentials): Promise<RouterStatus> {
-    return isLegacyMode(r) ? legacyGetStatus(r) : restGetStatus(r);
+  getStatus(r: RouterCredentials, opts?: MikrotikStatusOptions): Promise<RouterStatus> {
+    return isLegacyMode(r) ? legacyGetStatus(r, opts) : restGetStatus(r, opts);
   },
   upsertPppoeSecret(r: RouterCredentials, input: PppoeSecretInput) {
     return isLegacyMode(r) ? legacyUpsertPppoeSecret(r, input) : restUpsertPppoeSecret(r, input);
@@ -50,5 +53,8 @@ export const mikrotikReal: MikrotikClient = {
   },
   removeConnectionUser(r, ref) {
     return isLegacyMode(r) ? legacyRemoveConnectionUser(r, ref) : restRemoveConnectionUser(r, ref);
+  },
+  snapshotConnections(r, type) {
+    return isLegacyMode(r) ? legacySnapshotConnections(r, type) : restSnapshotConnections(r, type);
   },
 };

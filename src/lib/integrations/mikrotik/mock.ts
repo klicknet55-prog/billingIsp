@@ -1,7 +1,9 @@
 import { createLogger } from "@/lib/logger";
 import type {
+  ConnectionSnapshot,
   HotspotUserInput,
   MikrotikClient,
+  MikrotikStatusOptions,
   PppoeSecretInput,
   RouterCredentials,
   RouterStatus,
@@ -11,7 +13,7 @@ const log = createLogger("mikrotik:mock");
 
 /** Implementasi simulasi Mikrotik tanpa router fisik. */
 export const mikrotikMock: MikrotikClient = {
-  async getStatus(router: RouterCredentials): Promise<RouterStatus> {
+  async getStatus(router: RouterCredentials, _opts?: MikrotikStatusOptions): Promise<RouterStatus> {
     log.debug(`getStatus ${router.ipAddress}`);
     // Simulasi: router dianggap online jika IP tidak diawali "10.99".
     const online = !router.ipAddress.startsWith("10.99");
@@ -45,5 +47,9 @@ export const mikrotikMock: MikrotikClient = {
   async removeConnectionUser(router, ref) {
     log.info(`removeConnectionUser ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
     return { removed: true, exists: true };
+  },
+  async snapshotConnections(_router, type): Promise<ConnectionSnapshot[]> {
+    log.debug(`snapshotConnections mock ${type}`);
+    return [];
   },
 };

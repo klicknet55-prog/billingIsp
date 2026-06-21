@@ -10,6 +10,7 @@ import {
   ListChecks,
   LogOut,
   type LucideIcon,
+  Map,
   Menu,
   Network,
   Package,
@@ -17,6 +18,7 @@ import {
   Router as RouterIcon,
   Settings,
   Ticket,
+  UserCheck,
   UserCog,
   Users,
   X,
@@ -47,12 +49,14 @@ const NAV: Record<string, NavItem[]> = {
   isp: [
     { href: "/isp", label: "Dashboard", icon: LayoutDashboard },
     { href: "/isp/pelanggan", label: "Pelanggan", icon: Users },
+    { href: "/isp/peta", label: "Peta", icon: Map },
     { href: "/isp/paket", label: "Paket Internet", icon: Package },
     { href: "/isp/router", label: "Router", icon: RouterIcon },
     { href: "/isp/invoice", label: "Invoice", icon: FileText },
     { href: "/isp/tiket", label: "Tiket", icon: Ticket },
     { href: "/isp/laporan", label: "Laporan", icon: BarChart3 },
     { href: "/isp/staf", label: "Staf", icon: UserCog },
+    { href: "/isp/kolektor-pelanggan", label: "Area Kolektor", icon: UserCheck },
     { href: "/isp/integrasi", label: "Integrasi", icon: Plug },
     { href: "/isp/pengaturan", label: "Pengaturan", icon: Settings },
   ],
@@ -89,6 +93,7 @@ export function AppShell({
   const items = NAV[variant].filter(
     (item) =>
       (item.href !== "/isp/staf" || userRole === "owner") &&
+      (item.href !== "/isp/kolektor-pelanggan" || userRole === "owner" || userRole === "admin") &&
       (item.href !== "/isp/integrasi" || userRole === "owner" || userRole === "admin")
       && (item.href !== "/isp/pengaturan" || userRole === "owner" || userRole === "admin")
   );

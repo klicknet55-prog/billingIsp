@@ -70,7 +70,11 @@ export function KolektorTasks({ tasks, namaUsaha }: { tasks: Task[]; namaUsaha: 
   }
 
   if (tasks.length === 0) {
-    return <p className="text-sm text-muted-foreground">Tidak ada tugas penagihan. Semua lunas.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        Tidak ada tugas penagihan di area Anda. Hubungi admin jika seharusnya ada tagihan.
+      </p>
+    );
   }
 
   return (

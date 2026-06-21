@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MapPinPicker } from "@/components/maps/map-pin-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -18,6 +19,13 @@ interface PaketOption {
   tipe: "pppoe" | "hotspot";
 }
 
+interface OdpOption {
+  id: string;
+  kode: string;
+  nama: string | null;
+  kapasitasPort: number;
+}
+
 function dateValue(d: Date | null | undefined): string {
   if (!d) return "";
   return new Date(d).toISOString().slice(0, 10);
@@ -27,10 +35,12 @@ export function PelangganFields({
   defaults,
   paketOptions,
   routerOptions,
+  odpOptions = [],
 }: {
   defaults?: Pelanggan;
   paketOptions: PaketOption[];
   routerOptions: RouterOption[];
+  odpOptions?: OdpOption[];
 }) {
   const [routerId, setRouterId] = useState(defaults?.routerId ?? "");
   const [paketId, setPaketId] = useState(defaults?.paketInternetId ?? "");
@@ -137,27 +147,31 @@ export function PelangganFields({
         <Input id="alamat" name="alamat" defaultValue={defaults?.alamat ?? ""} />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="latitude">Latitude</Label>
-        <Input
-          id="latitude"
-          name="latitude"
-          type="number"
-          step="any"
-          defaultValue={defaults?.latitude ?? ""}
-          placeholder="-6.2"
-        />
+        <Label htmlFor="odpId">ODP</Label>
+        <Select id="odpId" name="odpId" defaultValue={defaults?.odpId ?? ""}>
+          <option value="">- Tanpa ODP -</option>
+          {odpOptions.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.kode}
+              {o.nama ? ` — ${o.nama}` : ""} (max {o.kapasitasPort} port)
+            </option>
+          ))}
+        </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="longitude">Longitude</Label>
+        <Label htmlFor="odpPort">Port ODP</Label>
         <Input
-          id="longitude"
-          name="longitude"
-          type="number"
-          step="any"
-          defaultValue={defaults?.longitude ?? ""}
-          placeholder="106.8"
+          id="odpPort"
+          name="odpPort"
+          defaultValue={defaults?.odpPort ?? ""}
+          placeholder="P3"
         />
       </div>
+      <MapPinPicker
+        latitude={defaults?.latitude}
+        longitude={defaults?.longitude}
+        label="Lokasi pelanggan"
+      />
       <div className="space-y-2">
         <Label htmlFor="ipAddress">IP Address</Label>
         <Input id="ipAddress" name="ipAddress" defaultValue={defaults?.ipAddress ?? ""} />
