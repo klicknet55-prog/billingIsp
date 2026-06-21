@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DEFAULT_MAP_CENTER, getMapTileUrl } from "@/lib/maps/tile-url";
+import { fixLeafletDefaultIcons, mapPinDivIcon } from "@/lib/maps/leaflet-icons";
 
 interface MapPinPickerProps {
   latitude?: number | null;
@@ -38,7 +39,9 @@ export function MapPinPicker({
     if (!L || !mapRef.current) return;
 
     if (!markerRef.current) {
-      markerRef.current = L.marker([nextLat, nextLng]).addTo(mapRef.current);
+      markerRef.current = L.marker([nextLat, nextLng], { icon: mapPinDivIcon(L) }).addTo(
+        mapRef.current
+      );
     } else {
       markerRef.current.setLatLng([nextLat, nextLng]);
     }
@@ -56,6 +59,7 @@ export function MapPinPicker({
       if (cancelled || !containerRef.current || mapRef.current) return;
 
       const L = leafletModule;
+      fixLeafletDefaultIcons(L);
       leafletRef.current = L;
 
       const startLat = latitude ?? DEFAULT_MAP_CENTER.lat;
@@ -74,7 +78,7 @@ export function MapPinPicker({
       });
 
       if (latitude != null && longitude != null) {
-        markerRef.current = L.marker([latitude, longitude]).addTo(map);
+        markerRef.current = L.marker([latitude, longitude], { icon: mapPinDivIcon(L) }).addTo(map);
       }
 
       mapRef.current = map;

@@ -7,6 +7,7 @@ import type { MapOdpMarker, MapPelangganMarker, MapRouterMarker } from "@/featur
 import { MODEM_STATUS_COLOR, MODEM_STATUS_LABEL } from "@/features/maps/modem-status";
 import type { ModemMapStatus } from "@/lib/integrations/mikrotik/types";
 import { DEFAULT_MAP_CENTER, getMapTileUrl } from "@/lib/maps/tile-url";
+import { fixLeafletDefaultIcons } from "@/lib/maps/leaflet-icons";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -137,6 +138,8 @@ export function MapCanvas({
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
+
+    fixLeafletDefaultIcons(L);
 
     const map = L.map(containerRef.current).setView(
       [DEFAULT_MAP_CENTER.lat, DEFAULT_MAP_CENTER.lng],
