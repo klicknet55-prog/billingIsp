@@ -82,16 +82,8 @@ const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 
 let applied = 0;
-for (const patch of patches) {
-  if (hasColumn(db, patch.table, patch.column)) {
-    console.log(`[skip] ${patch.table}.${patch.column} sudah ada`);
-    continue;
-  }
-  db.exec(patch.sql);
-  applied++;
-  console.log(`[ok]   ${patch.table}.${patch.column} ditambahkan`);
-}
 
+/** Tabel ODP harus ada sebelum patch pelanggan.odp_id atau kolom odp.* */
 if (!hasTable(db, "odp")) {
   db.exec(`
     CREATE TABLE odp (
@@ -106,6 +98,8 @@ if (!hasTable(db, "odp")) {
       redaman_output_db REAL,
       splitter_pasif TEXT,
       kapasitas_port INTEGER NOT NULL DEFAULT 8,
+      input_router_id TEXT REFERENCES router(id),
+      input_odp_id TEXT REFERENCES odp(id),
       catatan TEXT,
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
@@ -114,6 +108,20 @@ if (!hasTable(db, "odp")) {
   `);
   applied++;
   console.log("[ok]   tabel odp dibuat");
+}
+
+for (const patch of patches) {
+  if (!hasTable(db, patch.table)) {
+    console.log(`[skip] ${patch.table} belum ada — lewati ${patch.column}`);
+    continue;
+  }
+  if (hasColumn(db, patch.table, patch.column)) {
+    console.log(`[skip] ${patch.table}.${patch.column} sudah ada`);
+    continue;
+  }
+  db.exec(patch.sql);
+  applied++;
+  console.log(`[ok]   ${patch.table}.${patch.column} ditambahkan`);
 }
 
 if (hasColumn(db, "paket_internet", "tipe") && hasColumn(db, "router", "tipe")) {
@@ -136,4 +144,4 @@ if (hasColumn(db, "paket_internet", "tipe") && hasColumn(db, "router", "tipe")) 
 }
 
 db.close();
-console.log(applied > 0 ? `Selesai — ${applied} kolom baru.` : "Selesai — tidak ada perubahan.");
+console.log(applied > 0 ? `Selesai — ${applied} perubahan schema.` : "Selesai — tidak ada perubahan.");
