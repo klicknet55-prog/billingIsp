@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import {
   invoices,
   kategoriPengeluaran,
+  odp,
   packageTenants,
   pelanggan,
   pengeluaran,
@@ -101,6 +102,7 @@ export async function deleteTenantIfInactive(id: string) {
     await tx.delete(tickets).where(eq(tickets.tenantId, id));
     await tx.delete(invoices).where(eq(invoices.tenantId, id));
     await tx.delete(pelanggan).where(eq(pelanggan.tenantId, id));
+    await tx.delete(odp).where(eq(odp.tenantId, id));
     await tx.delete(pengeluaran).where(eq(pengeluaran.tenantId, id));
     await tx.delete(kategoriPengeluaran).where(eq(kategoriPengeluaran.tenantId, id));
     await tx.delete(routers).where(eq(routers.tenantId, id));

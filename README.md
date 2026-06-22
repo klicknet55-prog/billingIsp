@@ -66,7 +66,7 @@ MAP_MODEM_CACHE_SECONDS=180
 | **Teknisi** | **teknisi@demo.net** | **password123** | Tiket, peta, pelanggan (2 tiket demo) |
 | Pelanggan | nomor `081200000001` | OTP di console server | Portal pelanggan |
 
-> **Production:** jangan jalankan `db:seed` jika sudah ada data live — seed menghapus tenant demo & menimpa akun demo.
+> **Production:** jangan jalankan `db:seed` jika sudah ada data live — seed **menghapus semua tenant & user** lalu mengisi ulang data demo. Backup `netmanage.db` dulu: `cp netmanage.db netmanage.db.bak.$(date +%F)`
 
 ## Deploy ke Server (Production)
 

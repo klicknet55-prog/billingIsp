@@ -9,16 +9,20 @@
  *  - Teknisi     : teknisi@demo.net    / password123
  *  - Pelanggan   : login OTP via nomor 081200000001 (kode tampil di console)
  */
-import { db } from "./index";
+import { eq } from "drizzle-orm";
+import { db, sqlite } from "./index";
 import {
   invoices,
   kategoriPengeluaran,
   odp,
+  otpCodes,
   packageTenants,
   paketInternet,
   paymentGatewayLogs,
   pelanggan,
+  pengeluaran,
   routers,
+  sessions,
   subscriptions,
   tenantDuitkuConfigs,
   tenantWhatsAppConfigs,
@@ -35,23 +39,34 @@ const PW = hashPassword("password123");
 const day = 24 * 60 * 60 * 1000;
 const now = Date.now();
 
+/**
+ * Kosongkan data demo / tenant (platform_settings & paket SaaS di-reset).
+ * FK dimatikan sementara agar urutan hapus aman di DB production yang sudah terisi.
+ */
 async function reset() {
-  // Hapus dengan urutan menghormati foreign key.
-  await db.delete(tenantWhatsAppConfigs);
-  await db.delete(tenantDuitkuConfigs);
-  await db.delete(paymentGatewayLogs);
-  await db.delete(ticketAssignments);
-  await db.delete(tickets);
-  await db.delete(invoices);
-  await db.delete(pelanggan);
-  await db.delete(odp);
-  await db.delete(paketInternet);
-  await db.delete(routers);
-  await db.delete(kategoriPengeluaran);
-  await db.delete(subscriptions);
-  await db.delete(users);
-  await db.delete(packageTenants);
-  await db.delete(tenants);
+  sqlite.pragma("foreign_keys = OFF");
+  try {
+    await db.delete(ticketAssignments);
+    await db.delete(tickets);
+    await db.delete(invoices);
+    await db.delete(pelanggan);
+    await db.delete(odp);
+    await db.delete(pengeluaran);
+    await db.delete(kategoriPengeluaran);
+    await db.delete(paketInternet);
+    await db.delete(routers);
+    await db.delete(paymentGatewayLogs);
+    await db.delete(tenantWhatsAppConfigs);
+    await db.delete(tenantDuitkuConfigs);
+    await db.delete(subscriptions);
+    await db.delete(sessions);
+    await db.delete(otpCodes);
+    await db.delete(users);
+    await db.delete(tenants);
+    await db.delete(packageTenants);
+  } finally {
+    sqlite.pragma("foreign_keys = ON");
+  }
 }
 
 async function main() {
@@ -181,10 +196,25 @@ async function main() {
     },
   ]);
 
-  // --- ODP demo (sekitar Jakarta) ---
+  // --- ODP demo (sekitar Jakarta); cabang dulu, induk terakhir ---
   const odp1Id = newId("odp");
   const odp2Id = newId("odp");
   await db.insert(odp).values([
+    {
+      id: odp2Id,
+      tenantId,
+      kode: "ODP-002",
+      nama: "Depan masjid",
+      latitude: -6.215,
+      longitude: 106.825,
+      splitterPasif: "1:4",
+      splitterRasio: "5:95",
+      redamanInputDb: -19.8,
+      redamanOutputDb: -22.1,
+      kapasitasPort: 4,
+      inputOdpId: null,
+      isActive: true,
+    },
     {
       id: odp1Id,
       tenantId,
@@ -200,22 +230,8 @@ async function main() {
       inputRouterId: routerId,
       isActive: true,
     },
-    {
-      id: odp2Id,
-      tenantId,
-      kode: "ODP-002",
-      nama: "Depan masjid",
-      latitude: -6.215,
-      longitude: 106.825,
-      splitterPasif: "1:4",
-      splitterRasio: "5:95",
-      redamanInputDb: -19.8,
-      redamanOutputDb: -22.1,
-      kapasitasPort: 4,
-      inputOdpId: odp1Id,
-      isActive: true,
-    },
   ]);
+  await db.update(odp).set({ inputOdpId: odp1Id }).where(eq(odp.id, odp2Id));
 
   // --- Pelanggan (dengan koordinat sekitar Jakarta) ---
   const custs = [
