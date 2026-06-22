@@ -25,6 +25,19 @@ export function SiteFooterContent({
         className
       )}
     >
+      <nav className="mb-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+        <Link href="/tentang" className="hover:text-foreground hover:underline">
+          Tentang
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/kontak" className="hover:text-foreground hover:underline">
+          Kontak
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/syarat-ketentuan" className="hover:text-foreground hover:underline">
+          Syarat & Ketentuan
+        </Link>
+      </nav>
       <p>
         © {year}{" "}
         <Link href={teamHref} className="font-medium text-foreground hover:underline">

@@ -318,6 +318,37 @@ export const otpCodes = sqliteTable("otp_code", {
 });
 
 // ---------------------------------------------------------------------------
+// Platform: halaman statis (Tentang, Kontak, Syarat & Ketentuan)
+// ---------------------------------------------------------------------------
+
+export const PLATFORM_SETTINGS_ID = "platform";
+
+export const platformSettings = sqliteTable("platform_settings", {
+  id: text("id").primaryKey(),
+  /** Nama brand platform (homepage, title browser, dll.) */
+  brandName: text("brand_name").notNull().default("BILLING RT-RW NET"),
+  /** Tagline / deskripsi singkat di homepage & metadata */
+  brandTagline: text("brand_tagline"),
+  /** URL logo platform (public/uploads/platform-logo/...) */
+  logoUrl: text("logo_url"),
+  ownerName: text("owner_name"),
+  ownerPhone: text("owner_phone"),
+  ownerEmail: text("owner_email"),
+  address: text("address"),
+  /** Link invite grup Telegram (https://t.me/...) */
+  telegramGroupUrl: text("telegram_group_url"),
+  tentangTitle: text("tentang_title").notNull(),
+  tentangContent: text("tentang_content").notNull(),
+  kontakTitle: text("kontak_title").notNull(),
+  kontakContent: text("kontak_content").notNull(),
+  /** Nomor WA support platform (format 628xxx) untuk tombol wa.me */
+  kontakWhatsapp: text("kontak_whatsapp"),
+  tcTitle: text("tc_title").notNull(),
+  tcContent: text("tc_content").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+// ---------------------------------------------------------------------------
 // Tipe turunan (untuk dipakai di service & komponen)
 // ---------------------------------------------------------------------------
 
@@ -337,3 +368,4 @@ export type PaymentGatewayLog = typeof paymentGatewayLogs.$inferSelect;
 export type TenantDuitkuConfig = typeof tenantDuitkuConfigs.$inferSelect;
 export type TenantWhatsAppConfig = typeof tenantWhatsAppConfigs.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
+export type PlatformSettings = typeof platformSettings.$inferSelect;

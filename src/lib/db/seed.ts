@@ -23,6 +23,8 @@ import {
   tenantDuitkuConfigs,
   tenantWhatsAppConfigs,
   tenants,
+  ticketAssignments,
+  tickets,
   users,
 } from "./schema";
 import { hashPassword } from "../auth/password";
@@ -38,8 +40,11 @@ async function reset() {
   await db.delete(tenantWhatsAppConfigs);
   await db.delete(tenantDuitkuConfigs);
   await db.delete(paymentGatewayLogs);
+  await db.delete(ticketAssignments);
+  await db.delete(tickets);
   await db.delete(invoices);
   await db.delete(pelanggan);
+  await db.delete(odp);
   await db.delete(paketInternet);
   await db.delete(routers);
   await db.delete(kategoriPengeluaran);
@@ -125,12 +130,13 @@ async function main() {
   const ownerId = newId("usr");
   const kolektorId = newId("usr");
   const kolektor2Id = newId("usr");
+  const teknisiId = newId("usr");
   await db.insert(users).values([
     { id: ownerId, tenantId, nama: "Budi Owner", email: "owner@demo.net", passwordHash: PW, role: "owner", phone: "628111111111" },
     { id: newId("usr"), tenantId, nama: "Andi Admin", email: "admin@demo.net", passwordHash: PW, role: "admin", phone: "628111111112" },
     { id: kolektorId, tenantId, nama: "Cipto Kolektor", email: "kolektor@demo.net", passwordHash: PW, role: "kolektor", phone: "628111111113" },
     { id: kolektor2Id, tenantId, nama: "Dewi Kolektor", email: "kolektor2@demo.net", passwordHash: PW, role: "kolektor", phone: "628111111115" },
-    { id: newId("usr"), tenantId, nama: "Doni Teknisi", email: "teknisi@demo.net", passwordHash: PW, role: "teknisi", phone: "628111111114" },
+    { id: teknisiId, tenantId, nama: "Doni Teknisi", email: "teknisi@demo.net", passwordHash: PW, role: "teknisi", phone: "628111111114" },
   ]);
 
   // --- Router (isi kredensial nyata via ISP → Router setelah seed) ---
@@ -265,6 +271,32 @@ async function main() {
     });
   }
 
+  // --- Tiket demo (ditugaskan ke teknisi) ---
+  const ticketOpenId = newId("tkt");
+  const ticketProgressId = newId("tkt");
+  await db.insert(tickets).values([
+    {
+      id: ticketOpenId,
+      tenantId,
+      pelangganId: custIds[2],
+      judul: "Internet lemot",
+      deskripsi: "Pelanggan melaporkan koneksi lambat sejak kemarin malam.",
+      status: "open",
+    },
+    {
+      id: ticketProgressId,
+      tenantId,
+      pelangganId: custIds[0],
+      judul: "Modem tidak sync",
+      deskripsi: "Lampu LOS berkedip merah, perlu cek jalur fiber dari ODP.",
+      status: "in_progress",
+    },
+  ]);
+  await db.insert(ticketAssignments).values([
+    { id: newId("tas"), ticketId: ticketOpenId, userId: teknisiId },
+    { id: newId("tas"), ticketId: ticketProgressId, userId: teknisiId },
+  ]);
+
   // --- Kategori pengeluaran ---
   await db.insert(kategoriPengeluaran).values([
     { id: newId("kat"), tenantId, nama: "Bandwidth" },
@@ -308,7 +340,15 @@ async function main() {
     });
   }
 
-  console.log("Seed selesai. Login: super@netmanage.app / owner@demo.net / kolektor@demo.net / kolektor2@demo.net (password123)");
+  console.log(
+    "Seed selesai.\n" +
+      "  Super Admin : super@netmanage.app / password123\n" +
+      "  Owner ISP   : owner@demo.net / password123\n" +
+      "  Admin ISP   : admin@demo.net / password123\n" +
+      "  Kolektor    : kolektor@demo.net / kolektor2@demo.net / password123\n" +
+      "  Teknisi     : teknisi@demo.net / password123 (2 tiket demo)\n" +
+      "  Pelanggan   : OTP via 081200000001 (kode di console server)"
+  );
 }
 
 main()

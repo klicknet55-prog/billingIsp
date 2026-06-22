@@ -1,16 +1,28 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { PwaRegister } from "@/components/pwa-register";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { ThemeScript } from "@/components/theme/theme-script";
+import { THEME_INIT_SCRIPT_SRC } from "@/components/theme/theme-script";
 import { ToastProvider } from "@/components/ui/toast";
+import { getPlatformBrand } from "@/features/platform-settings/service";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: `${DEFAULT_BRAND_NAME} — Manajemen ISP & RT-RW Net`,
-  description: "Platform billing & manajemen jaringan untuk ISP dan RT-RW Net.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const brand = await getPlatformBrand();
+    return {
+      title: `${brand.name} — Manajemen ISP & RT-RW Net`,
+      description: brand.tagline,
+    };
+  } catch {
+    return {
+      title: `${DEFAULT_BRAND_NAME} — Manajemen ISP & RT-RW Net`,
+      description: "Platform billing & manajemen jaringan untuk ISP dan RT-RW Net.",
+    };
+  }
+}
 
 export default async function RootLayout({
   children,
@@ -20,10 +32,8 @@ export default async function RootLayout({
 
   return (
     <html lang="id" suppressHydrationWarning>
-      <head>
-        <ThemeScript />
-      </head>
       <body className="min-h-screen antialiased">
+        <Script src={THEME_INIT_SCRIPT_SRC} strategy="beforeInteractive" />
         <ThemeProvider
           defaultPreset={tenant?.themePreset ?? "default"}
           defaultMode={tenant?.themeMode ?? "light"}

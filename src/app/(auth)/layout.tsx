@@ -1,16 +1,19 @@
-import { SiteBrand } from "@/components/layout/site-brand";
+import { PlatformSiteBrand } from "@/components/layout/platform-site-brand";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import { getPlatformBrand } from "@/features/platform-settings/service";
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const brand = await getPlatformBrand();
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between px-6 py-4">
-        <SiteBrand />
+        <PlatformSiteBrand />
         <ThemeSwitcher />
       </header>
       <main className="flex flex-1 items-center justify-center p-6">{children}</main>
-      <SiteFooter />
+      <SiteFooter brandName={brand.name} />
     </div>
   );
 }

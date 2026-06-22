@@ -25,11 +25,13 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { Button } from "@/components/ui/button";
 import { SiteFooterContent } from "@/components/layout/site-footer";
 import { logoutAction } from "@/features/auth/actions";
+import { SUPERADMIN_PENGATURAN_HREF } from "@/lib/superadmin-pengaturan-nav";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +47,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/superadmin/tenants", label: "Tenant", icon: Building2 },
     { href: "/superadmin/packages", label: "Paket SaaS", icon: Package },
     { href: "/superadmin/transactions", label: "Transaksi", icon: CreditCard },
+    { href: SUPERADMIN_PENGATURAN_HREF, label: "Pengaturan", icon: Settings },
   ],
   isp: [
     { href: "/isp", label: "Dashboard", icon: LayoutDashboard },
@@ -89,6 +92,11 @@ export function AppShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [navReady, setNavReady] = useState(false);
+
+  useEffect(() => {
+    setNavReady(true);
+  }, []);
   // Menu tertentu dibatasi per role.
   const items = NAV[variant].filter(
     (item) =>
@@ -98,8 +106,14 @@ export function AppShell({
       && (item.href !== "/isp/pengaturan" || userRole === "owner" || userRole === "admin")
   );
 
-  const isActive = (href: string) =>
-    href === `/${variant}` ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => {
+    if (href === SUPERADMIN_PENGATURAN_HREF) {
+      return pathname === href || pathname.startsWith(`${href}/`);
+    }
+    return href === `/${variant}` ? pathname === href : pathname.startsWith(href);
+  };
+
+  const linkActive = (href: string) => navReady && isActive(href);
 
   return (
     <div className="flex min-h-screen">
@@ -113,15 +127,7 @@ export function AppShell({
         <div className="flex h-14 items-center justify-between border-b px-4">
           <Link href={`/${variant}`} className="flex items-center gap-2 font-semibold">
             {brandLogoUrl ? (
-              // URL logo tenant (direkomendasikan aspect square).
-              <img
-                src={brandLogoUrl}
-                alt={brandName}
-                className="h-6 w-6 rounded-sm object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).style.display = "none";
-                }}
-              />
+              <BrandLogo logoUrl={brandLogoUrl} name={brandName} className="h-6 w-6 rounded-sm object-cover" />
             ) : (
               <Network className="text-primary" />
             )}
@@ -136,7 +142,7 @@ export function AppShell({
             <X />
           </Button>
         </div>
-        <nav className="space-y-1 p-3">
+        <nav className="space-y-1 p-3" suppressHydrationWarning>
           {items.map((item) => (
             <Link
               key={item.href}
@@ -144,7 +150,7 @@ export function AppShell({
               onClick={() => setOpen(false)}
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive(item.href)
+                linkActive(item.href)
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   ArrowRight,
   CreditCard,
@@ -8,11 +9,12 @@ import {
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import { SiteBrand } from "@/components/layout/site-brand";
+import { PlatformSiteBrand } from "@/components/layout/platform-site-brand";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { getPlatformBrand } from "@/features/platform-settings/service";
 
 const features = [
   { icon: Users, title: "Manajemen Pelanggan", desc: "Data, koordinat, paket, dan jatuh tempo dalam satu tempat." },
@@ -23,11 +25,21 @@ const features = [
   { icon: Network, title: "Multi-tenant", desc: "Data tiap ISP terisolasi dan aman." },
 ];
 
-export default function Home() {
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getPlatformBrand();
+  return {
+    title: `${brand.name} — Manajemen ISP & RT-RW Net`,
+    description: brand.tagline,
+  };
+}
+
+export default async function Home() {
+  const brand = await getPlatformBrand();
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b px-6 py-4">
-        <SiteBrand />
+        <PlatformSiteBrand />
         <div className="flex items-center gap-2">
           <ThemeSwitcher />
           <Button asChild variant="ghost" size="sm">
@@ -42,11 +54,10 @@ export default function Home() {
       <main className="flex-1">
         <section className="mx-auto max-w-5xl px-6 py-20 text-center">
           <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-            Managemen Billing & Jaringan ISP & RT-RW Net
+            {brand.name}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground">
-            Kelola pelanggan, billing, perangkat Mikrotik, penagihan lapangan, dan portal
-            pelanggan dalam satu platform.
+            {brand.tagline}
           </p>
           <div className="mt-8 flex justify-center gap-3">
             <Button asChild size="lg">
@@ -75,7 +86,7 @@ export default function Home() {
         </section>
       </main>
 
-      <SiteFooter />
+      <SiteFooter brandName={brand.name} />
     </div>
   );
 }

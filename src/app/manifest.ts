@@ -1,11 +1,22 @@
 import type { MetadataRoute } from "next";
+import { getPlatformBrand } from "@/features/platform-settings/service";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  let name = DEFAULT_BRAND_NAME;
+  let description = "Manajemen ISP & RT-RW Net";
+  try {
+    const brand = await getPlatformBrand();
+    name = brand.name;
+    description = brand.tagline;
+  } catch {
+    // fallback saat DB belum siap
+  }
+
   return {
-    name: DEFAULT_BRAND_NAME,
-    short_name: DEFAULT_BRAND_NAME,
-    description: "Manajemen ISP & RT-RW Net",
+    name,
+    short_name: name.length > 12 ? name.slice(0, 12) : name,
+    description,
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",

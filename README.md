@@ -7,7 +7,7 @@ Platform SaaS billing & manajemen jaringan untuk ISP dan RT-RW Net (proyek inter
 - Multi-tenant dengan isolasi data per ISP (`tenant_id` di semua tabel).
 - 4 area peran: Super Admin, Owner/Admin ISP, Kolektor (PWA), Portal Pelanggan.
 - Auth: email/password untuk staf, OTP passwordless (WhatsApp) untuk pelanggan.
-- Modul ISP: pelanggan (+koordinat), paket internet, router Mikrotik, invoice, helpdesk tiket, laporan keuangan (ekspor CSV).
+- Modul ISP: pelanggan (+koordinat, ODP), paket internet, router Mikrotik, **peta ODP** (Leaflet/OSM), invoice, helpdesk tiket, laporan keuangan (ekspor CSV).
 - **Paket internet**: mapping ke router Mikrotik + profile PPPoE/Hotspot (load dari router).
 - **Pelanggan**: pilih paket sesuai router; sinkron user ke Mikrotik saat create/edit; hapus dengan modal multi-tahap (Mikrotik + invoice + tiket).
 - **Router Mikrotik**: CRUD per tenant, cek status, mode REST (RouterOS v7+) atau Legacy API (8728).
@@ -16,7 +16,8 @@ Platform SaaS billing & manajemen jaringan untuk ISP dan RT-RW Net (proyek inter
 - Tema warna dinamis (6 preset) + mode terang/gelap, tersimpan per perangkat & default per tenant.
 - Integrasi via pola adapter + mock (Mikrotik, Duitku, WhatsApp, Maps) — berjalan penuh tanpa kredensial.
 - Background worker (cron): generate invoice bulanan, reminder jatuh tempo + link bayar, isolasi otomatis.
-- PWA: manifest + service worker (offline dasar).
+- **Peta ISP** (`/isp/peta`): marker ODP & pelanggan, status modem Mikrotik, jalur fiber router→ODP→pelanggan.
+- **Platform (Super Admin)**: brand/logo, pemilik, alamat, link Telegram, halaman statis (Tentang, Kontak, T&C).
 
 ## Teknologi
 
@@ -33,8 +34,9 @@ Platform SaaS billing & manajemen jaringan untuk ISP dan RT-RW Net (proyek inter
 ```bash
 npm install
 cp .env.example .env          # sesuaikan bila perlu
-npm run db:push               # buat / update skema database
-npm run db:seed               # isi data demo (opsional)
+npm run db:push               # buat / update skema database (dev)
+npm run db:ensure-schema      # patch kolom/tabel idempotent (dev & production)
+npm run db:seed               # isi data demo (opsional; hapus data tenant demo lama)
 npm run db:backfill-integrations  # copy credential env global -> config tenant (idempotent)
 npm run dev                   # http://localhost:3000
 ```
@@ -46,40 +48,56 @@ MIKROTIK_DRIVER=real          # mock | real
 MIKROTIK_TLS_INSECURE=true    # wajib jika akses router via IP + sertifikat self-signed
 DATABASE_URL=./netmanage.db
 AUTH_SECRET=...               # ganti di production
+NEXT_PUBLIC_MAP_TILE_URL=https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+MAP_MODEM_CACHE_SECONDS=180
 ```
 
 **Kredensial router Mikrotik** disimpan per tenant di menu **ISP → Router**, bukan di `.env`.
 
-### Akun demo
+### Akun demo (setelah `npm run db:seed`)
 
-| Peran | Login | Sandi |
-|-------|-------|-------|
-| Super Admin | super@netmanage.app | password123 |
-| Owner ISP | owner@demo.net | password123 |
-| Admin ISP | admin@demo.net | password123 |
-| Kolektor | kolektor@demo.net | password123 |
-| Pelanggan | nomor `081200000001` (OTP muncul di console server) | - |
+| Peran | Login | Sandi | Catatan |
+|-------|-------|-------|---------|
+| Super Admin | super@netmanage.app | password123 | Menu Pengaturan platform |
+| Owner ISP | owner@demo.net | password123 | Akses penuh tenant demo |
+| Admin ISP | admin@demo.net | password123 | |
+| Kolektor | kolektor@demo.net | password123 | Tugas penagihan |
+| Kolektor 2 | kolektor2@demo.net | password123 | Area kolektor terpisah |
+| **Teknisi** | **teknisi@demo.net** | **password123** | Tiket, peta, pelanggan (2 tiket demo) |
+| Pelanggan | nomor `081200000001` | OTP di console server | Portal pelanggan |
+
+> **Production:** jangan jalankan `db:seed` jika sudah ada data live — seed menghapus tenant demo & menimpa akun demo.
 
 ## Deploy ke Server (Production)
 
 Aplikasi ini berjalan sebagai **Node.js** (bukan Apache/PHP XAMPP). Contoh deploy di VPS Linux dengan domain `https://isp.tunnelhost.my.id`.
 
+Path production contoh: `/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id`
+
 ### 1. Clone / pull kode
 
 ```bash
-cd /var/www/billingisp
+cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
 git fetch origin
 git checkout netmanage-implementation   # atau branch production Anda
 git pull origin netmanage-implementation
 ```
 
-### 2. Install & build
+### 2. Install, schema & build
 
 ```bash
 npm ci
+npm run db:ensure-schema     # wajib — patch tabel/kolom (odp, platform_settings, dll.)
 npm run build
-npm run db:push              # jalankan jika schema DB berubah
 ```
+
+Opsional **hanya server baru / staging kosong**:
+
+```bash
+npm run db:seed              # akun demo termasuk teknisi@demo.net
+```
+
+> Production dengan data live: **jangan** `db:seed`. Cukup `db:ensure-schema` setiap deploy.
 
 ### 3. Konfigurasi `.env` production
 
@@ -140,13 +158,25 @@ HTTPS: `sudo certbot --nginx -d isp.tunnelhost.my.id`
 ### 6. Update rutin setelah `git push`
 
 ```bash
-cd /var/www/billingisp
+cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
 git pull origin netmanage-implementation
 npm ci
+npm run db:ensure-schema
 npm run build
-npm run db:push              # jika ada perubahan schema
 pm2 restart billingisp
 ```
+
+### 6b. Checklist verifikasi deploy
+
+| Cek | URL / perintah |
+|-----|----------------|
+| Homepage & brand | `/` |
+| Halaman statis | `/tentang`, `/kontak`, `/syarat-ketentuan` |
+| Superadmin pengaturan | `/superadmin/pengaturan` |
+| Peta ODP | `/isp/peta` (login owner) |
+| Teknisi | `teknisi@demo.net` → `/isp/tiket` |
+| Cron billing | `npm run cron:test` atau `curl .../api/cron` |
+| Log PM2 | `pm2 logs billingisp --lines 30` |
 
 ### 7. Pasang cron (wajib production)
 
