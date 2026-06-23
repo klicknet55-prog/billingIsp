@@ -241,15 +241,15 @@ Tab baru **"Backup & Restore"** di `/isp/pengaturan`:
 
 ### 1.8 Checklist implementasi Fase 1
 
-- [ ] `features/backup/*` — export tenant ke JSON
-- [ ] Server action download (Content-Disposition attachment)
-- [ ] Import preview + merge + replace dengan transaction
-- [ ] Auto-snapshot sebelum replace
-- [ ] UI tab Backup di `/isp/pengaturan`
-- [ ] Superadmin: halaman backup full SQLite + download
-- [ ] Script CLI `backup:tenant` dan `backup:full`
-- [ ] `.gitignore` → `data/backups/**`, `*.db.bak`
-- [ ] README: cara backup manual + restore
+- [x] `features/backup/*` — export tenant ke JSON
+- [x] Server action download (base64 attachment via browser)
+- [x] Import preview + merge + replace dengan transaction
+- [x] Auto-snapshot sebelum replace
+- [x] UI tab Backup di `/isp/pengaturan`
+- [x] Superadmin: halaman backup full SQLite + download
+- [x] Script CLI `backup:tenant` dan `backup:full`
+- [x] `.gitignore` → `data/backups/**`, `*.db.bak`
+- [x] README: cara backup manual + restore
 - [ ] Test: export → hapus pelanggan → restore merge → data kembali
 
 ### 1.9 Sub-fase opsional (1b — setelah 1a stabil)

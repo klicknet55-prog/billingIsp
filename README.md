@@ -68,6 +68,31 @@ MAP_MODEM_CACHE_SECONDS=180
 
 > **Production:** jangan jalankan `db:seed` jika sudah ada data live — seed **menghapus semua tenant & user** lalu mengisi ulang data demo. Backup `netmanage.db` dulu: `cp netmanage.db netmanage.db.bak.$(date +%F)`
 
+## Backup & Restore (Fase 1)
+
+### Owner / Admin ISP — menu **Pengaturan → Backup & Restore**
+
+- **Export:** unduh file `.netmanage.json` (gzip otomatis jika lebih dari 500 pelanggan).
+- **Restore (owner saja):** upload → pratinjau → **Gabungkan** (skip ID duplikat) atau **Ganti semua data** (wajib ketik nama usaha; snapshot otomatis di server).
+- **Admin** hanya bisa export, tidak restore.
+- Batas: 3 restore per tenant per 24 jam.
+
+### Super Admin — menu **Backup**
+
+Unduh snapshot SQLite penuh (`.db`) via `better-sqlite3` `.backup()`.
+
+### CLI (SSH / cron)
+
+```bash
+# Backup satu tenant (tenant ID dari DB atau URL superadmin)
+npm run backup:tenant -- --tenant-id=ten_demo --gzip
+
+# Backup database penuh
+npm run backup:full
+```
+
+File disimpan di `data/backups/` (di-gitignore). Restore tenant via UI, bukan CLI.
+
 ## Deploy ke Server (Production)
 
 Aplikasi ini berjalan sebagai **Node.js** (bukan Apache/PHP XAMPP). Contoh deploy di VPS Linux dengan domain `https://isp.tunnelhost.my.id`.

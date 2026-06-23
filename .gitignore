@@ -12,3 +12,6 @@ build
 drizzle/meta
 .DS_Store
 public/uploads/
+data/backups/**
+!data/backups/.gitkeep
+*.db.bak

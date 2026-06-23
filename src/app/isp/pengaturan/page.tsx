@@ -1,4 +1,3 @@
-import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -14,12 +13,7 @@ export default async function PengaturanPage() {
     : null;
 
   return (
-    <>
-      <PageHeader
-        title="Pengaturan"
-        description="Kelola profil admin dan profil perusahaan."
-      />
-      <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Profil Admin</CardTitle>
@@ -47,9 +41,8 @@ export default async function PengaturanPage() {
               }}
             />
           </CardContent>
-        </Card>
-      </div>
-    </>
+      </Card>
+    </div>
   );
 }
 

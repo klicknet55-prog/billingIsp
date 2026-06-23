@@ -6,6 +6,7 @@ import {
   CreditCard,
   ChevronDown,
   FileText,
+  HardDrive,
   LayoutDashboard,
   ListChecks,
   LogOut,
@@ -48,6 +49,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/superadmin/packages", label: "Paket SaaS", icon: Package },
     { href: "/superadmin/transactions", label: "Transaksi", icon: CreditCard },
     { href: SUPERADMIN_PENGATURAN_HREF, label: "Pengaturan", icon: Settings },
+    { href: "/superadmin/backup", label: "Backup", icon: HardDrive },
   ],
   isp: [
     { href: "/isp", label: "Dashboard", icon: LayoutDashboard },

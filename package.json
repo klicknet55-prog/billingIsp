@@ -14,7 +14,9 @@
     "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
     "db:seed-cron-test": "tsx --env-file=.env src/lib/db/seed-cron-test.ts --seed-only",
     "cron:test": "tsx --env-file=.env src/lib/db/seed-cron-test.ts",
-    "db:backfill-integrations": "tsx --env-file=.env src/lib/db/backfill-tenant-integrations.ts"
+    "db:backfill-integrations": "tsx --env-file=.env src/lib/db/backfill-tenant-integrations.ts",
+    "backup:tenant": "tsx --env-file=.env scripts/backup-tenant.ts",
+    "backup:full": "tsx --env-file=.env scripts/backup-full.ts"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",
