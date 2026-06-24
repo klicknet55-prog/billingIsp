@@ -1,7 +1,8 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { getTenantSubscriptionStatus } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
-import { DEFAULT_BRAND_NAME, getAppOrigin } from "@/lib/site";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
+import { getAppOrigin } from "@/lib/site-server";
 import { getCurrentTenant } from "@/lib/tenant";
 import { formatDate } from "@/lib/utils";
 

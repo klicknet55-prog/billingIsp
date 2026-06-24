@@ -124,42 +124,42 @@ export async function exportTenantBackup(tenantId: string): Promise<TenantBackup
 
 /** Hapus data operasional tenant (pertahankan baris tenant & langganan SaaS). */
 export async function clearTenantOperationalData(
-  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  client: typeof db,
   tenantId: string
 ) {
-  const tenantUsers = await tx.query.users.findMany({
+  const tenantUsers = await client.query.users.findMany({
     where: eq(users.tenantId, tenantId),
     columns: { id: true },
   });
   const userIds = tenantUsers.map((u) => u.id);
 
-  const tenantTicketRows = await tx.query.tickets.findMany({
+  const tenantTicketRows = await client.query.tickets.findMany({
     where: eq(tickets.tenantId, tenantId),
     columns: { id: true },
   });
   const ticketIds = tenantTicketRows.map((t) => t.id);
 
   if (ticketIds.length > 0) {
-    await tx.delete(ticketAssignments).where(inArray(ticketAssignments.ticketId, ticketIds));
+    await client.delete(ticketAssignments).where(inArray(ticketAssignments.ticketId, ticketIds));
   }
   if (userIds.length > 0) {
-    await tx.delete(ticketAssignments).where(inArray(ticketAssignments.userId, userIds));
+    await client.delete(ticketAssignments).where(inArray(ticketAssignments.userId, userIds));
   }
 
-  await tx.delete(tickets).where(eq(tickets.tenantId, tenantId));
-  await tx.delete(invoices).where(eq(invoices.tenantId, tenantId));
-  await tx.delete(pelanggan).where(eq(pelanggan.tenantId, tenantId));
-  await tx.delete(odp).where(eq(odp.tenantId, tenantId));
-  await tx.delete(pengeluaran).where(eq(pengeluaran.tenantId, tenantId));
-  await tx.delete(kategoriPengeluaran).where(eq(kategoriPengeluaran.tenantId, tenantId));
-  await tx.delete(paketInternet).where(eq(paketInternet.tenantId, tenantId));
-  await tx.delete(routers).where(eq(routers.tenantId, tenantId));
-  await tx
+  await client.delete(tickets).where(eq(tickets.tenantId, tenantId));
+  await client.delete(invoices).where(eq(invoices.tenantId, tenantId));
+  await client.delete(pelanggan).where(eq(pelanggan.tenantId, tenantId));
+  await client.delete(odp).where(eq(odp.tenantId, tenantId));
+  await client.delete(pengeluaran).where(eq(pengeluaran.tenantId, tenantId));
+  await client.delete(kategoriPengeluaran).where(eq(kategoriPengeluaran.tenantId, tenantId));
+  await client.delete(paketInternet).where(eq(paketInternet.tenantId, tenantId));
+  await client.delete(routers).where(eq(routers.tenantId, tenantId));
+  await client
     .delete(paymentGatewayLogs)
     .where(
       and(eq(paymentGatewayLogs.tenantId, tenantId), eq(paymentGatewayLogs.referenceType, "invoice"))
     );
-  await tx.delete(tenantDuitkuConfigs).where(eq(tenantDuitkuConfigs.tenantId, tenantId));
-  await tx.delete(tenantWhatsAppConfigs).where(eq(tenantWhatsAppConfigs.tenantId, tenantId));
-  await tx.delete(users).where(eq(users.tenantId, tenantId));
+  await client.delete(tenantDuitkuConfigs).where(eq(tenantDuitkuConfigs.tenantId, tenantId));
+  await client.delete(tenantWhatsAppConfigs).where(eq(tenantWhatsAppConfigs.tenantId, tenantId));
+  await client.delete(users).where(eq(users.tenantId, tenantId));
 }

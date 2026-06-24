@@ -1,6 +1,6 @@
 import "server-only";
 import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
+import { db, sqlite } from "@/lib/db";
 import {
   invoices,
   kategoriPengeluaran,
@@ -58,9 +58,9 @@ export function backupToPreview(backup: TenantBackupPayload): BackupPreview {
   };
 }
 
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type DbClient = typeof db;
 
-async function insertAll(tx: Tx, backup: TenantBackupPayload, merge: boolean) {
+async function insertAll(client: DbClient, backup: TenantBackupPayload, merge: boolean) {
   const d = backup.data;
   const inserted: Partial<TenantBackupCounts> = {};
   const skipped: Partial<TenantBackupCounts> = {};
@@ -74,7 +74,7 @@ async function insertAll(tx: Tx, backup: TenantBackupPayload, merge: boolean) {
 
   if (!merge) {
     const t = deserializeRow(d.tenant);
-    await tx
+    await client
       .update(tenants)
       .set({
         namaUsaha: String(t.namaUsaha ?? ""),
@@ -110,37 +110,37 @@ async function insertAll(tx: Tx, backup: TenantBackupPayload, merge: boolean) {
 
   await insertRows("users", d.users, async (row) => {
     if (merge) {
-      await tx.insert(users).values(row as typeof users.$inferInsert).onConflictDoNothing();
+      await client.insert(users).values(row as typeof users.$inferInsert).onConflictDoNothing();
     } else {
-      await tx.insert(users).values(row as typeof users.$inferInsert);
+      await client.insert(users).values(row as typeof users.$inferInsert);
     }
   });
 
   await insertRows("routers", d.routers, async (row) => {
     if (merge) {
-      await tx.insert(routers).values(row as typeof routers.$inferInsert).onConflictDoNothing();
+      await client.insert(routers).values(row as typeof routers.$inferInsert).onConflictDoNothing();
     } else {
-      await tx.insert(routers).values(row as typeof routers.$inferInsert);
+      await client.insert(routers).values(row as typeof routers.$inferInsert);
     }
   });
 
   await insertRows("paketInternet", d.paketInternet, async (row) => {
     if (merge) {
-      await tx
+      await client
         .insert(paketInternet)
         .values(row as typeof paketInternet.$inferInsert)
         .onConflictDoNothing();
     } else {
-      await tx.insert(paketInternet).values(row as typeof paketInternet.$inferInsert);
+      await client.insert(paketInternet).values(row as typeof paketInternet.$inferInsert);
     }
   });
 
   await insertRows("odp", d.odp, async (row) => {
     const payload = { ...row, inputOdpId: null, inputRouterId: row.inputRouterId ?? null };
     if (merge) {
-      await tx.insert(odp).values(payload as typeof odp.$inferInsert).onConflictDoNothing();
+      await client.insert(odp).values(payload as typeof odp.$inferInsert).onConflictDoNothing();
     } else {
-      await tx.insert(odp).values(payload as typeof odp.$inferInsert);
+      await client.insert(odp).values(payload as typeof odp.$inferInsert);
     }
   });
 
@@ -149,75 +149,75 @@ async function insertAll(tx: Tx, backup: TenantBackupPayload, merge: boolean) {
     const inputOdpId = row.inputOdpId ? String(row.inputOdpId) : null;
     const inputRouterId = row.inputRouterId ? String(row.inputRouterId) : null;
     if (inputOdpId || inputRouterId) {
-      await tx.update(odp).set({ inputOdpId, inputRouterId }).where(eq(odp.id, id));
+      await client.update(odp).set({ inputOdpId, inputRouterId }).where(eq(odp.id, id));
     }
   }
 
   await insertRows("pelanggan", d.pelanggan, async (row) => {
     if (merge) {
-      await tx.insert(pelanggan).values(row as typeof pelanggan.$inferInsert).onConflictDoNothing();
+      await client.insert(pelanggan).values(row as typeof pelanggan.$inferInsert).onConflictDoNothing();
     } else {
-      await tx.insert(pelanggan).values(row as typeof pelanggan.$inferInsert);
+      await client.insert(pelanggan).values(row as typeof pelanggan.$inferInsert);
     }
   });
 
   await insertRows("invoices", d.invoices, async (row) => {
     if (merge) {
-      await tx.insert(invoices).values(row as typeof invoices.$inferInsert).onConflictDoNothing();
+      await client.insert(invoices).values(row as typeof invoices.$inferInsert).onConflictDoNothing();
     } else {
-      await tx.insert(invoices).values(row as typeof invoices.$inferInsert);
+      await client.insert(invoices).values(row as typeof invoices.$inferInsert);
     }
   });
 
   await insertRows("kategoriPengeluaran", d.kategoriPengeluaran, async (row) => {
     if (merge) {
-      await tx
+      await client
         .insert(kategoriPengeluaran)
         .values(row as typeof kategoriPengeluaran.$inferInsert)
         .onConflictDoNothing();
     } else {
-      await tx.insert(kategoriPengeluaran).values(row as typeof kategoriPengeluaran.$inferInsert);
+      await client.insert(kategoriPengeluaran).values(row as typeof kategoriPengeluaran.$inferInsert);
     }
   });
 
   await insertRows("pengeluaran", d.pengeluaran, async (row) => {
     if (merge) {
-      await tx.insert(pengeluaran).values(row as typeof pengeluaran.$inferInsert).onConflictDoNothing();
+      await client.insert(pengeluaran).values(row as typeof pengeluaran.$inferInsert).onConflictDoNothing();
     } else {
-      await tx.insert(pengeluaran).values(row as typeof pengeluaran.$inferInsert);
+      await client.insert(pengeluaran).values(row as typeof pengeluaran.$inferInsert);
     }
   });
 
   await insertRows("tickets", d.tickets, async (row) => {
     if (merge) {
-      await tx.insert(tickets).values(row as typeof tickets.$inferInsert).onConflictDoNothing();
+      await client.insert(tickets).values(row as typeof tickets.$inferInsert).onConflictDoNothing();
     } else {
-      await tx.insert(tickets).values(row as typeof tickets.$inferInsert);
+      await client.insert(tickets).values(row as typeof tickets.$inferInsert);
     }
   });
 
   await insertRows("ticketAssignments", d.ticketAssignments, async (row) => {
     if (merge) {
-      await tx
+      await client
         .insert(ticketAssignments)
         .values(row as typeof ticketAssignments.$inferInsert)
         .onConflictDoNothing();
     } else {
-      await tx.insert(ticketAssignments).values(row as typeof ticketAssignments.$inferInsert);
+      await client.insert(ticketAssignments).values(row as typeof ticketAssignments.$inferInsert);
     }
   });
 
   if (d.tenantDuitkuConfig) {
     if (!merge) {
-      await tx
+      await client
         .insert(tenantDuitkuConfigs)
         .values(deserializeRow(d.tenantDuitkuConfig) as typeof tenantDuitkuConfigs.$inferInsert);
     } else {
-      const exists = await tx.query.tenantDuitkuConfigs.findFirst({
+      const exists = await client.query.tenantDuitkuConfigs.findFirst({
         where: eq(tenantDuitkuConfigs.tenantId, backup.tenantId),
       });
       if (!exists) {
-        await tx
+        await client
           .insert(tenantDuitkuConfigs)
           .values(deserializeRow(d.tenantDuitkuConfig) as typeof tenantDuitkuConfigs.$inferInsert);
       }
@@ -226,15 +226,15 @@ async function insertAll(tx: Tx, backup: TenantBackupPayload, merge: boolean) {
 
   if (d.tenantWhatsAppConfig) {
     if (!merge) {
-      await tx
+      await client
         .insert(tenantWhatsAppConfigs)
         .values(deserializeRow(d.tenantWhatsAppConfig) as typeof tenantWhatsAppConfigs.$inferInsert);
     } else {
-      const exists = await tx.query.tenantWhatsAppConfigs.findFirst({
+      const exists = await client.query.tenantWhatsAppConfigs.findFirst({
         where: eq(tenantWhatsAppConfigs.tenantId, backup.tenantId),
       });
       if (!exists) {
-        await tx
+        await client
           .insert(tenantWhatsAppConfigs)
           .values(deserializeRow(d.tenantWhatsAppConfig) as typeof tenantWhatsAppConfigs.$inferInsert);
       }
@@ -256,11 +256,20 @@ export async function restoreTenantBackup(
     snapshotPath = await saveTenantSnapshot(tenantId, "pre-restore");
   }
 
-  return db.transaction(async (tx) => {
+  sqlite.exec("BEGIN IMMEDIATE");
+  try {
     if (mode === "replace") {
-      await clearTenantOperationalData(tx, tenantId);
+      await clearTenantOperationalData(db, tenantId);
     }
-    const { inserted, skipped } = await insertAll(tx, backup, mode === "merge");
+    const { inserted, skipped } = await insertAll(db, backup, mode === "merge");
+    sqlite.exec("COMMIT");
     return { mode, inserted, skipped, snapshotPath };
-  });
+  } catch (err) {
+    try {
+      sqlite.exec("ROLLBACK");
+    } catch {
+      /* koneksi sudah di-rollback */
+    }
+    throw err;
+  }
 }

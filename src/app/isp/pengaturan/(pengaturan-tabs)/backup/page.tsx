@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { tenants } from "@/lib/db/schema";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { eq } from "drizzle-orm";
-import { BackupPanel } from "../backup-panel";
+import { BackupPanel } from "@/components/isp/backup-panel";
 
 export default async function BackupPengaturanPage() {
   const user = await requireUser(["owner", "admin"]);

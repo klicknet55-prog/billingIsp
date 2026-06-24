@@ -30,10 +30,12 @@ import { getMapsClient } from "@/lib/integrations/maps";
 export default async function PelangganPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; routerId?: string }>;
+  searchParams: Promise<{ error?: string; success?: string; warn?: string; routerId?: string }>;
 }) {
   const qs = await searchParams;
   const error = qs.error ? decodeURIComponent(qs.error) : "";
+  const success = qs.success ? decodeURIComponent(qs.success) : "";
+  const warn = qs.warn ? decodeURIComponent(qs.warn) : "";
   const routerId = qs.routerId ? decodeURIComponent(qs.routerId) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
@@ -78,6 +80,16 @@ export default async function PelangganPage({
         }
       />
 
+      {success && (
+        <Card className="mb-4 border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="p-3 text-sm text-emerald-700 dark:text-emerald-400">{success}</CardContent>
+        </Card>
+      )}
+      {warn && (
+        <Card className="mb-4 border-amber-500/30 bg-amber-500/5">
+          <CardContent className="p-3 text-sm text-amber-800 dark:text-amber-300">{warn}</CardContent>
+        </Card>
+      )}
       {error && (
         <Card className="mb-4 border-destructive/30 bg-destructive/5">
           <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>

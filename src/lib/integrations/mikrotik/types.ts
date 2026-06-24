@@ -57,7 +57,7 @@ export interface MikrotikClient {
   ): Promise<string[]>;
   upsertPppoeSecret(router: RouterCredentials, input: PppoeSecretInput): Promise<void>;
   upsertHotspotUser(router: RouterCredentials, input: HotspotUserInput): Promise<void>;
-  /** Isolir pelanggan (mis. pindah ke profile "isolir"). */
+  /** Isolir pelanggan: putus sesi aktif + disable user di Mikrotik. */
   isolate(
     router: RouterCredentials,
     ref: { connectionType: "pppoe" | "hotspot"; username: string }
@@ -72,6 +72,11 @@ export interface MikrotikClient {
     router: RouterCredentials,
     ref: { connectionType: "pppoe" | "hotspot"; username: string }
   ): Promise<{ removed: boolean; exists: boolean }>;
+  /** Cek apakah username PPPoE/Hotspot sudah ada di router. */
+  connectionUserExists(
+    router: RouterCredentials,
+    ref: { connectionType: "pppoe" | "hotspot"; username: string }
+  ): Promise<boolean>;
   /** Snapshot secret/user + sesi aktif per router (batch, bukan per pelanggan). */
   snapshotConnections(
     router: RouterCredentials,

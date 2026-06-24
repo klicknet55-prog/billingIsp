@@ -46,13 +46,19 @@ function parseInput(formData: FormData): PelangganInput {
 
 export async function createPelangganAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
+  let result: Awaited<ReturnType<typeof createPelanggan>>;
   try {
-    await createPelanggan(user.tenantId!, parseInput(formData), user.id);
+    result = await createPelanggan(user.tenantId!, parseInput(formData), user.id);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah pelanggan.";
     redirect(`/isp/pelanggan?error=${encodeURIComponent(msg)}`);
   }
+
   revalidatePath("/isp/pelanggan");
+  if (result.mikrotikWarning) {
+    redirect(`/isp/pelanggan?warn=${encodeURIComponent(result.mikrotikWarning)}`);
+  }
+  redirect(`/isp/pelanggan?success=${encodeURIComponent("Pelanggan berhasil ditambahkan.")}`);
 }
 
 export async function updatePelangganAction(formData: FormData) {
@@ -74,9 +80,20 @@ export async function deletePelangganCompleteAction(id: string): Promise<{
 }> {
   const user = await requireUser(ISP_ROLES);
   const tenantId = user.tenantId!;
-  const mikrotik = await removePelangganFromMikrotik(tenantId, id);
+  let mikrotik: DeletePelangganStepResult;
+  try {
+    mikrotik = await removePelangganFromMikrotik(tenantId, id);
+  } catch (err) {
+    mikrotik = {
+      ok: false,
+      message: err instanceof Error ? err.message : "Gagal menghapus user di Mikrotik.",
+    };
+  }
   try {
     const stats = await deletePelangganRecords(tenantId, id);
+    revalidatePath("/isp/pelanggan");
+    revalidatePath("/isp/invoice");
+    revalidatePath("/isp/tiket");
     return { mikrotik, records: { ok: true, stats } };
   } catch (err) {
     return {

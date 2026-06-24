@@ -34,7 +34,9 @@ export const mikrotikMock: MikrotikClient = {
     );
   },
   async isolate(router, ref) {
-    log.info(`isolate ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
+    log.info(
+      `isolate ${ref.connectionType}:${ref.username} @ ${router.ipAddress} (kick active + disable)`
+    );
   },
   async activate(router, ref) {
     log.info(`activate ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
@@ -47,6 +49,10 @@ export const mikrotikMock: MikrotikClient = {
   async removeConnectionUser(router, ref) {
     log.info(`removeConnectionUser ${ref.connectionType}:${ref.username} @ ${router.ipAddress}`);
     return { removed: true, exists: true };
+  },
+  async connectionUserExists(_router, ref) {
+    log.debug(`connectionUserExists ${ref.connectionType}:${ref.username}`);
+    return true;
   },
   async snapshotConnections(_router, type): Promise<ConnectionSnapshot[]> {
     log.debug(`snapshotConnections mock ${type}`);

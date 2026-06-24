@@ -22,29 +22,43 @@ const routerSchema = z.object({
 export async function createRouterAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
   const nama = String(formData.get("nama") ?? "").trim();
+  const input = {
+    nama,
+    connectionMode: (String(formData.get("connectionMode") ?? "rest") as "rest" | "legacy_api"),
+    ipAddress: String(formData.get("ipAddress") ?? "").trim(),
+    apiPort: String(formData.get("apiPort") ?? "443").trim(),
+    username: String(formData.get("username") ?? "").trim(),
+    password: String(formData.get("password") ?? ""),
+  };
+
+  let id: string;
   try {
-    const id = await createRouter(user.tenantId!, {
-      nama,
-      connectionMode: (String(formData.get("connectionMode") ?? "rest") as
-        | "rest"
-        | "legacy_api"),
-      ipAddress: String(formData.get("ipAddress") ?? "").trim(),
-      apiPort: String(formData.get("apiPort") ?? "443").trim(),
-      username: String(formData.get("username") ?? "").trim(),
-      password: String(formData.get("password") ?? ""),
-    });
-    const status = await refreshRouterStatus(user.tenantId!, id);
-    revalidatePath("/isp/router");
-    if (status.online) {
-      redirect(`/isp/router?success=${encodeURIComponent(status.message ?? `Router "${nama}" tersimpan dan terhubung.`)}`);
-    }
-    redirect(
-      `/isp/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi belum terhubung. ${status.error ?? ""}`)}`
-    );
+    id = await createRouter(user.tenantId!, input);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah router.";
     redirect(`/isp/router?error=${encodeURIComponent(msg)}`);
   }
+
+  let status;
+  try {
+    status = await refreshRouterStatus(user.tenantId!, id);
+  } catch (err) {
+    revalidatePath("/isp/router");
+    const detail = err instanceof Error ? err.message : "";
+    redirect(
+      `/isp/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi cek status gagal.${detail ? ` ${detail}` : ""}`)}`
+    );
+  }
+
+  revalidatePath("/isp/router");
+  if (status.online) {
+    redirect(
+      `/isp/router?success=${encodeURIComponent(status.message ?? `Router "${nama}" tersimpan dan terhubung.`)}`
+    );
+  }
+  redirect(
+    `/isp/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi belum terhubung. ${status.error ?? ""}`)}`
+  );
 }
 
 export async function updateRouterAction(

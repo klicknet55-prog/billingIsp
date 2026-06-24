@@ -1,7 +1,8 @@
 import { requirePelanggan } from "@/lib/auth";
-import { DEFAULT_BRAND_NAME, getAppOrigin } from "@/lib/site";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
+import { getAppOrigin } from "@/lib/site-server";
 import { getCurrentTenant } from "@/lib/tenant";
-import { SiteFooterContent } from "@/components/layout/site-footer";
+import { SiteFooterContent } from "@/components/layout/site-footer-content";
 import { PortalNav } from "./portal-nav";
 
 export default async function PortalAppLayout({

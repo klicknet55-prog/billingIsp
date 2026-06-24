@@ -14,13 +14,3 @@ export function resolveAppOrigin(
   }
   return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
 }
-
-/** Origin aplikasi dari header request (server component / route handler). */
-export async function getAppOrigin(): Promise<string> {
-  const { headers } = await import("next/headers");
-  const h = await headers();
-  return resolveAppOrigin(
-    h.get("x-forwarded-host") ?? h.get("host"),
-    h.get("x-forwarded-proto")
-  );
-}

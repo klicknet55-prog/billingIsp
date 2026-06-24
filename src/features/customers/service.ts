@@ -10,17 +10,49 @@ import {
   routers,
   sessions,
   subscriptions,
+  tenants,
   ticketAssignments,
   tickets,
   type Pelanggan,
 } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
+import { isMikrotikEmptyReplyError, isMikrotikTimeoutError } from "@/lib/integrations/mikrotik/errors";
 import { createLogger } from "@/lib/logger";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { newId } from "@/lib/utils";
 import { routerToCredentials } from "@/features/routers/service";
 import { assertPelangganOdpCapacity } from "@/features/odp/service";
 
 const log = createLogger("customers");
+
+export type CreatePelangganResult = {
+  id: string;
+  mikrotikWarning?: string;
+};
+
+function isMikrotikConnectionError(err: unknown): boolean {
+  if (isMikrotikTimeoutError(err)) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("Tidak dapat terhubung ke Mikrotik");
+}
+
+async function verifyCustomerOnMikrotik(
+  tenantId: string,
+  input: PelangganInput
+): Promise<boolean> {
+  if (!input.routerId || !input.connectionUsername?.trim()) return false;
+  const router = await db.query.routers.findFirst({
+    where: and(eq(routers.tenantId, tenantId), eq(routers.id, input.routerId)),
+  });
+  if (!router) return false;
+
+  const mk = getMikrotikClient();
+  const connectionType = input.connectionType === "hotspot" ? "hotspot" : "pppoe";
+  return mk.connectionUserExists(routerToCredentials(router), {
+    connectionType,
+    username: input.connectionUsername.trim(),
+  });
+}
 
 export interface PelangganRow extends Pelanggan {
   paketNama: string | null;
@@ -98,23 +130,31 @@ async function alignConnectionTypeWithPaket(
   return { ...input, connectionType: paket.tipe };
 }
 
+function mikrotikConnectionComment(brandName: string, customerName: string): string {
+  return `${brandName}: ${customerName}`;
+}
+
 async function syncCustomerConnection(
   tenantId: string,
   input: PelangganInput,
   customerName: string
 ) {
   if (!input.routerId || !input.paketInternetId) return;
-  const [router, paket] = await Promise.all([
+  const [router, paket, tenant] = await Promise.all([
     db.query.routers.findFirst({
       where: and(eq(routers.tenantId, tenantId), eq(routers.id, input.routerId!)),
     }),
     db.query.paketInternet.findFirst({
       where: and(eq(paketInternet.tenantId, tenantId), eq(paketInternet.id, input.paketInternetId!)),
     }),
+    db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) }),
   ]);
 
   if (!router) throw new Error("Router untuk sinkronisasi tidak ditemukan.");
   if (!paket) throw new Error("Paket internet untuk sinkronisasi tidak ditemukan.");
+
+  const brandName = tenant?.namaUsaha?.trim() || DEFAULT_BRAND_NAME;
+  const comment = mikrotikConnectionComment(brandName, customerName);
 
   const mk = getMikrotikClient();
   const creds = {
@@ -135,7 +175,7 @@ async function syncCustomerConnection(
       password: input.connectionPassword!.trim(),
       profile,
       remoteAddress: input.ipAddress ?? undefined,
-      comment: `NetManage:${customerName}`,
+      comment,
     });
     return;
   }
@@ -148,7 +188,7 @@ async function syncCustomerConnection(
     username: input.connectionUsername!.trim(),
     password: input.connectionPassword!.trim(),
     profile,
-    comment: `NetManage:${customerName}`,
+    comment,
   });
 }
 
@@ -156,7 +196,7 @@ export async function createPelanggan(
   tenantId: string,
   input: PelangganInput,
   createdBy: string
-) {
+): Promise<CreatePelangganResult> {
   assertConnectionCredentials(input);
   const aligned = await alignConnectionTypeWithPaket(tenantId, input);
   await assertPaketMatchesRouter(tenantId, aligned);
@@ -181,7 +221,6 @@ export async function createPelanggan(
   }
 
   await assertPelangganOdpCapacity(tenantId, aligned.odpId);
-  await syncCustomerConnection(tenantId, aligned, aligned.nama);
 
   const id = newId("pel");
   await db.insert(pelanggan).values({
@@ -203,8 +242,29 @@ export async function createPelanggan(
     tglJatuhTempo: aligned.tglJatuhTempo ?? null,
     createdBy,
   });
+
+  try {
+    await syncCustomerConnection(tenantId, aligned, aligned.nama);
+  } catch (err) {
+    if (isMikrotikConnectionError(err)) {
+      const exists = await verifyCustomerOnMikrotik(tenantId, aligned);
+      if (exists) {
+        log.warn(`Pelanggan ${id}: Mikrotik error setelah sync, user sudah ada di router`);
+        return {
+          id,
+          mikrotikWarning:
+            "Pelanggan tersimpan. User sudah ada di Mikrotik (respon router lambat/timeout).",
+        };
+      }
+    }
+    await db
+      .delete(pelanggan)
+      .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));
+    throw err;
+  }
+
   log.info(`Pelanggan dibuat ${id}`);
-  return id;
+  return { id };
 }
 
 export async function updatePelanggan(tenantId: string, id: string, input: PelangganInput) {
@@ -284,6 +344,9 @@ export async function removePelangganFromMikrotik(
     }
     return { ok: true, message: `User '${username}' dihapus dari Mikrotik.` };
   } catch (err) {
+    if (isMikrotikEmptyReplyError(err)) {
+      return { ok: true, skipped: true, message: "User tidak ada di Mikrotik — lanjut hapus data billing." };
+    }
     const msg = err instanceof Error ? err.message : "Gagal menghapus user di Mikrotik.";
     return { ok: false, message: msg };
   }
@@ -349,7 +412,7 @@ export async function deletePelangganRecords(
   return { invoiceCount: invoiceIds.length, ticketCount: ticketIds.length };
 }
 
-/** Set isolasi pelanggan + sinkron ke Mikrotik (mock). */
+/** Set isolasi pelanggan: putus sesi aktif + disable user di Mikrotik. */
 export async function setIsolasi(tenantId: string, id: string, isolated: boolean) {
   const cust = await getPelanggan(tenantId, id);
   if (!cust) return;

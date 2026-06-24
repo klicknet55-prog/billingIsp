@@ -101,6 +101,39 @@ async function setHotspotDisabled(r: RouterCredentials, name: string, disabled: 
   await assertOk(res, `Nonaktifkan Hotspot '${name}'`);
 }
 
+async function removePppoeActiveSessions(r: RouterCredentials, name: string) {
+  const res = await routerOsFetch(`${baseUrl(r)}/ppp/active?name=${encodeURIComponent(name)}`, {
+    headers: authHeader(r),
+  });
+  if (!res.ok) return;
+  const rows = (await res.json()) as Array<{ ".id"?: string }>;
+  for (const row of rows) {
+    const id = row[".id"];
+    if (id) await removeByPost(r, "/ppp/active", id, `Putus sesi PPPoE '${name}'`);
+  }
+}
+
+async function removeHotspotActiveSessions(r: RouterCredentials, name: string) {
+  let res = await routerOsFetch(
+    `${baseUrl(r)}/ip/hotspot/active?user=${encodeURIComponent(name)}`,
+    { headers: authHeader(r) }
+  );
+  if (!res.ok) return;
+  let rows = (await res.json()) as Array<{ ".id"?: string }>;
+  if (rows.length === 0) {
+    res = await routerOsFetch(
+      `${baseUrl(r)}/ip/hotspot/active?name=${encodeURIComponent(name)}`,
+      { headers: authHeader(r) }
+    );
+    if (!res.ok) return;
+    rows = (await res.json()) as Array<{ ".id"?: string }>;
+  }
+  for (const row of rows) {
+    const id = row[".id"];
+    if (id) await removeByPost(r, "/ip/hotspot/active", id, `Putus sesi Hotspot '${name}'`);
+  }
+}
+
 export async function restGetStatus(
   r: RouterCredentials,
   opts?: { quiet?: boolean }
@@ -183,9 +216,11 @@ export async function restIsolate(
   ref: { connectionType: "pppoe" | "hotspot"; username: string }
 ) {
   if (ref.connectionType === "pppoe") {
+    await removePppoeActiveSessions(r, ref.username);
     await setPppoeDisabled(r, ref.username, true);
     return;
   }
+  await removeHotspotActiveSessions(r, ref.username);
   await setHotspotDisabled(r, ref.username, true);
 }
 
@@ -198,6 +233,18 @@ export async function restActivate(
     return;
   }
   await setHotspotDisabled(r, ref.username, false);
+}
+
+export async function restConnectionUserExists(
+  r: RouterCredentials,
+  ref: { connectionType: "pppoe" | "hotspot"; username: string }
+): Promise<boolean> {
+  try {
+    const id = await findConnectionUserId(r, ref);
+    return id != null;
+  } catch {
+    return false;
+  }
 }
 
 export async function restRemoveConnectionUser(

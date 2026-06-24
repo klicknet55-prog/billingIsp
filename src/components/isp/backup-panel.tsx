@@ -1,6 +1,8 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { Upload } from "lucide-react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -10,7 +12,7 @@ import {
   type PreviewBackupState,
   type RestoreBackupState,
 } from "@/features/backup/actions";
-import type { BackupPreview, TenantBackupCounts } from "@/features/backup/types";
+import type { BackupPreview, RestoreResult, TenantBackupCounts } from "@/features/backup/types";
 import { formatDate } from "@/lib/utils";
 
 const previewInitial: PreviewBackupState = {};
@@ -56,6 +58,104 @@ function CountsTable({ counts }: { counts: BackupPreview["counts"] }) {
   );
 }
 
+function formatCountSummary(counts: Partial<TenantBackupCounts>): string {
+  const rows = Object.entries(counts).filter(([, v]) => (v ?? 0) > 0) as [
+    keyof TenantBackupCounts,
+    number,
+  ][];
+  if (rows.length === 0) return "";
+  return rows.map(([k, v]) => `${COUNT_LABELS[k] ?? k}: ${v}`).join(", ");
+}
+
+function restoreSuccessMessage(result: RestoreResult): { title: string; description: string } {
+  const modeLabel = result.mode === "replace" ? "Ganti semua data" : "Gabungkan";
+  const inserted = formatCountSummary(result.inserted);
+  const skipped = formatCountSummary(result.skipped);
+  const parts: string[] = [`Mode: ${modeLabel}.`];
+  if (inserted) parts.push(`Ditambahkan: ${inserted}.`);
+  if (skipped) parts.push(`Dilewati (sudah ada): ${skipped}.`);
+  if (!inserted && !skipped) parts.push("Tidak ada data baru yang diimpor.");
+  return {
+    title: "Restore berhasil",
+    description: parts.join(" "),
+  };
+}
+
+function RestoreNotice({ state }: { state: RestoreBackupState }) {
+  if (state.error) {
+    return (
+      <div
+        role="alert"
+        className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm"
+      >
+        <p className="font-medium text-destructive">Restore gagal</p>
+        <p className="mt-1 text-muted-foreground">{state.error}</p>
+      </div>
+    );
+  }
+
+  if (state.ok && state.result) {
+    const { title, description } = restoreSuccessMessage(state.result);
+    return (
+      <div
+        role="status"
+        className="rounded-md border border-green-200 bg-green-50 p-3 text-sm dark:border-green-900 dark:bg-green-950/30"
+      >
+        <p className="font-medium text-green-800 dark:text-green-300">{title}</p>
+        <p className="mt-1 text-muted-foreground">{description}</p>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+function BackupFileField({
+  name,
+  accept,
+  required,
+  label = "Pilih file backup",
+  description = "Belum ada file dipilih",
+}: {
+  name: string;
+  accept: string;
+  required?: boolean;
+  label?: string;
+  description?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+
+  return (
+    <div className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4">
+      <input
+        ref={inputRef}
+        name={name}
+        type="file"
+        accept={accept}
+        required={required}
+        className="sr-only"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          setFileName(file?.name ?? null);
+        }}
+      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
+          <Upload />
+          {label}
+        </Button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {fileName ?? "Belum ada file dipilih"}
+          </p>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BackupPanel({
   namaUsaha,
   isOwner,
@@ -70,21 +170,64 @@ export function BackupPanel({
   const [previewState, previewAction] = useActionState(previewTenantBackupAction, previewInitial);
   const [restoreState, restoreAction] = useActionState(restoreTenantBackupAction, restoreInitial);
   const [confirmName, setConfirmName] = useState("");
+  const lastPreviewNotice = useRef<string | null>(null);
+  const lastRestoreNotice = useRef<string | null>(null);
 
   useEffect(() => {
     if (previewState.ok && previewState.preview) {
-      toast({ title: "Pratinjau backup siap", variant: "success" });
+      const key = `preview:${previewState.preview.exportedAt}`;
+      if (lastPreviewNotice.current === key) return;
+      lastPreviewNotice.current = key;
+      toast({
+        title: "Pratinjau backup siap",
+        description: `${previewState.preview.namaUsaha} · ${previewState.preview.counts.pelanggan} pelanggan`,
+        variant: "success",
+      });
     }
-    if (previewState.error) toast({ title: previewState.error, variant: "error" });
+    if (previewState.error) {
+      const key = `preview-err:${previewState.error}`;
+      if (lastPreviewNotice.current === key) return;
+      lastPreviewNotice.current = key;
+      toast({
+        title: "Pratinjau gagal",
+        description: previewState.error,
+        variant: "error",
+      });
+    }
   }, [previewState.ok, previewState.error, previewState.preview, toast]);
 
   useEffect(() => {
-    if (restoreState.ok && restoreState.result) {
-      toast({ title: "Restore selesai", variant: "success" });
+    if (restoreState.error) {
+      const key = `restore-err:${restoreState.error}`;
+      if (lastRestoreNotice.current === key) return;
+      lastRestoreNotice.current = key;
+      toast({
+        title: "Restore gagal",
+        description: restoreState.error,
+        variant: "error",
+      });
+    } else if (restoreState.ok && restoreState.result) {
+      const { title, description } = restoreSuccessMessage(restoreState.result);
+      const key = `restore-ok:${restoreState.result.mode}:${description}`;
+      if (lastRestoreNotice.current === key) return;
+      lastRestoreNotice.current = key;
+      toast({ title, description, variant: "success" });
       setConfirmName("");
     }
-    if (restoreState.error) toast({ title: restoreState.error, variant: "error" });
   }, [restoreState.ok, restoreState.error, restoreState.result, toast]);
+
+  const handleRestoreSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    const submitter = (event.nativeEvent as SubmitEvent).submitter;
+    const mode = submitter instanceof HTMLButtonElement ? submitter.value : "";
+    if (mode === "replace" && confirmName.trim() !== namaUsaha) {
+      event.preventDefault();
+      toast({
+        title: "Restore gagal",
+        description: "Ketik nama usaha persis untuk mode Ganti semua data.",
+        variant: "error",
+      });
+    }
+  };
 
   const handleExport = () => {
     startExport(async () => {
@@ -130,12 +273,12 @@ export function BackupPanel({
           </p>
 
           <form action={previewAction} className="space-y-3">
-            <input
+            <BackupFileField
               name="backupFile"
-              type="file"
               accept=".json,.gz,.netmanage.json,application/json,application/gzip"
-              className="block w-full text-sm"
               required
+              label="Pilih file backup"
+              description="Format .netmanage.json atau .json.gz, maks. 50 MB"
             />
             <SubmitButton variant="outline">Pratinjau</SubmitButton>
           </form>
@@ -150,21 +293,16 @@ export function BackupPanel({
               </div>
               <CountsTable counts={preview.counts} />
 
-              <form action={restoreAction} className="space-y-3">
+              <form action={restoreAction} onSubmit={handleRestoreSubmit} className="space-y-3">
                 {backupJson ? (
                   <input type="hidden" name="backupJson" value={backupJson} />
                 ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Upload ulang file yang sama untuk restore file gzip:
-                  </p>
-                )}
-                {!backupJson && (
-                  <input
+                  <BackupFileField
                     name="backupFile"
-                    type="file"
                     accept=".gz,.json.gz,application/gzip"
-                    className="block w-full text-sm"
                     required
+                    label="Pilih file gzip"
+                    description="Upload ulang file backup yang sama"
                   />
                 )}
                 <input type="hidden" name="expectedNamaUsaha" value={namaUsaha} />
@@ -197,27 +335,7 @@ export function BackupPanel({
             </div>
           )}
 
-          {restoreState.result && (
-            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm dark:border-green-900 dark:bg-green-950/30">
-              <p className="font-medium">Restore {restoreState.result.mode} selesai</p>
-              {Object.keys(restoreState.result.inserted).length > 0 && (
-                <p className="mt-1 text-muted-foreground">
-                  Ditambahkan:{" "}
-                  {Object.entries(restoreState.result.inserted)
-                    .map(([k, v]) => `${COUNT_LABELS[k as keyof TenantBackupCounts] ?? k}: ${v}`)
-                    .join(", ")}
-                </p>
-              )}
-              {Object.keys(restoreState.result.skipped).length > 0 && (
-                <p className="text-muted-foreground">
-                  Dilewati (sudah ada):{" "}
-                  {Object.entries(restoreState.result.skipped)
-                    .map(([k, v]) => `${COUNT_LABELS[k as keyof TenantBackupCounts] ?? k}: ${v}`)
-                    .join(", ")}
-                </p>
-              )}
-            </div>
-          )}
+          <RestoreNotice state={restoreState} />
         </section>
       )}
 

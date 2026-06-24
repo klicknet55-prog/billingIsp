@@ -8,6 +8,7 @@ import type {
 } from "./types";
 import {
   legacyActivate,
+  legacyConnectionUserExists,
   legacyGetStatus,
   legacyIsolate,
   legacyListProfiles,
@@ -18,6 +19,7 @@ import {
 } from "./legacy";
 import {
   restActivate,
+  restConnectionUserExists,
   restGetStatus,
   restIsolate,
   restListProfiles,
@@ -53,6 +55,9 @@ export const mikrotikReal: MikrotikClient = {
   },
   removeConnectionUser(r, ref) {
     return isLegacyMode(r) ? legacyRemoveConnectionUser(r, ref) : restRemoveConnectionUser(r, ref);
+  },
+  connectionUserExists(r, ref) {
+    return isLegacyMode(r) ? legacyConnectionUserExists(r, ref) : restConnectionUserExists(r, ref);
   },
   snapshotConnections(r, type) {
     return isLegacyMode(r) ? legacySnapshotConnections(r, type) : restSnapshotConnections(r, type);

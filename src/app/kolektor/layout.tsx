@@ -1,6 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { requireUser } from "@/lib/auth";
-import { getAppOrigin } from "@/lib/site";
+import { getAppOrigin } from "@/lib/site-server";
 
 export default async function KolektorLayout({
   children,

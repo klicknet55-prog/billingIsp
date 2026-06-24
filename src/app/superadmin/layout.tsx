@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { requireUser } from "@/lib/auth";
 import { getPlatformBrand } from "@/features/platform-settings/service";
-import { getAppOrigin } from "@/lib/site";
+import { getAppOrigin } from "@/lib/site-server";
 
 export default async function SuperadminLayout({
   children,

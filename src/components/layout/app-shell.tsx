@@ -30,7 +30,7 @@ import { useEffect, useState } from "react";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { Button } from "@/components/ui/button";
-import { SiteFooterContent } from "@/components/layout/site-footer";
+import { SiteFooterContent } from "@/components/layout/site-footer-content";
 import { logoutAction } from "@/features/auth/actions";
 import { SUPERADMIN_PENGATURAN_HREF } from "@/lib/superadmin-pengaturan-nav";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";

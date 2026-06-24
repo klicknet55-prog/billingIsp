@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { PwaRegister } from "@/components/pwa-register";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { THEME_INIT_SCRIPT_SRC } from "@/components/theme/theme-script";
+import { THEME_INIT_SCRIPT } from "@/components/theme/theme-script";
 import { ToastProvider } from "@/components/ui/toast";
 import { getPlatformBrand } from "@/features/platform-settings/service";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
@@ -32,8 +31,10 @@ export default async function RootLayout({
 
   return (
     <html lang="id" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-screen antialiased">
-        <Script src={THEME_INIT_SCRIPT_SRC} strategy="beforeInteractive" />
         <ThemeProvider
           defaultPreset={tenant?.themePreset ?? "default"}
           defaultMode={tenant?.themeMode ?? "light"}
