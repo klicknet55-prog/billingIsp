@@ -114,10 +114,12 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
   await generateMonthlyInvoices(now, result);
 
   const upcoming = await db
-    .select()
+    .select({ inv: invoices })
     .from(invoices)
+    .innerJoin(tenants, eq(invoices.tenantId, tenants.id))
     .where(
       and(
+        eq(tenants.status, "active"),
         eq(invoices.status, "unpaid"),
         gte(invoices.tglJatuhTempo, now),
         lte(invoices.tglJatuhTempo, new Date(now.getTime() + REMINDER_DAYS * DAY)),
@@ -125,7 +127,7 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
       )
     );
 
-  for (const inv of upcoming) {
+  for (const { inv } of upcoming) {
     const cust = await db.query.pelanggan.findFirst({
       where: (p, { eq: e }) => e(p.id, inv.pelangganId),
     });
@@ -149,11 +151,18 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
   }
 
   const overdueInvoices = await db
-    .select()
+    .select({ inv: invoices })
     .from(invoices)
-    .where(and(eq(invoices.status, "unpaid"), lt(invoices.tglJatuhTempo, now)));
+    .innerJoin(tenants, eq(invoices.tenantId, tenants.id))
+    .where(
+      and(
+        eq(tenants.status, "active"),
+        eq(invoices.status, "unpaid"),
+        lt(invoices.tglJatuhTempo, now)
+      )
+    );
 
-  for (const inv of overdueInvoices) {
+  for (const { inv } of overdueInvoices) {
     await db.update(invoices).set({ status: "overdue" }).where(eq(invoices.id, inv.id));
     result.overdue++;
 

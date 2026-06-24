@@ -290,17 +290,32 @@ Password router tidak plaintext di DB; restore backup tercatat di audit log; ten
 
 **Tujuan:** Tenant yang tidak bayar langganan platform otomatis suspend.
 
+**Status:** Implemented
+
 ### Checklist
 
-- [ ] Perluas `/api/cron` → cek `subscription.akhir` expired
-- [ ] Update `tenants.status` → `suspended`; blok login owner/admin (kecuali superadmin)
-- [ ] Reminder WA/email 7 hari & 1 hari sebelum expire (opsional)
-- [ ] UI superadmin: perpanjang subscription manual
-- [ ] Banner di dashboard owner: "Langganan berakhir dd/mm/yyyy"
+- [x] Perluas `/api/cron` → cek `subscription.akhir` expired
+- [x] Update `tenants.status` → `suspended`; blok login owner/admin/teknisi/kolektor (kecuali superadmin)
+- [x] Reminder WA 7 hari & 1 hari sebelum expire (ke owner jika nomor WA diisi)
+- [x] UI superadmin: perpanjang subscription manual (+N hari)
+- [x] Banner di layout ISP owner/admin: "Langganan berakhir dd/mm/yyyy"
+
+### File utama
+
+| Path | Fungsi |
+|------|--------|
+| `src/features/jobs/saas-subscription.ts` | Cron expire + reminder H-7/H-1 |
+| `src/app/api/cron/route.ts` | Billing + SaaS lifecycle |
+| `src/features/tenants/service.ts` | `extendTenantSubscription`, status langganan |
+| `src/lib/auth/index.ts` | Blok login & session tenant suspend |
+| `src/app/superadmin/tenants/page.tsx` | Perpanjang manual per tenant |
+| `src/app/isp/layout.tsx` | Banner peringatan langganan |
 
 ### Selesai jika
 
 Subscription demo expired → tenant suspend; cron tidak generate invoice untuk tenant suspend.
+
+**Uji otomatis:** `npm run saas-expire:test` (restore subscription demo setelah selesai). Opsional via HTTP: `npm run saas-expire:test:http` (dev server harus jalan).
 
 ---
 

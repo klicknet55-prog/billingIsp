@@ -72,6 +72,8 @@ export const subscriptions = sqliteTable("subscription", {
   status: text("status", { enum: ["active", "expired"] })
     .notNull()
     .default("active"),
+  remind7dAt: integer("remind_7d_at", { mode: "timestamp" }),
+  remind1dAt: integer("remind_1d_at", { mode: "timestamp" }),
 });
 
 // ---------------------------------------------------------------------------

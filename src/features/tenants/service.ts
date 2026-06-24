@@ -63,6 +63,20 @@ export async function listTenants(): Promise<Tenant[]> {
   return db.query.tenants.findMany({ orderBy: [desc(tenants.createdAt)] });
 }
 
+export async function listTenantsWithSubscription() {
+  const rows = await listTenants();
+  return Promise.all(
+    rows.map(async (tenant) => ({
+      tenant,
+      subscription: await getTenantSubscriptionStatus(tenant.id),
+    }))
+  );
+}
+
+export async function getTenantById(id: string) {
+  return db.query.tenants.findFirst({ where: eq(tenants.id, id) });
+}
+
 export async function setTenantStatus(id: string, status: "active" | "suspended") {
   await db.update(tenants).set({ status }).where(eq(tenants.id, id));
   log.info(`Tenant ${id} -> ${status}`);
@@ -261,15 +275,52 @@ export async function getTenantSubscriptionStatus(
   });
   if (!pkg) return null;
 
+  const now = new Date();
+  const expired = sub.status === "expired" || sub.akhir < now;
+
   return {
     packageId: pkg.id,
     packageName: pkg.nama,
     packagePrice: pkg.hargaBulanan,
     billingPeriod: sub.billingPeriod,
-    status: sub.status,
+    status: expired ? "expired" : "active",
     mulai: sub.mulai,
     akhir: sub.akhir,
   };
+}
+
+/** Perpanjang langganan tenant (superadmin). */
+export async function extendTenantSubscription(
+  tenantId: string,
+  input: { days?: number; akhir?: Date }
+) {
+  const sub = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.tenantId, tenantId),
+    orderBy: [desc(subscriptions.mulai)],
+  });
+  if (!sub) throw new Error("Langganan tenant tidak ditemukan.");
+
+  const now = new Date();
+  const days = input.days ?? 30;
+  let newEnd: Date;
+  if (input.akhir) {
+    newEnd = input.akhir;
+  } else {
+    const base = sub.akhir > now ? sub.akhir : now;
+    newEnd = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  }
+
+  await db
+    .update(subscriptions)
+    .set({
+      status: "active",
+      akhir: newEnd,
+      remind7dAt: null,
+      remind1dAt: null,
+    })
+    .where(eq(subscriptions.id, sub.id));
+  await db.update(tenants).set({ status: "active" }).where(eq(tenants.id, tenantId));
+  log.info(`Tenant ${tenantId} langganan diperpanjang hingga ${newEnd.toISOString()}`);
 }
 
 export async function listActiveSaasPackages() {
@@ -308,6 +359,8 @@ export async function changeTenantSubscriptionPackage(
         mulai: new Date(),
         akhir: getSubscriptionEndDate(effectivePeriod),
         status: "active",
+        remind7dAt: null,
+        remind1dAt: null,
       })
       .where(eq(subscriptions.id, activeSub.id));
   } else {

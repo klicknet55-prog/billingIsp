@@ -3,6 +3,7 @@
  * Dipakai saat deploy production jika `db:push` tidak membaca `.env` yang sama dengan app.
  */
 import Database from "better-sqlite3";
+import { applyColumnPatches, hasDbTable } from "./schema-patches";
 
 const DB_PATH = process.env.DATABASE_URL ?? "./netmanage.db";
 
@@ -13,78 +14,13 @@ function hasColumn(db: Database.Database, table: string, column: string) {
   return rows.some((r) => r.name === column);
 }
 
-function hasTable(db: Database.Database, table: string) {
-  const row = db
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
-    .get(table) as { name: string } | undefined;
-  return !!row;
-}
-
-const patches: { table: string; column: string; sql: string }[] = [
-  {
-    table: "subscription",
-    column: "billing_period",
-    sql: "ALTER TABLE subscription ADD COLUMN billing_period TEXT NOT NULL DEFAULT 'monthly'",
-  },
-  {
-    table: "package_tenant",
-    column: "diskon_tahunan_persen",
-    sql: "ALTER TABLE package_tenant ADD COLUMN diskon_tahunan_persen INTEGER NOT NULL DEFAULT 0",
-  },
-  {
-    table: "invoice",
-    column: "pre_due_reminded_at",
-    sql: "ALTER TABLE invoice ADD COLUMN pre_due_reminded_at INTEGER",
-  },
-  {
-    table: "paket_internet",
-    column: "tipe",
-    sql: "ALTER TABLE paket_internet ADD COLUMN tipe TEXT NOT NULL DEFAULT 'pppoe'",
-  },
-  {
-    table: "pelanggan",
-    column: "kolektor_id",
-    sql: "ALTER TABLE pelanggan ADD COLUMN kolektor_id TEXT REFERENCES user(id)",
-  },
-  {
-    table: "pelanggan",
-    column: "odp_id",
-    sql: "ALTER TABLE pelanggan ADD COLUMN odp_id TEXT REFERENCES odp(id)",
-  },
-  {
-    table: "pelanggan",
-    column: "odp_port",
-    sql: "ALTER TABLE pelanggan ADD COLUMN odp_port TEXT",
-  },
-  {
-    table: "router",
-    column: "latitude",
-    sql: "ALTER TABLE router ADD COLUMN latitude REAL",
-  },
-  {
-    table: "router",
-    column: "longitude",
-    sql: "ALTER TABLE router ADD COLUMN longitude REAL",
-  },
-  {
-    table: "odp",
-    column: "input_router_id",
-    sql: "ALTER TABLE odp ADD COLUMN input_router_id TEXT REFERENCES router(id)",
-  },
-  {
-    table: "odp",
-    column: "input_odp_id",
-    sql: "ALTER TABLE odp ADD COLUMN input_odp_id TEXT REFERENCES odp(id)",
-  },
-];
-
 const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 
 let applied = 0;
 
 /** Tabel ODP harus ada sebelum patch pelanggan.odp_id atau kolom odp.* */
-if (!hasTable(db, "odp")) {
+if (!hasDbTable(db, "odp")) {
   db.exec(`
     CREATE TABLE odp (
       id TEXT PRIMARY KEY,
@@ -110,19 +46,7 @@ if (!hasTable(db, "odp")) {
   console.log("[ok]   tabel odp dibuat");
 }
 
-for (const patch of patches) {
-  if (!hasTable(db, patch.table)) {
-    console.log(`[skip] ${patch.table} belum ada — lewati ${patch.column}`);
-    continue;
-  }
-  if (hasColumn(db, patch.table, patch.column)) {
-    console.log(`[skip] ${patch.table}.${patch.column} sudah ada`);
-    continue;
-  }
-  db.exec(patch.sql);
-  applied++;
-  console.log(`[ok]   ${patch.table}.${patch.column} ditambahkan`);
-}
+applied += applyColumnPatches(db, { log: true });
 
 if (hasColumn(db, "paket_internet", "tipe") && hasColumn(db, "router", "tipe")) {
   const result = db
@@ -143,7 +67,7 @@ if (hasColumn(db, "paket_internet", "tipe") && hasColumn(db, "router", "tipe")) 
   }
 }
 
-if (!hasTable(db, "platform_settings")) {
+if (!hasDbTable(db, "platform_settings")) {
   db.exec(`
     CREATE TABLE platform_settings (
       id TEXT PRIMARY KEY,
@@ -186,7 +110,7 @@ const platformBrandPatches: { column: string; sql: string }[] = [
   },
 ];
 
-if (hasTable(db, "platform_settings")) {
+if (hasDbTable(db, "platform_settings")) {
   for (const patch of platformBrandPatches) {
     if (hasColumn(db, "platform_settings", patch.column)) {
       console.log(`[skip] platform_settings.${patch.column} sudah ada`);
@@ -202,7 +126,7 @@ const platformRow = db
   .prepare("SELECT id FROM platform_settings WHERE id = ?")
   .get("platform") as { id: string } | undefined;
 
-if (!platformRow && hasTable(db, "platform_settings")) {
+if (!platformRow && hasDbTable(db, "platform_settings")) {
   const defaults = {
     tentangTitle: "Tentang Kami",
     tentangContent:

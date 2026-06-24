@@ -15,6 +15,9 @@
     "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
     "db:seed-cron-test": "tsx --env-file=.env src/lib/db/seed-cron-test.ts --seed-only",
     "cron:test": "tsx --env-file=.env src/lib/db/seed-cron-test.ts",
+    "db:seed-saas-expire-test": "tsx --env-file=.env src/lib/db/seed-saas-expire-test.ts --seed-only",
+    "saas-expire:test": "tsx --env-file=.env src/lib/db/seed-saas-expire-test.ts",
+    "saas-expire:test:http": "tsx --env-file=.env src/lib/db/seed-saas-expire-test.ts --http",
     "db:backfill-integrations": "tsx --env-file=.env src/lib/db/backfill-tenant-integrations.ts",
     "backup:tenant": "tsx --env-file=.env scripts/backup-tenant.ts",
     "backup:full": "tsx --env-file=.env scripts/backup-full.ts"

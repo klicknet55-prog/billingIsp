@@ -201,6 +201,7 @@ pm2 restart billingisp
 | Peta ODP | `/isp/peta` (login owner) |
 | Teknisi | `teknisi@demo.net` → `/isp/tiket` |
 | Cron billing | `npm run cron:test` atau `curl .../api/cron` |
+| SaaS expire (Fase 3) | `npm run saas-expire:test` |
 | Log PM2 | `pm2 logs billingisp --lines 30` |
 
 ### 7. Pasang cron (wajib production)
@@ -270,12 +271,19 @@ Setel driver di `.env` (`MIKROTIK_DRIVER`, `DUITKU_DRIVER`, `WHATSAPP_DRIVER`, `
 
 ## Pasang Cron (Background Worker)
 
-Endpoint `GET /api/cron` menjalankan **siklus penagihan otomatis**:
+Endpoint `GET /api/cron` menjalankan **siklus penagihan pelanggan** dan **siklus langganan SaaS platform**:
+
+**Penagihan pelanggan (tenant aktif saja):**
 
 - **Generate invoice bulanan** per pelanggan aktif (harga dari paket internet), mulai **H-7** sebelum jatuh tempo (atur via `BILLING_GENERATE_DAYS`).
 - Notifikasi WhatsApp tagihan baru + **link bayar auto-login** (`/portal/masuk` → langsung ke Tagihan).
 - Pengingat WhatsApp **H-3** sebelum jatuh tempo (sekali per invoice, `BILLING_REMINDER_DAYS`).
 - Invoice lewat jatuh tempo → status `overdue`, **isolasi pelanggan** di Mikrotik, notifikasi WhatsApp + link bayar.
+
+**Langganan SaaS platform:**
+
+- Subscription lewat `akhir` → status `expired`, tenant `suspended` (login ISP diblokir).
+- Reminder WhatsApp **H-7** dan **H-1** ke owner (jika nomor WA owner diisi di profil staf).
 
 Syarat generate otomatis: pelanggan punya **paket internet aktif**, tenant `active`, belum ada invoice periode bulan yang sama. Tanggal jatuh tempo diambil dari field **Jatuh Tempo** pelanggan (maju +1 bulan setelah pembayaran lunas).
 

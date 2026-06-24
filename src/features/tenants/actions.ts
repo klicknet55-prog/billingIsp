@@ -15,6 +15,7 @@ import {
   createSaasPackage,
   deleteSaasPackage,
   deleteTenantIfInactive,
+  extendTenantSubscription,
   getTenantSubscriptionStatus,
   listActiveSaasPackages,
   logSaasTransaction,
@@ -38,6 +39,10 @@ export async function registerTenantAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  if (formData.get("acceptTerms") !== "on") {
+    return { error: "Anda harus menyetujui Syarat & Ketentuan untuk mendaftar." };
+  }
+
   const result = await registerTenant({
     namaUsaha: String(formData.get("namaUsaha") ?? ""),
     domain: String(formData.get("domain") ?? ""),
@@ -66,6 +71,23 @@ export async function setTenantStatusAction(formData: FormData) {
   const status = String(formData.get("status") ?? "") as "active" | "suspended";
   await setTenantStatus(id, status);
   revalidatePath("/superadmin/tenants");
+}
+
+export async function extendTenantSubscriptionAction(formData: FormData) {
+  await requireUser(["superadmin"]);
+  const tenantId = String(formData.get("tenantId") ?? "");
+  const daysRaw = String(formData.get("days") ?? "30");
+  const days = Number(daysRaw);
+  try {
+    await extendTenantSubscription(tenantId, {
+      days: Number.isFinite(days) && days > 0 ? days : 30,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal memperpanjang langganan.";
+    redirect(`/superadmin/tenants?error=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/superadmin/tenants");
+  redirect(`/superadmin/tenants?success=${encodeURIComponent("Langganan tenant diperpanjang.")}`);
 }
 
 export async function deleteTenantAction(formData: FormData) {

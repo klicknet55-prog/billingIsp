@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { pelanggan, users, type Pelanggan, type User } from "@/lib/db/schema";
+import { pelanggan, tenants, users, type Pelanggan, type User } from "@/lib/db/schema";
 import { verifyPassword } from "./password";
 import { createSession, destroySession, getSession } from "./session";
 
@@ -34,13 +34,24 @@ export async function getCurrentActor(): Promise<Actor | null> {
   return cust ? { type: "pelanggan", pelanggan: cust } : null;
 }
 
-/** Login staf via email + password. Mengembalikan user atau null. */
-export async function loginStaff(email: string, password: string): Promise<User | null> {
+/** Login staf via email + password. */
+export async function loginStaff(
+  email: string,
+  password: string
+): Promise<User | null | "suspended"> {
   const user = await db.query.users.findFirst({
     where: eq(users.email, email.toLowerCase().trim()),
   });
   if (!user || !user.isActive) return null;
   if (!verifyPassword(password, user.passwordHash)) return null;
+
+  if (user.tenantId) {
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.id, user.tenantId),
+    });
+    if (tenant?.status === "suspended") return "suspended";
+  }
+
   await createSession({
     subjectType: "user",
     subjectId: user.id,
@@ -71,6 +82,14 @@ export async function requireUser(roles?: readonly StaffRole[]): Promise<User> {
   const actor = await getCurrentActor();
   if (!actor || actor.type !== "user") redirect("/login");
   if (roles && !roles.includes(actor.user.role)) redirect("/login?error=forbidden");
+
+  if (actor.user.tenantId) {
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.id, actor.user.tenantId),
+    });
+    if (tenant?.status === "suspended") redirect("/login?error=suspended");
+  }
+
   return actor.user;
 }
 

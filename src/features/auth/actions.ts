@@ -25,6 +25,12 @@ export async function loginStaffAction(
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const user = await loginStaff(email, password);
+  if (user === "suspended") {
+    return {
+      error:
+        "Akun ISP ditangguhkan karena langganan platform berakhir. Hubungi support atau perpanjang langganan.",
+    };
+  }
   if (!user) return { error: "Email atau kata sandi salah." };
   redirect(dashboardPathForRole(user.role));
 }
