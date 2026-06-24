@@ -7,46 +7,47 @@ import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { registerTenantAction } from "@/features/tenants/actions";
+import { registerTenantFormAction } from "@/features/tenants/register-tenant-action";
 import type { ActionState } from "@/features/auth/actions";
 import { getSaasFeatureInfo } from "@/features/tenants/saas-features";
-import { cn, formatRupiah } from "@/lib/utils";
+import { formatRupiah } from "@/lib/utils";
 import { RegisterTermsModal } from "./register-terms-modal";
-
-interface Pkg {
-  id: string;
-  nama: string;
-  hargaBulanan: number;
-  diskonTahunanPersen: number;
-  limitasi: { maxPelanggan: number; maxRouter: number; fitur: string[] };
-}
+import {
+  type BillingPeriod,
+  type RegisterPkg,
+  packageAmount,
+} from "./shared";
 
 const initial: ActionState = {};
-type BillingPeriod = "monthly" | "yearly";
-
-function packageAmount(pkg: Pkg, billingPeriod: BillingPeriod) {
-  if (pkg.hargaBulanan <= 0 || billingPeriod === "monthly") return pkg.hargaBulanan;
-  return Math.round((pkg.hargaBulanan * 12 * (100 - pkg.diskonTahunanPersen)) / 100);
-}
 
 export function RegisterForm({
-  packages,
+  pkg,
+  billingPeriod,
   tcTitle,
   tcContent,
 }: {
-  packages: Pkg[];
+  pkg: RegisterPkg;
+  billingPeriod: BillingPeriod;
   tcTitle: string;
   tcContent: string;
 }) {
-  const [state, action, pending] = useActionState(registerTenantAction, initial);
-  const [selected, setSelected] = useState(packages[0]?.id ?? "");
-  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const [state, action, pending] = useActionState(registerTenantFormAction, initial);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const selectedPackage = packages.find((p) => p.id === selected);
-  const effectiveBillingPeriod =
-    selectedPackage && selectedPackage.hargaBulanan <= 0 ? "monthly" : billingPeriod;
+
+  const safePkg: RegisterPkg = {
+    id: pkg?.id ?? "",
+    nama: pkg?.nama ?? "",
+    hargaBulanan: pkg?.hargaBulanan ?? 0,
+    diskonTahunanPersen: pkg?.diskonTahunanPersen ?? 0,
+    limitasi: {
+      maxPelanggan: pkg?.limitasi?.maxPelanggan ?? 0,
+      maxRouter: pkg?.limitasi?.maxRouter ?? 0,
+      fitur: Array.isArray(pkg?.limitasi?.fitur) ? pkg.limitasi.fitur : [],
+    },
+  };
+  const amount = packageAmount(safePkg, billingPeriod);
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     if (termsAccepted) return;
@@ -62,129 +63,47 @@ export function RegisterForm({
 
   return (
     <>
-      <form ref={formRef} action={action} onSubmit={handleSubmit} className="space-y-6">
-        <div className="inline-flex rounded-lg border bg-muted/30 p-1 text-sm">
-          <button
-            type="button"
-            onClick={() => setBillingPeriod("monthly")}
-            className={cn(
-              "rounded-md px-3 py-1.5 transition-colors",
-              billingPeriod === "monthly" && "bg-background font-medium shadow-sm"
+      {!pkg?.id && (
+        <p className="mb-4 text-sm text-destructive">
+          Paket tidak valid.{" "}
+          <Link href="/register-tenant" className="underline">
+            Pilih paket kembali
+          </Link>
+        </p>
+      )}
+      <div className="mb-6 rounded-lg border bg-muted/20 p-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="font-semibold">Paket {safePkg.nama}</h3>
+          <p className="text-lg font-bold text-primary">
+            {amount === 0 ? "Gratis" : formatRupiah(amount)}
+            {amount > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">
+                /{billingPeriod === "yearly" ? "tahun" : "bln"}
+              </span>
             )}
-          >
-            Per bulan
-          </button>
-          <button
-            type="button"
-            onClick={() => setBillingPeriod("yearly")}
-            className={cn(
-              "rounded-md px-3 py-1.5 transition-colors",
-              billingPeriod === "yearly" && "bg-background font-medium shadow-sm"
-            )}
-          >
-            Per tahun
-          </button>
+          </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {packages.map((p) => {
-            const isFree = p.hargaBulanan <= 0;
-            const period = isFree ? "monthly" : billingPeriod;
-            const amount = packageAmount(p, period);
-            return (
-              <button
-                type="button"
-                key={p.id}
-                onClick={() => setSelected(p.id)}
-                className={cn(
-                  "rounded-lg border p-4 text-left transition-colors hover:border-primary",
-                  selected === p.id && "border-primary ring-2 ring-ring"
-                )}
-              >
-                <div className="font-semibold">{p.nama}</div>
-                <div className="mt-1 text-lg font-bold text-primary">
-                  {amount === 0 ? "Gratis" : formatRupiah(amount)}
-                  {amount > 0 && (
-                    <span className="text-xs font-normal text-muted-foreground">
-                      /{period === "yearly" ? "tahun" : "bln"}
-                    </span>
-                  )}
-                  {isFree && (
-                    <div className="text-xs font-normal text-muted-foreground">
-                      Khusus Free berlaku 1 bulan
-                    </div>
-                  )}
-                  {period === "yearly" && p.diskonTahunanPersen > 0 && (
-                    <div className="text-xs font-normal text-primary">
-                      Hemat {p.diskonTahunanPersen}% dari harga bulanan
-                    </div>
-                  )}
-                </div>
-                <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
-                  <li className="flex items-center gap-1.5">
-                    <Check className="size-3 shrink-0 text-primary" aria-hidden />
-                    Maks {p.limitasi.maxPelanggan} pelanggan
-                  </li>
-                  <li className="flex items-center gap-1.5">
-                    <Check className="size-3 shrink-0 text-primary" aria-hidden />
-                    Maks {p.limitasi.maxRouter} router
-                  </li>
-                  {p.limitasi.fitur.map((key) => (
-                    <li key={key} className="flex items-center gap-1.5">
-                      <Check className="size-3 shrink-0 text-primary" aria-hidden />
-                      {getSaasFeatureInfo(key).label}
-                    </li>
-                  ))}
-                </ul>
-              </button>
-            );
-          })}
-        </div>
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          <li className="flex gap-2 text-sm">
+            <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            Hingga {safePkg.limitasi.maxPelanggan} pelanggan
+          </li>
+          <li className="flex gap-2 text-sm">
+            <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            Hingga {safePkg.limitasi.maxRouter} router
+          </li>
+          {safePkg.limitasi.fitur.map((key) => (
+            <li key={key} className="flex gap-2 text-sm">
+              <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+              {getSaasFeatureInfo(key).label}
+            </li>
+          ))}
+        </ul>
+      </div>
 
-        {selectedPackage && (
-          <div className="rounded-lg border bg-muted/20 p-4">
-            <h3 className="text-sm font-semibold">
-              Yang Anda dapatkan — paket {selectedPackage.nama}
-            </h3>
-            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-              <li className="flex gap-2.5">
-                <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                <div>
-                  <p className="text-sm font-medium">
-                    Hingga {selectedPackage.limitasi.maxPelanggan} pelanggan
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Kelola data pelanggan sesuai kuota paket.
-                  </p>
-                </div>
-              </li>
-              <li className="flex gap-2.5">
-                <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                <div>
-                  <p className="text-sm font-medium">
-                    Hingga {selectedPackage.limitasi.maxRouter} router Mikrotik
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Hubungkan dan kelola perangkat jaringan tenant Anda.
-                  </p>
-                </div>
-              </li>
-              {selectedPackage.limitasi.fitur.map((key) => {
-                const info = getSaasFeatureInfo(key);
-                return (
-                  <li key={key} className="flex gap-2.5">
-                    <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-                    <div>
-                      <p className="text-sm font-medium">{info.label}</p>
-                      <p className="text-xs text-muted-foreground">{info.description}</p>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-        <input type="hidden" name="packageId" value={selected} />
-        <input type="hidden" name="billingPeriod" value={effectiveBillingPeriod} />
+      <form ref={formRef} action={action} onSubmit={handleSubmit} className="space-y-6">
+        <input type="hidden" name="packageId" value={safePkg.id} />
+        <input type="hidden" name="billingPeriod" value={billingPeriod} />
         {termsAccepted && <input type="hidden" name="acceptTerms" value="on" />}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -244,8 +163,8 @@ export function RegisterForm({
           </span>
         </label>
 
-        {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-        <Button type="submit" className="w-full" disabled={pending || !selected}>
+        {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
+        <Button type="submit" className="w-full" disabled={pending || !pkg?.id}>
           {pending ? "Memproses pembayaran..." : "Daftar & Bayar"}
         </Button>
       </form>

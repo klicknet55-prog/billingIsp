@@ -5,36 +5,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getPlatformSettings } from "@/features/platform-settings/service";
 import { listActiveSaasPackages } from "@/features/tenants/service";
-import { RegisterForm } from "./register-form";
+import { PackageList } from "./package-list";
+import { normalizeRegisterPkg } from "./shared";
 
 export default async function RegisterTenantPage() {
-  const [packages, settings] = await Promise.all([
-    listActiveSaasPackages(),
-    getPlatformSettings(),
-  ]);
+  const packages = await listActiveSaasPackages();
+  const mapped = packages.map(normalizeRegisterPkg);
 
   return (
-    <Card className="w-full max-w-4xl">
+    <Card className="w-full max-w-5xl">
       <CardHeader>
-        <CardTitle className="text-xl">Daftar ISP Baru</CardTitle>
+        <CardTitle className="text-xl">Pilih Paket Langganan</CardTitle>
         <CardDescription>
-          Bandingkan paket dan fitur yang Anda dapatkan, lalu isi data untuk langsung aktif.
+          Bandingkan fitur dan harga, lalu klik Daftar pada paket yang Anda inginkan.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <RegisterForm
-          tcTitle={settings.tcTitle}
-          tcContent={settings.tcContent}
-          packages={packages.map((p) => ({
-            id: p.id,
-            nama: p.nama,
-            hargaBulanan: p.hargaBulanan,
-            diskonTahunanPersen: p.diskonTahunanPersen,
-            limitasi: p.limitasi,
-          }))}
-        />
+        <PackageList packages={mapped} />
       </CardContent>
     </Card>
   );
