@@ -12,6 +12,10 @@ import {
   updateStaff,
   type StaffRole,
 } from "./service";
+import { hashPassword } from "@/lib/auth/password";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
 
 const staffSchema = z.object({
   nama: z.string().trim().min(1, "Nama wajib diisi"),
@@ -59,4 +63,29 @@ export async function deleteStaffAction(formData: FormData) {
   const owner = await requireUser(["owner"]);
   await deleteStaff(owner.tenantId!, String(formData.get("id") ?? ""));
   revalidatePath("/isp/staf");
+}
+
+/** Reset kata sandi staf ke nilai baru (owner only). */
+export async function resetStaffPasswordAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const owner = await requireUser(["owner"]);
+  const id = String(formData.get("id") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 6) {
+    return { fieldErrors: { password: "Kata sandi minimal 6 karakter" } };
+  }
+  const staff = await db.query.users.findFirst({
+    where: and(eq(users.tenantId, owner.tenantId!), eq(users.id, id)),
+  });
+  if (!staff || staff.role === "owner") {
+    return { error: "Staf tidak ditemukan." };
+  }
+  await db
+    .update(users)
+    .set({ passwordHash: hashPassword(password) })
+    .where(eq(users.id, id));
+  revalidatePath("/isp/staf");
+  return { ok: true };
 }

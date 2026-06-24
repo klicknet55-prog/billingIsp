@@ -9,6 +9,7 @@ import {
   type Ticket,
 } from "@/lib/db/schema";
 import { newId } from "@/lib/utils";
+import { autoAssignNearestTeknisi } from "./auto-assign";
 
 export interface TicketRow extends Ticket {
   pelangganNama: string;
@@ -38,10 +39,17 @@ export async function listTickets(tenantId: string, pelangganId?: string): Promi
 
 export async function createTicket(
   tenantId: string,
-  input: { pelangganId: string; judul: string; deskripsi?: string | null; fotoUrl?: string | null }
+  input: {
+    pelangganId: string;
+    judul: string;
+    deskripsi?: string | null;
+    fotoUrl?: string | null;
+    autoAssign?: boolean;
+  }
 ) {
+  const ticketId = newId("tkt");
   await db.insert(tickets).values({
-    id: newId("tkt"),
+    id: ticketId,
     tenantId,
     pelangganId: input.pelangganId,
     judul: input.judul,
@@ -49,6 +57,22 @@ export async function createTicket(
     fotoUrl: input.fotoUrl ?? null,
     status: "open",
   });
+  if (input.autoAssign !== false) {
+    await autoAssignNearestTeknisi(tenantId, ticketId, input.pelangganId);
+  }
+  return ticketId;
+}
+
+export async function updateTeknisiLocation(
+  tenantId: string,
+  userId: string,
+  latitude: number,
+  longitude: number
+) {
+  await db
+    .update(users)
+    .set({ latitude, longitude })
+    .where(and(eq(users.tenantId, tenantId), eq(users.id, userId), eq(users.role, "teknisi")));
 }
 
 export async function updateTicketStatus(

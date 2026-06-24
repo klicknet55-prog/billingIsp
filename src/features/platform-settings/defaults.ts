@@ -25,4 +25,6 @@ export const DEFAULT_PLATFORM_SETTINGS: Omit<PlatformSettings, "updatedAt"> & {
   tcTitle: "Syarat & Ketentuan",
   tcContent:
     "1. Pengguna wajib menjaga kerahasiaan akun dashboard.\n2. Data pelanggan menjadi tanggung jawab masing-masing tenant ISP.\n3. Pembayaran langganan SaaS mengikuti paket yang dipilih saat pendaftaran.\n4. Platform dapat menangguhkan akun yang melanggar ketentuan atau menunggak langganan.\n5. Ketentuan dapat diperbarui; perubahan akan diinformasikan melalui dashboard.",
+  cronLastRunAt: null,
+  cronLastResult: null,
 };

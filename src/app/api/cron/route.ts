@@ -1,5 +1,6 @@
 import { runBillingCycle } from "@/features/jobs/service";
 import { runSaasSubscriptionLifecycle } from "@/features/jobs/saas-subscription";
+import { recordCronRun } from "@/features/platform-health/service";
 
 /**
  * Endpoint cron untuk siklus penagihan otomatis dan langganan SaaS platform.
@@ -16,5 +17,7 @@ export async function GET(req: Request) {
   }
   const saas = await runSaasSubscriptionLifecycle();
   const billing = await runBillingCycle();
-  return Response.json({ ok: true, billing, saas });
+  const payload = { ok: true, billing, saas };
+  await recordCronRun(payload);
+  return Response.json(payload);
 }

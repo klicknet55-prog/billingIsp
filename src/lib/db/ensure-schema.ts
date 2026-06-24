@@ -160,5 +160,20 @@ if (!platformRow && hasDbTable(db, "platform_settings")) {
   console.log("[ok]   baris default platform_settings disisipkan");
 }
 
+if (!hasDbTable(db, "password_reset")) {
+  db.exec(`
+    CREATE TABLE password_reset (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at INTEGER NOT NULL,
+      consumed_at INTEGER,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+  applied++;
+  console.log("[ok]   tabel password_reset dibuat");
+}
+
 db.close();
 console.log(applied > 0 ? `Selesai — ${applied} perubahan schema.` : "Selesai — tidak ada perubahan.");

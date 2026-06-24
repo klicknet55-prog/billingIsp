@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { assignTicket, createTicket, updateTicketStatus } from "./service";
+import { assignTicket, createTicket, updateTicketStatus, updateTeknisiLocation } from "./service";
 
 const ISP_ROLES = ["owner", "admin", "teknisi"] as const;
 
@@ -30,4 +30,12 @@ export async function assignTicketAction(formData: FormData) {
   await requireUser(ISP_ROLES);
   await assignTicket(String(formData.get("ticketId") ?? ""), String(formData.get("userId") ?? ""));
   revalidatePath("/isp/tiket");
+}
+
+export async function updateTeknisiLocationAction(formData: FormData) {
+  const user = await requireUser(["teknisi"]);
+  const lat = Number(formData.get("latitude"));
+  const lng = Number(formData.get("longitude"));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  await updateTeknisiLocation(user.tenantId!, user.id, lat, lng);
 }

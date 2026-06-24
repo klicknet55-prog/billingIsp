@@ -1,4 +1,4 @@
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, KeyRound } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import {
 import { listStaff } from "@/features/staff/service";
 import { requireUser } from "@/lib/auth";
 import { StaffFormDialog } from "./staff-form";
+import { StaffResetPasswordDialog } from "./staff-reset-password-dialog";
 
 export default async function StafPage() {
   const owner = await requireUser(["owner"]);
@@ -71,6 +72,17 @@ export default async function StafPage() {
                           </Button>
                         }
                       />
+                      {s.role !== "owner" && (
+                        <StaffResetPasswordDialog
+                          staffId={s.id}
+                          staffName={s.nama}
+                          trigger={
+                            <Button variant="ghost" size="icon" title="Reset kata sandi">
+                              <KeyRound />
+                            </Button>
+                          }
+                        />
+                      )}
                       {s.role !== "owner" && (
                         <>
                           <form action={setStaffActiveAction}>

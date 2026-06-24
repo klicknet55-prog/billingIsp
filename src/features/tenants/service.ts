@@ -26,6 +26,7 @@ import {
 } from "@/lib/db/schema";
 import { getDuitkuClient } from "@/lib/integrations/duitku";
 import { createLogger } from "@/lib/logger";
+import { notifyNewTenantWelcome } from "./welcome";
 import { newId } from "@/lib/utils";
 
 const log = createLogger("tenants");
@@ -452,6 +453,8 @@ export async function registerTenant(
     passwordHash: hashPassword(input.password),
     role: "owner",
     phone: null,
+    latitude: null,
+    longitude: null,
     isActive: true,
     createdAt: new Date(),
   };
@@ -474,6 +477,7 @@ export async function registerTenant(
       amount: 0,
       paymentMethod: "FREE",
     });
+    await notifyNewTenantWelcome({ ...tenant, status: "active" }, owner);
     return { tenant: { ...tenant, status: "active" }, owner };
   }
 
@@ -525,5 +529,6 @@ export async function registerTenant(
   });
 
   log.info(`Tenant baru terdaftar: ${domain}`);
+  await notifyNewTenantWelcome(tenant, owner);
   return { tenant, owner };
 }

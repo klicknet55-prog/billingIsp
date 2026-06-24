@@ -11,12 +11,13 @@ import { LoginForm } from "./login-form";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
   const qs = await searchParams;
   const errorCode = qs.error ?? "";
   const suspended = errorCode === "suspended";
   const forbidden = errorCode === "forbidden";
+  const resetOk = qs.reset === "ok";
 
   return (
     <Card className="w-full max-w-sm">
@@ -34,6 +35,11 @@ export default async function LoginPage({
         {forbidden && (
           <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
             Anda tidak memiliki akses ke halaman tersebut.
+          </p>
+        )}
+        {resetOk && (
+          <p className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-primary">
+            Kata sandi berhasil diubah. Silakan masuk dengan kata sandi baru.
           </p>
         )}
         <LoginForm />

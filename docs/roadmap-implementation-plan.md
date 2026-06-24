@@ -321,21 +321,38 @@ Subscription demo expired → tenant suspend; cron tidak generate invoice untuk 
 
 **Tujuan:** Fitur lapangan & helpdesk yang masih kurang.
 
+**Status:** Implemented
+
 **Prasyarat:** Fase 2–3 (audit + tenant lifecycle).
 
 ### 4a — Kolektor & helpdesk (prioritas tinggi)
 
-- [ ] **Offline kolektor:** IndexedDB cache daftar invoice tugas + sync saat online
-- [ ] **Upload foto tiket:** storage lokal `public/uploads/` atau S3; field `fotoUrl` dari upload
-- [ ] **Assign tiket otomatis:** sort teknisi by jarak ke pelanggan (reuse logic kolektor GPS)
-- [ ] Portal pelanggan: lihat status tiket (open / in progress / resolved)
+- [x] **Offline kolektor:** IndexedDB cache daftar invoice tugas + sync saat online
+- [x] **Upload foto tiket:** storage lokal `public/uploads/tickets/`; field `fotoUrl` dari upload
+- [x] **Assign tiket otomatis:** teknisi terdekat (GPS) atau beban tiket paling sedikit
+- [x] Portal pelanggan: lihat status tiket (open / in progress / resolved) + lampiran foto
 
 ### 4b — Laporan & admin
 
-- [ ] Export laporan PDF/Excel (invoice, P&L) — selain CSV yang sudah ada
-- [ ] System health superadmin: cron last run, jumlah tenant, router offline count
-- [ ] Reset password staf oleh owner
-- [ ] Email selamat datang setelah register tenant + bayar
+- [x] Export laporan PDF/Excel (invoice, P&L) — CSV, XLSX, cetak PDF browser
+- [x] System health superadmin: cron last run, jumlah tenant, router offline count
+- [x] Reset password staf oleh owner (dialog + edit form)
+- [x] Email dan WA selamat datang setelah register tenant + bayar
+- [x] Lupa password owner/staf (`/lupa-password` → email/WA → `/reset-password`)
+
+### File utama
+
+| Path | Fungsi |
+|------|--------|
+| `src/lib/offline/kolektor-store.ts` | IndexedDB cache & antrean bayar offline |
+| `src/app/kolektor/kolektor-tasks.tsx` | UI offline + sync |
+| `src/lib/uploads.ts` | Upload foto tiket |
+| `src/features/tickets/auto-assign.ts` | Auto-assign teknisi |
+| `src/app/isp/laporan/export/route.ts` | CSV + Excel |
+| `src/app/isp/laporan/print/route.ts` | HTML cetak PDF |
+| `src/features/platform-health/service.ts` | Cron last run + health metrics |
+| `src/lib/integrations/email/` | Welcome & reset email (mock/smtp) |
+| `src/lib/auth/password-reset.ts` | Lupa password staf/owner |
 
 ### Selesai jika
 

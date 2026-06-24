@@ -1,4 +1,4 @@
-import { Building2, CreditCard, Package, Users } from "lucide-react";
+import { Activity, Building2, CreditCard, Package, Router, Users } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/layout/stat-card";
 import {
@@ -8,14 +8,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getPlatformHealth } from "@/features/platform-health/service";
 import { listPackages, listSaasTransactions, listTenants } from "@/features/tenants/service";
-import { formatRupiah } from "@/lib/utils";
+import { formatDate, formatRupiah } from "@/lib/utils";
 
 export default async function SuperadminDashboard() {
-  const [tenants, packages, tx] = await Promise.all([
+  const [tenants, packages, tx, health] = await Promise.all([
     listTenants(),
     listPackages(),
     listSaasTransactions(),
+    getPlatformHealth(),
   ]);
   const aktif = tenants.filter((t) => t.status === "active").length;
   const pendapatan = tx
@@ -31,6 +33,53 @@ export default async function SuperadminDashboard() {
         <StatCard label="Paket SaaS" value={packages.length} icon={Package} />
         <StatCard label="Pendapatan SaaS" value={formatRupiah(pendapatan)} icon={CreditCard} />
       </div>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="size-5" />
+            System Health
+          </CardTitle>
+          <CardDescription>Status cron, tenant, dan router platform.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="text-muted-foreground">Cron terakhir</p>
+            <p className="font-medium">
+              {health.cronLastRunAt ? formatDate(health.cronLastRunAt) : "Belum pernah"}
+            </p>
+            {health.cronLastResult && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                billing.generated=
+                {String(
+                  (health.cronLastResult.billing as { generated?: number } | undefined)
+                    ?.generated ?? "-"
+                )}
+                , saas.suspended=
+                {String(
+                  (health.cronLastResult.saas as { suspended?: number } | undefined)?.suspended ??
+                    "-"
+                )}
+              </p>
+            )}
+          </div>
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="text-muted-foreground">Tenant</p>
+            <p className="font-medium">
+              {health.tenantActive} aktif / {health.tenantSuspended} suspend / {health.tenantTotal}{" "}
+              total
+            </p>
+          </div>
+          <div className="rounded-lg border p-3 text-sm">
+            <p className="text-muted-foreground flex items-center gap-1">
+              <Router className="size-4" /> Router offline
+            </p>
+            <p className="font-medium">
+              {health.routerOffline} dari {health.routerTotal} router
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>

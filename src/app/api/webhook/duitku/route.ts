@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { changeTenantSubscriptionPackage } from "@/features/tenants/service";
+import { notifyNewTenantWelcome } from "@/features/tenants/welcome";
 import { markInvoicePaid } from "@/features/invoices/service";
 import { getTenantDuitkuConfig } from "@/features/integrations/service";
 import { db } from "@/lib/db";
-import { invoices, paymentGatewayLogs, subscriptions, tenants } from "@/lib/db/schema";
+import { invoices, paymentGatewayLogs, subscriptions, tenants, users } from "@/lib/db/schema";
 import { getDuitkuClient } from "@/lib/integrations/duitku";
 import { createLogger } from "@/lib/logger";
 
@@ -80,6 +81,13 @@ export async function POST(req: Request) {
       .update(subscriptions)
       .set({ status: "active" })
       .where(eq(subscriptions.tenantId, tenantId));
+    const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+    const owner = await db.query.users.findFirst({
+      where: and(eq(users.tenantId, tenantId), eq(users.role, "owner")),
+    });
+    if (tenant && owner?.role === "owner") {
+      await notifyNewTenantWelcome(tenant, owner);
+    }
   } else if (result.orderId.startsWith("SUP-")) {
     const upgradeRef =
       txLog?.referenceType === "subscription" && txLog.referenceId.startsWith("UPG:")

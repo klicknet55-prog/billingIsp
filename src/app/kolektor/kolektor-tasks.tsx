@@ -1,11 +1,21 @@
 "use client";
 
-import { MapPin, Navigation, Printer } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { MapPin, Navigation, Printer, WifiOff } from "lucide-react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { markPaidAction } from "@/features/invoices/actions";
+import { haversineKm } from "@/lib/geo/haversine";
+import {
+  clearPaymentQueue,
+  isOnline,
+  loadKolektorTasksCache,
+  loadPaymentQueue,
+  queueOfflinePayment,
+  saveKolektorTasksCache,
+  type PendingPayment,
+} from "@/lib/offline/kolektor-store";
 import { printReceipt } from "@/lib/print/thermal";
 import { formatRupiah } from "@/lib/utils";
 
@@ -21,19 +31,26 @@ export interface Task {
   alamat: string | null;
 }
 
-function haversine(aLat: number, aLng: number, bLat: number, bLng: number): number {
-  const R = 6371;
-  const dLat = ((bLat - aLat) * Math.PI) / 180;
-  const dLng = ((bLng - aLng) * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return Math.round(2 * R * Math.asin(Math.sqrt(h)) * 100) / 100;
-}
-
 export function KolektorTasks({ tasks, namaUsaha }: { tasks: Task[]; namaUsaha: string }) {
   const [pos, setPos] = useState<{ lat: number; lng: number } | null>(null);
   const [msg, setMsg] = useState("");
+  const [online, setOnline] = useState(true);
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
+  const [displayTasks, setDisplayTasks] = useState(tasks);
+  const [pendingQueue, setPendingQueue] = useState<PendingPayment[]>([]);
+  const [, startSync] = useTransition();
+
+  useEffect(() => {
+    setOnline(isOnline());
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!navigator.geolocation) return;
@@ -43,19 +60,55 @@ export function KolektorTasks({ tasks, namaUsaha }: { tasks: Task[]; namaUsaha: 
     );
   }, []);
 
+  useEffect(() => {
+    if (tasks.length > 0) {
+      setDisplayTasks(tasks);
+      void saveKolektorTasksCache(tasks, namaUsaha);
+      setCachedAt(Date.now());
+      return;
+    }
+    void loadKolektorTasksCache().then((cache) => {
+      if (cache?.tasks.length) {
+        setDisplayTasks(cache.tasks);
+        setCachedAt(cache.savedAt);
+        setMsg("Mode offline — menampilkan daftar tugas terakhir.");
+      }
+    });
+  }, [tasks, namaUsaha]);
+
+  useEffect(() => {
+    void loadPaymentQueue().then(setPendingQueue);
+  }, []);
+
+  useEffect(() => {
+    if (!online || pendingQueue.length === 0) return;
+    startSync(async () => {
+      for (const item of pendingQueue) {
+        const fd = new FormData();
+        fd.set("id", item.invoiceId);
+        fd.set("metode", item.metode);
+        await markPaidAction(fd);
+      }
+      await clearPaymentQueue();
+      setPendingQueue([]);
+      setMsg("Antrean pembayaran offline tersinkron.");
+      window.location.reload();
+    });
+  }, [online, pendingQueue, startSync]);
+
   const sorted = useMemo(() => {
-    if (!pos) return tasks;
-    return [...tasks]
+    if (!pos) return displayTasks;
+    return [...displayTasks]
       .map((t) => ({
         t,
         d:
           t.latitude != null && t.longitude != null
-            ? haversine(pos.lat, pos.lng, t.latitude, t.longitude)
+            ? haversineKm(pos.lat, pos.lng, t.latitude, t.longitude)
             : Number.POSITIVE_INFINITY,
       }))
       .sort((a, b) => a.d - b.d)
       .map((x) => ({ ...x.t, distance: x.d }));
-  }, [pos, tasks]);
+  }, [pos, displayTasks]);
 
   async function handlePrint(t: Task) {
     const res = await printReceipt({
@@ -69,7 +122,21 @@ export function KolektorTasks({ tasks, namaUsaha }: { tasks: Task[]; namaUsaha: 
     setMsg(res.message);
   }
 
-  if (tasks.length === 0) {
+  async function handleCashPayment(t: Task) {
+    if (!online) {
+      await queueOfflinePayment(t.id, "Tunai");
+      const q = await loadPaymentQueue();
+      setPendingQueue(q);
+      setMsg("Offline — pembayaran akan disinkron saat online.");
+      return;
+    }
+    const fd = new FormData();
+    fd.set("id", t.id);
+    fd.set("metode", "Tunai");
+    await markPaidAction(fd);
+  }
+
+  if (displayTasks.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         Tidak ada tugas penagihan di area Anda. Hubungi admin jika seharusnya ada tagihan.
@@ -79,6 +146,18 @@ export function KolektorTasks({ tasks, namaUsaha }: { tasks: Task[]; namaUsaha: 
 
   return (
     <div className="space-y-3">
+      {!online && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+          <WifiOff className="size-4 shrink-0" />
+          Offline — daftar tugas dari cache
+          {cachedAt ? ` (${new Date(cachedAt).toLocaleString("id-ID")})` : ""}
+        </div>
+      )}
+      {pendingQueue.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {pendingQueue.length} pembayaran menunggu sinkron saat online.
+        </p>
+      )}
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
       {sorted.map((t) => {
         const distance = (t as Task & { distance?: number }).distance;
@@ -116,13 +195,9 @@ export function KolektorTasks({ tasks, namaUsaha }: { tasks: Task[]; namaUsaha: 
                 <Button variant="outline" size="sm" onClick={() => handlePrint(t)}>
                   <Printer /> Cetak
                 </Button>
-                <form action={markPaidAction}>
-                  <input type="hidden" name="id" value={t.id} />
-                  <input type="hidden" name="metode" value="Tunai" />
-                  <Button size="sm" type="submit">
-                    Terima Tunai & Aktifkan
-                  </Button>
-                </form>
+                <Button size="sm" type="button" onClick={() => handleCashPayment(t)}>
+                  Terima Tunai & Aktifkan
+                </Button>
               </div>
             </CardContent>
           </Card>

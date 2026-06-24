@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ import {
 import { listTeknisi, listTickets } from "@/features/tickets/service";
 import { requireUser } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
+import { TeknisiLocationPing } from "./teknisi-location-ping";
 
 const statusVariant = { open: "warning", in_progress: "default", resolved: "success" } as const;
 const statusLabel = { open: "Open", in_progress: "Dikerjakan", resolved: "Selesai" } as const;
@@ -48,9 +50,10 @@ export default async function TiketPage({
 
   return (
     <>
+      {user.role === "teknisi" && <TeknisiLocationPing />}
       <PageHeader
         title="Helpdesk Tiket"
-        description="Terima laporan gangguan & tetapkan teknisi."
+        description="Tiket baru otomatis ditetapkan ke teknisi terdekat (GPS). Anda bisa ubah manual."
         action={
           <Disclosure label="Buat Tiket">
             <form action={createTicketAction} className="space-y-4">
@@ -98,6 +101,7 @@ export default async function TiketPage({
               <TableRow>
                 <TableHead>Judul</TableHead>
                 <TableHead>Pelanggan</TableHead>
+                <TableHead>Foto</TableHead>
                 <TableHead>Teknisi</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Tanggal</TableHead>
@@ -107,8 +111,29 @@ export default async function TiketPage({
             <TableBody>
               {rows.map((t) => (
                 <TableRow key={t.id}>
-                  <TableCell className="font-medium">{t.judul}</TableCell>
+                  <TableCell className="font-medium">
+                    <div>{t.judul}</div>
+                    {t.deskripsi && (
+                      <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{t.deskripsi}</p>
+                    )}
+                  </TableCell>
                   <TableCell>{t.pelangganNama}</TableCell>
+                  <TableCell>
+                    {t.fotoUrl ? (
+                      <a href={t.fotoUrl} target="_blank" rel="noopener noreferrer">
+                        <Image
+                          src={t.fotoUrl}
+                          alt="Lampiran"
+                          width={48}
+                          height={48}
+                          className="rounded border object-cover"
+                          unoptimized
+                        />
+                      </a>
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell>
                     <form action={assignTicketAction} className="flex items-center gap-1">
                       <input type="hidden" name="ticketId" value={t.id} />
@@ -142,7 +167,7 @@ export default async function TiketPage({
               ))}
               {rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
                     Belum ada tiket.
                   </TableCell>
                 </TableRow>

@@ -39,11 +39,33 @@ export default async function LaporanPage() {
         title="Laporan Keuangan"
         description="Pemasukan, pengeluaran, dan laba rugi."
         action={
-          <Button asChild variant="outline">
-            <a href="/isp/laporan/export">
-              <Download /> Ekspor CSV
-            </a>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline" size="sm">
+              <a href="/isp/laporan/export?format=csv">
+                <Download /> CSV Invoice
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="/isp/laporan/export?format=xlsx">
+                <Download /> Excel Invoice
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="/isp/laporan/export?type=pnl&format=xlsx">
+                <Download /> Excel P&amp;L
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="/isp/laporan/print?type=invoice" target="_blank" rel="noopener noreferrer">
+                <Download /> PDF Invoice
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <a href="/isp/laporan/print?type=pnl" target="_blank" rel="noopener noreferrer">
+                <Download /> PDF P&amp;L
+              </a>
+            </Button>
+          </div>
         }
       />
 

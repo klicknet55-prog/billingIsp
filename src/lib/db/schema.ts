@@ -40,6 +40,9 @@ export const users = sqliteTable("user", {
     enum: ["superadmin", "owner", "admin", "kolektor", "teknisi"],
   }).notNull(),
   phone: text("phone"),
+  /** Koordinat terakhir teknisi (untuk auto-assign tiket). */
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
@@ -319,6 +322,15 @@ export const otpCodes = sqliteTable("otp_code", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
+export const passwordResets = sqliteTable("password_reset", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  token: text("token").notNull().unique(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  consumedAt: integer("consumed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
 // ---------------------------------------------------------------------------
 // Platform: halaman statis (Tentang, Kontak, Syarat & Ketentuan)
 // ---------------------------------------------------------------------------
@@ -347,6 +359,8 @@ export const platformSettings = sqliteTable("platform_settings", {
   kontakWhatsapp: text("kontak_whatsapp"),
   tcTitle: text("tc_title").notNull(),
   tcContent: text("tc_content").notNull(),
+  cronLastRunAt: integer("cron_last_run_at", { mode: "timestamp" }),
+  cronLastResult: text("cron_last_result"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
 });
 

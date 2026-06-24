@@ -9,6 +9,10 @@ import {
   logout,
 } from "@/lib/auth";
 import { normalizePhone, requestOtp, verifyOtp } from "@/lib/auth/otp";
+import {
+  completePasswordReset,
+  requestPasswordReset,
+} from "@/lib/auth/password-reset";
 import { db } from "@/lib/db";
 import { pelanggan } from "@/lib/db/schema";
 
@@ -78,4 +82,24 @@ export async function verifyOtpAction(
   if (!cust) return { error: "Pelanggan tidak ditemukan." };
   await loginPelanggan(cust);
   redirect("/portal");
+}
+
+export async function requestPasswordResetAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const result = await requestPasswordReset(String(formData.get("email") ?? ""));
+  if ("error" in result && result.error) return { error: result.error };
+  return { ok: true };
+}
+
+export async function resetPasswordAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const token = String(formData.get("token") ?? "");
+  const password = String(formData.get("password") ?? "");
+  const result = await completePasswordReset(token, password);
+  if ("error" in result) return { error: result.error };
+  redirect("/login?reset=ok");
 }

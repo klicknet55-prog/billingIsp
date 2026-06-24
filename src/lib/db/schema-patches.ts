@@ -68,6 +68,26 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     column: "input_odp_id",
     sql: "ALTER TABLE odp ADD COLUMN input_odp_id TEXT REFERENCES odp(id)",
   },
+  {
+    table: "user",
+    column: "latitude",
+    sql: "ALTER TABLE user ADD COLUMN latitude REAL",
+  },
+  {
+    table: "user",
+    column: "longitude",
+    sql: "ALTER TABLE user ADD COLUMN longitude REAL",
+  },
+  {
+    table: "platform_settings",
+    column: "cron_last_run_at",
+    sql: "ALTER TABLE platform_settings ADD COLUMN cron_last_run_at INTEGER",
+  },
+  {
+    table: "platform_settings",
+    column: "cron_last_result",
+    sql: "ALTER TABLE platform_settings ADD COLUMN cron_last_result TEXT",
+  },
 ];
 
 function hasColumn(db: Database.Database, table: string, column: string) {
