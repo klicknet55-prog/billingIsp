@@ -16,11 +16,11 @@ export default async function RegisterTenantPage() {
   ]);
 
   return (
-    <Card className="w-full max-w-3xl">
+    <Card className="w-full max-w-4xl">
       <CardHeader>
         <CardTitle className="text-xl">Daftar ISP Baru</CardTitle>
         <CardDescription>
-          Pilih paket, isi data, dan langsung aktif.
+          Bandingkan paket dan fitur yang Anda dapatkan, lalu isi data untuk langsung aktif.
         </CardDescription>
       </CardHeader>
       <CardContent>

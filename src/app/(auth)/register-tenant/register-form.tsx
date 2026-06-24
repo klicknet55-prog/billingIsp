@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerTenantAction } from "@/features/tenants/actions";
 import type { ActionState } from "@/features/auth/actions";
+import { getSaasFeatureInfo } from "@/features/tenants/saas-features";
 import { cn, formatRupiah } from "@/lib/utils";
 import { RegisterTermsModal } from "./register-terms-modal";
 
@@ -117,15 +119,70 @@ export function RegisterForm({
                     </div>
                   )}
                 </div>
-                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  <li>Maks {p.limitasi.maxPelanggan} pelanggan</li>
-                  <li>Maks {p.limitasi.maxRouter} router</li>
-                  <li>{p.limitasi.fitur.length} fitur</li>
+                <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                  <li className="flex items-center gap-1.5">
+                    <Check className="size-3 shrink-0 text-primary" aria-hidden />
+                    Maks {p.limitasi.maxPelanggan} pelanggan
+                  </li>
+                  <li className="flex items-center gap-1.5">
+                    <Check className="size-3 shrink-0 text-primary" aria-hidden />
+                    Maks {p.limitasi.maxRouter} router
+                  </li>
+                  {p.limitasi.fitur.map((key) => (
+                    <li key={key} className="flex items-center gap-1.5">
+                      <Check className="size-3 shrink-0 text-primary" aria-hidden />
+                      {getSaasFeatureInfo(key).label}
+                    </li>
+                  ))}
                 </ul>
               </button>
             );
           })}
         </div>
+
+        {selectedPackage && (
+          <div className="rounded-lg border bg-muted/20 p-4">
+            <h3 className="text-sm font-semibold">
+              Yang Anda dapatkan — paket {selectedPackage.nama}
+            </h3>
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+              <li className="flex gap-2.5">
+                <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                <div>
+                  <p className="text-sm font-medium">
+                    Hingga {selectedPackage.limitasi.maxPelanggan} pelanggan
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Kelola data pelanggan sesuai kuota paket.
+                  </p>
+                </div>
+              </li>
+              <li className="flex gap-2.5">
+                <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                <div>
+                  <p className="text-sm font-medium">
+                    Hingga {selectedPackage.limitasi.maxRouter} router Mikrotik
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Hubungkan dan kelola perangkat jaringan tenant Anda.
+                  </p>
+                </div>
+              </li>
+              {selectedPackage.limitasi.fitur.map((key) => {
+                const info = getSaasFeatureInfo(key);
+                return (
+                  <li key={key} className="flex gap-2.5">
+                    <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+                    <div>
+                      <p className="text-sm font-medium">{info.label}</p>
+                      <p className="text-xs text-muted-foreground">{info.description}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
         <input type="hidden" name="packageId" value={selected} />
         <input type="hidden" name="billingPeriod" value={effectiveBillingPeriod} />
         {termsAccepted && <input type="hidden" name="acceptTerms" value="on" />}
