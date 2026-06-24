@@ -200,8 +200,7 @@ pm2 restart billingisp
 | Superadmin pengaturan | `/superadmin/pengaturan` |
 | Peta ODP | `/isp/peta` (login owner) |
 | Teknisi | `teknisi@demo.net` → `/isp/tiket` |
-| Cron billing | `npm run cron:test` atau `curl .../api/cron` |
-| SaaS expire (Fase 3) | `npm run saas-expire:test` |
+| Cron billing & SaaS | `curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron` |
 | Log PM2 | `pm2 logs billingisp --lines 30` |
 
 ### 7. Pasang cron (wajib production)

@@ -88,7 +88,7 @@ Superadmin bisa edit teks → simpan → halaman publik langsung berubah; tombol
 ### Checklist
 
 - [ ] `git pull` + `npm ci` + `npm run db:ensure-schema` + `npm run build` + `pm2 restart billingisp`
-- [ ] Smoke test: login owner, pelanggan, kolektor, portal OTP, `/isp/peta`, cron billing (`npm run cron:test`)
+- [ ] Smoke test: login owner, pelanggan, kolektor, portal OTP, `/isp/peta`, cron billing (`curl .../api/cron`)
 - [ ] Backup manual file DB sekali (`cp netmanage.db netmanage.db.manual.bak`)
 - [ ] Dokumentasi env production lengkap (Duitku, WA, `CRON_SECRET`, `MAP_MODEM_CACHE_SECONDS`)
 
@@ -250,7 +250,7 @@ Tab baru **"Backup & Restore"** di `/isp/pengaturan`:
 - [x] Script CLI `backup:tenant` dan `backup:full`
 - [x] `.gitignore` → `data/backups/**`, `*.db.bak`
 - [x] README: cara backup manual + restore
-- [ ] Test: export → hapus pelanggan → restore merge → data kembali
+- [x] Test: export → hapus pelanggan → restore merge → data kembali
 
 ### 1.9 Sub-fase opsional (1b — setelah 1a stabil)
 
@@ -314,8 +314,6 @@ Password router tidak plaintext di DB; restore backup tercatat di audit log; ten
 ### Selesai jika
 
 Subscription demo expired → tenant suspend; cron tidak generate invoice untuk tenant suspend.
-
-**Uji otomatis:** `npm run saas-expire:test` (restore subscription demo setelah selesai). Opsional via HTTP: `npm run saas-expire:test:http` (dev server harus jalan).
 
 ---
 
