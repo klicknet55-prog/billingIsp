@@ -169,12 +169,13 @@ async function main() {
     await log(`Git pull selesai @ ${afterPull}`);
 
     await setStep(state, "npm_ci", "running");
-    run("npm ci");
+    // devDependencies (typescript, tsx, drizzle-kit) diperlukan untuk build & ensure-schema
+    run("npm ci --include=dev");
     await setStep(state, "npm_ci", "ok");
     await log("npm ci selesai");
 
     await setStep(state, "db_ensure_schema", "running");
-    run("npm run db:ensure-schema");
+    run(`${process.execPath} --env-file=.env --import tsx src/lib/db/ensure-schema.ts`);
     await setStep(state, "db_ensure_schema", "ok");
     await log("db:ensure-schema selesai");
 

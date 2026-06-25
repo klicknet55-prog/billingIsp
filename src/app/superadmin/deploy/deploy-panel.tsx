@@ -1,14 +1,16 @@
 "use client";
 
-import { RefreshCw, Rocket } from "lucide-react";
+import { RefreshCw, Rocket, Trash2 } from "lucide-react";
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/features/auth/actions";
 import {
+  clearDeployLogsAction,
   getDeployStatusAction,
   startDeployAction,
 } from "@/features/platform-deploy/actions";
@@ -35,6 +37,8 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
   const [info, setInfo] = useState(initialInfo);
   const [state, action] = useActionState(startDeployAction, initial);
   const [, startRefresh] = useTransition();
+  const [clearing, startClear] = useTransition();
+  const { toast } = useToast();
 
   const refresh = useCallback(() => {
     startRefresh(async () => {
@@ -42,6 +46,26 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
       setInfo(next);
     });
   }, [startRefresh]);
+
+  function handleClearLogs() {
+    if (info.status === "running") return;
+    if (
+      !window.confirm(
+        "Hapus log deploy dan reset status? Riwayat langkah deploy akan dibersihkan."
+      )
+    ) {
+      return;
+    }
+    startClear(async () => {
+      const result = await clearDeployLogsAction();
+      if (result.ok) {
+        toast({ title: "Log deploy dibersihkan", variant: "success" });
+        refresh();
+      } else if (result.error) {
+        toast({ title: result.error, variant: "error" });
+      }
+    });
+  }
 
   useEffect(() => {
     if (info.status !== "running") return;
@@ -145,17 +169,42 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
             {info.status === "running" ? "Deploy berjalan…" : "Update Aplikasi"}
           </SubmitButton>
           <Button type="button" variant="outline" onClick={refresh}>
-            <RefreshCw className="size-4" /> Refresh log
+            <RefreshCw className="size-4" /> Refresh status
           </Button>
         </div>
       </form>
 
-      {info.logTail && (
+      {(info.logTail || info.steps.length > 0 || info.status !== "idle") && (
         <div>
-          <p className="mb-2 text-sm font-medium">Log deploy</p>
-          <pre className="max-h-72 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs whitespace-pre-wrap">
-            {info.logTail}
-          </pre>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">Log deploy</p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={refresh}
+              >
+                <RefreshCw className="size-4" /> Refresh
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={info.status === "running" || clearing}
+                onClick={handleClearLogs}
+              >
+                <Trash2 className="size-4" /> Hapus log
+              </Button>
+            </div>
+          </div>
+          {info.logTail ? (
+            <pre className="max-h-72 overflow-auto rounded-lg border bg-muted/30 p-3 text-xs whitespace-pre-wrap">
+              {info.logTail}
+            </pre>
+          ) : (
+            <p className="text-sm text-muted-foreground">Log kosong.</p>
+          )}
         </div>
       )}
     </div>

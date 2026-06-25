@@ -1,6 +1,6 @@
 import "server-only";
 import { execSync, spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { DeployInfo } from "@/features/platform-deploy/types";
 
@@ -97,4 +97,14 @@ export async function startDeployProcess(triggeredBy: string): Promise<void> {
     },
   });
   child.unref();
+}
+
+/** Hapus deploy.log dan reset status.json (hanya jika deploy tidak berjalan). */
+export async function clearDeployLogs(): Promise<void> {
+  if (await isDeployRunning()) {
+    throw new Error("Tidak bisa hapus log saat deploy masih berjalan.");
+  }
+  await mkdir(DEPLOY_DIR, { recursive: true });
+  await writeFile(LOG_FILE, "", "utf8");
+  await writeFile(STATUS_FILE, JSON.stringify(emptyDeployInfo(), null, 2), "utf8");
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
 import {
+  clearDeployLogs,
   getDeployInfo,
   isDeployEnabled,
   isDeployRunning,
@@ -42,4 +43,16 @@ export async function getDeployStatusAction(): Promise<
 > {
   await requireUser(["superadmin"]);
   return getDeployInfo();
+}
+
+export async function clearDeployLogsAction(): Promise<ActionState> {
+  await requireUser(["superadmin"]);
+  try {
+    await clearDeployLogs();
+    revalidatePath("/superadmin");
+    revalidatePath("/superadmin/deploy");
+    return { ok: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
 }
