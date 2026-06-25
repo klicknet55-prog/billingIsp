@@ -32,3 +32,14 @@ export function formatDate(value: Date | number | string | null | undefined): st
     year: "numeric",
   }).format(d);
 }
+
+/** Periode tagihan untuk placeholder [[tagihan]] — contoh: Juni 2026 */
+export function formatBillingPeriod(value: Date | number | string | null | undefined): string {
+  if (!value) return "-";
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return new Intl.DateTimeFormat("id-ID", {
+    month: "long",
+    year: "numeric",
+  }).format(d);
+}

@@ -4,11 +4,13 @@ import { db } from "@/lib/db";
 import { subscriptions, tenants, users } from "@/lib/db/schema";
 import { getWhatsAppClient } from "@/lib/integrations/whatsapp";
 import { startOfDay } from "@/features/jobs/billing";
+import { formatSaasReminderFromTemplate } from "@/features/messages/invoice-message";
+import { paceAfterSend, waitBeforeSend } from "@/features/messages/throttle";
 import { createLogger } from "@/lib/logger";
-import { formatDate } from "@/lib/utils";
 
 const log = createLogger("jobs:saas-subscription");
 const DAY = 24 * 60 * 60 * 1000;
+let saasSendCount = 0;
 
 export interface SaasSubscriptionCycleResult {
   expired: number;
@@ -33,7 +35,10 @@ async function notifyOwner(
     log.warn(`Tenant ${tenantId}: owner tanpa nomor WA — lewati reminder`);
     return false;
   }
+  await waitBeforeSend();
   await getWhatsAppClient().sendNotification(phone, message, tenantId);
+  saasSendCount++;
+  await paceAfterSend(saasSendCount);
   return true;
 }
 
@@ -44,6 +49,7 @@ async function notifyOwner(
  */
 export async function runSaasSubscriptionLifecycle(): Promise<SaasSubscriptionCycleResult> {
   const now = new Date();
+  saasSendCount = 0;
   const result: SaasSubscriptionCycleResult = {
     expired: 0,
     suspended: 0,
@@ -75,13 +81,10 @@ export async function runSaasSubscriptionLifecycle(): Promise<SaasSubscriptionCy
     if (!tenant || tenant.status !== "active") continue;
 
     const daysLeft = daysUntil(sub.akhir, now);
-    const expiryLabel = formatDate(sub.akhir);
 
     if (daysLeft === 7 && !sub.remind7dAt) {
-      const sent = await notifyOwner(
-        sub.tenantId,
-        `Pengingat: langganan platform ${tenant.namaUsaha} berakhir ${expiryLabel} (7 hari lagi). Perpanjang di menu Langganan SaaS.`
-      );
+      const message = await formatSaasReminderFromTemplate(sub.tenantId, "saas_reminder_7d");
+      const sent = await notifyOwner(sub.tenantId, message);
       if (sent) {
         await db
           .update(subscriptions)
@@ -92,10 +95,8 @@ export async function runSaasSubscriptionLifecycle(): Promise<SaasSubscriptionCy
     }
 
     if (daysLeft === 1 && !sub.remind1dAt) {
-      const sent = await notifyOwner(
-        sub.tenantId,
-        `Penting: langganan platform ${tenant.namaUsaha} berakhir besok (${expiryLabel}). Segera perpanjang agar layanan tidak ditangguhkan.`
-      );
+      const message = await formatSaasReminderFromTemplate(sub.tenantId, "saas_reminder_1d");
+      const sent = await notifyOwner(sub.tenantId, message);
       if (sent) {
         await db
           .update(subscriptions)

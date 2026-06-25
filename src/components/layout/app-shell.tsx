@@ -13,6 +13,7 @@ import {
   type LucideIcon,
   Map,
   Menu,
+  MessageSquare,
   Network,
   Package,
   Plug,
@@ -52,6 +53,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: SUPERADMIN_PENGATURAN_HREF, label: "Pengaturan", icon: Settings },
     { href: "/superadmin/backup", label: "Backup", icon: HardDrive },
     { href: "/superadmin/deploy", label: "Update App", icon: Rocket },
+    { href: "/superadmin/pesan", label: "Pesan", icon: MessageSquare },
   ],
   isp: [
     { href: "/isp", label: "Dashboard", icon: LayoutDashboard },
@@ -60,6 +62,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/isp/paket", label: "Paket Internet", icon: Package },
     { href: "/isp/router", label: "Router", icon: RouterIcon },
     { href: "/isp/invoice", label: "Invoice", icon: FileText },
+    { href: "/isp/pesan", label: "Pesan", icon: MessageSquare },
     { href: "/isp/tiket", label: "Tiket", icon: Ticket },
     { href: "/isp/laporan", label: "Laporan", icon: BarChart3 },
     { href: "/isp/staf", label: "Staf", icon: UserCog },
@@ -106,8 +109,9 @@ export function AppShell({
     (item) =>
       (item.href !== "/isp/staf" || userRole === "owner") &&
       (item.href !== "/isp/kolektor-pelanggan" || userRole === "owner" || userRole === "admin") &&
-      (item.href !== "/isp/integrasi" || userRole === "owner" || userRole === "admin")
-      && (item.href !== "/isp/pengaturan" || userRole === "owner" || userRole === "admin")
+      (item.href !== "/isp/integrasi" || userRole === "owner" || userRole === "admin") &&
+      (item.href !== "/isp/pengaturan" || userRole === "owner" || userRole === "admin") &&
+      (item.href !== "/isp/pesan" || userRole === "owner" || userRole === "admin")
   );
 
   const isActive = (href: string) => {

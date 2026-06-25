@@ -383,6 +383,27 @@ Kolektor buka `/kolektor` tanpa sinyal masih lihat daftar tugas terakhir; tiket 
 
 ---
 
+## Fitur Pesan WhatsApp & Template Reminder
+
+**Status:** Implemented
+
+- [x] Kirim tunggal & massal ke pelanggan (ISP owner/admin) — `/isp/pesan`
+- [x] Kirim tunggal & massal ke owner tenant (superadmin) — `/superadmin/pesan`
+- [x] Template editable dengan placeholder `[[nama_pelanggan]]`, `[[tagihan]]`, dll.
+- [x] Cron billing & SaaS memakai template tenant/platform
+- [x] Throttle: random delay + pause 30 detik tiap 10 pesan; massal via background batch
+
+| Path | Fungsi |
+|------|--------|
+| `src/features/messages/` | Template, render, throttle, send, batch |
+| `src/app/isp/pesan/` | UI ISP |
+| `src/app/superadmin/pesan/` | UI superadmin |
+| `scripts/send-message-batch.ts` | Background mass send |
+
+Env: `WA_SEND_DELAY_MIN_MS`, `WA_SEND_DELAY_MAX_MS`, `WA_SEND_BATCH_SIZE`, `WA_SEND_BATCH_PAUSE_MS`
+
+---
+
 ## Fase 6 — Skala & integrasi lanjutan
 
 **Tujuan:** Platform SaaS matang untuk banyak tenant & integrasi eksternal.

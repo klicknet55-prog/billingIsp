@@ -365,6 +365,60 @@ export const platformSettings = sqliteTable("platform_settings", {
 });
 
 // ---------------------------------------------------------------------------
+// Pesan: template, log kirim, batch massal
+// ---------------------------------------------------------------------------
+
+export const messageTemplates = sqliteTable("message_template", {
+  id: text("id").primaryKey(),
+  scope: text("scope", { enum: ["tenant", "platform"] }).notNull(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  key: text("key").notNull(),
+  body: text("body").notNull(),
+  updatedBy: text("updated_by"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const messageSendLogs = sqliteTable("message_send_log", {
+  id: text("id").primaryKey(),
+  scope: text("scope", { enum: ["tenant", "platform"] }).notNull(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  recipientType: text("recipient_type", { enum: ["pelanggan", "tenant_owner"] }).notNull(),
+  recipientId: text("recipient_id").notNull(),
+  phone: text("phone").notNull(),
+  message: text("message").notNull(),
+  templateKey: text("template_key"),
+  batchId: text("batch_id"),
+  sentBy: text("sent_by"),
+  status: text("status", { enum: ["sent", "failed"] }).notNull(),
+  error: text("error"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const messageBatches = sqliteTable("message_batch", {
+  id: text("id").primaryKey(),
+  scope: text("scope", { enum: ["tenant", "platform"] }).notNull(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  status: text("status", { enum: ["queued", "running", "done", "failed"] }).notNull(),
+  total: integer("total").notNull().default(0),
+  sent: integer("sent").notNull().default(0),
+  failed: integer("failed").notNull().default(0),
+  payload: text("payload", { mode: "json" }).$type<MessageBatchPayload>(),
+  startedBy: text("started_by"),
+  startedAt: integer("started_at", { mode: "timestamp" }),
+  finishedAt: integer("finished_at", { mode: "timestamp" }),
+  error: text("error"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export type MessageBatchPayload = {
+  recipientType: "pelanggan" | "tenant_owner";
+  messageType: "invoice" | "custom";
+  templateKey?: string;
+  customBody?: string;
+  recipientIds: string[];
+};
+
+// ---------------------------------------------------------------------------
 // Tipe turunan (untuk dipakai di service & komponen)
 // ---------------------------------------------------------------------------
 
@@ -385,3 +439,6 @@ export type TenantDuitkuConfig = typeof tenantDuitkuConfigs.$inferSelect;
 export type TenantWhatsAppConfig = typeof tenantWhatsAppConfigs.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type PlatformSettings = typeof platformSettings.$inferSelect;
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export type MessageSendLog = typeof messageSendLogs.$inferSelect;
+export type MessageBatch = typeof messageBatches.$inferSelect;

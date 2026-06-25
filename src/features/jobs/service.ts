@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { invoices, paketInternet, pelanggan, tenants } from "@/lib/db/schema";
 import { setIsolasi } from "@/features/customers/service";
 import {
-  formatInvoiceMessage,
   nextDueDateFromDay,
   portalPayLink,
   REMINDER_DAYS,
@@ -15,12 +14,26 @@ import {
   createSystemInvoice,
   hasInvoiceForBillingPeriod,
 } from "@/features/invoices/service";
+import { formatInvoiceMessageFromTemplate } from "@/features/messages/invoice-message";
+import { paceAfterSend, waitBeforeSend } from "@/features/messages/throttle";
 import { getWhatsAppClient } from "@/lib/integrations/whatsapp";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("jobs");
 
 const DAY = 24 * 60 * 60 * 1000;
+let billingSendCount = 0;
+
+async function notifyPelangganWa(
+  phone: string,
+  message: string,
+  tenantId: string
+) {
+  await waitBeforeSend();
+  await getWhatsAppClient().sendNotification(phone, message, tenantId);
+  billingSendCount++;
+  await paceAfterSend(billingSendCount);
+}
 
 export interface BillingCycleResult {
   generated: number;
@@ -81,14 +94,14 @@ async function generateMonthlyInvoices(now: Date, result: BillingCycleResult) {
       });
       result.generated++;
 
-      const msg = formatInvoiceMessage({
+      const msg = await formatInvoiceMessageFromTemplate(tenantId, cust.id, {
         noInvoice: inv.noInvoice,
         amount: inv.totalTagihan,
         dueDate,
         kind: "new",
         payUrl: portalPayLink(tenantId, cust.id),
       });
-      await getWhatsAppClient().sendNotification(cust.noWa, msg, tenantId);
+      await notifyPelangganWa(cust.noWa, msg, tenantId);
       result.generatedNotified++;
     }
   }
@@ -102,6 +115,7 @@ async function generateMonthlyInvoices(now: Date, result: BillingCycleResult) {
  */
 export async function runBillingCycle(): Promise<BillingCycleResult> {
   const now = new Date();
+  billingSendCount = 0;
   const result: BillingCycleResult = {
     generated: 0,
     generatedNotified: 0,
@@ -133,14 +147,14 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
     });
     if (!cust || !inv.tglJatuhTempo) continue;
 
-    const msg = formatInvoiceMessage({
+    const msg = await formatInvoiceMessageFromTemplate(inv.tenantId, cust.id, {
       noInvoice: inv.noInvoice,
       amount: inv.totalTagihan,
       dueDate: inv.tglJatuhTempo,
       kind: "pre_due",
       payUrl: portalPayLink(inv.tenantId, cust.id),
     });
-    await getWhatsAppClient().sendNotification(cust.noWa, msg, inv.tenantId);
+    await notifyPelangganWa(cust.noWa, msg, inv.tenantId);
 
     await db
       .update(invoices)
@@ -173,14 +187,14 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
       where: (p, { eq: e }) => e(p.id, inv.pelangganId),
     });
     if (cust && inv.tglJatuhTempo) {
-      const msg = formatInvoiceMessage({
+      const msg = await formatInvoiceMessageFromTemplate(inv.tenantId, cust.id, {
         noInvoice: inv.noInvoice,
         amount: inv.totalTagihan,
         dueDate: inv.tglJatuhTempo,
         kind: "overdue",
         payUrl: portalPayLink(inv.tenantId, cust.id),
       });
-      await getWhatsAppClient().sendNotification(cust.noWa, msg, inv.tenantId);
+      await notifyPelangganWa(cust.noWa, msg, inv.tenantId);
       result.reminded++;
     }
   }

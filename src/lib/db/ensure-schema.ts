@@ -175,5 +175,66 @@ if (!hasDbTable(db, "password_reset")) {
   console.log("[ok]   tabel password_reset dibuat");
 }
 
+if (!hasDbTable(db, "message_template")) {
+  db.exec(`
+    CREATE TABLE message_template (
+      id TEXT PRIMARY KEY,
+      scope TEXT NOT NULL,
+      tenant_id TEXT REFERENCES tenant(id),
+      key TEXT NOT NULL,
+      body TEXT NOT NULL,
+      updated_by TEXT,
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS message_template_scope_key ON message_template(scope, tenant_id, key);
+  `);
+  applied++;
+  console.log("[ok]   tabel message_template dibuat");
+}
+
+if (!hasDbTable(db, "message_send_log")) {
+  db.exec(`
+    CREATE TABLE message_send_log (
+      id TEXT PRIMARY KEY,
+      scope TEXT NOT NULL,
+      tenant_id TEXT REFERENCES tenant(id),
+      recipient_type TEXT NOT NULL,
+      recipient_id TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      message TEXT NOT NULL,
+      template_key TEXT,
+      batch_id TEXT,
+      sent_by TEXT,
+      status TEXT NOT NULL,
+      error TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+  applied++;
+  console.log("[ok]   tabel message_send_log dibuat");
+}
+
+if (!hasDbTable(db, "message_batch")) {
+  db.exec(`
+    CREATE TABLE message_batch (
+      id TEXT PRIMARY KEY,
+      scope TEXT NOT NULL,
+      tenant_id TEXT REFERENCES tenant(id),
+      status TEXT NOT NULL,
+      total INTEGER NOT NULL DEFAULT 0,
+      sent INTEGER NOT NULL DEFAULT 0,
+      failed INTEGER NOT NULL DEFAULT 0,
+      payload TEXT,
+      started_by TEXT,
+      started_at INTEGER,
+      finished_at INTEGER,
+      error TEXT,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+  `);
+  applied++;
+  console.log("[ok]   tabel message_batch dibuat");
+}
+
 db.close();
 console.log(applied > 0 ? `Selesai — ${applied} perubahan schema.` : "Selesai — tidak ada perubahan.");
