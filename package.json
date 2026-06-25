@@ -15,7 +15,8 @@
     "db:seed": "tsx --env-file=.env src/lib/db/seed.ts",
     "db:backfill-integrations": "tsx --env-file=.env src/lib/db/backfill-tenant-integrations.ts",
     "backup:tenant": "tsx --env-file=.env scripts/backup-tenant.ts",
-    "backup:full": "tsx --env-file=.env scripts/backup-full.ts"
+    "backup:full": "tsx --env-file=.env scripts/backup-full.ts",
+    "deploy:app": "tsx --env-file=.env scripts/deploy-app.ts"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",

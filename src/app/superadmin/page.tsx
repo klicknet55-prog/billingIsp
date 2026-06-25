@@ -1,6 +1,9 @@
-import { Activity, Building2, CreditCard, Package, Router, Users } from "lucide-react";
+import Link from "next/link";
+import { Activity, Building2, CreditCard, Package, Rocket, Router, Users } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/layout/stat-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,16 +11,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getDeployInfo } from "@/features/platform-deploy/service";
 import { getPlatformHealth } from "@/features/platform-health/service";
 import { listPackages, listSaasTransactions, listTenants } from "@/features/tenants/service";
 import { formatDate, formatRupiah } from "@/lib/utils";
 
 export default async function SuperadminDashboard() {
-  const [tenants, packages, tx, health] = await Promise.all([
+  const [tenants, packages, tx, health, deploy] = await Promise.all([
     listTenants(),
     listPackages(),
     listSaasTransactions(),
     getPlatformHealth(),
+    getDeployInfo(),
   ]);
   const aktif = tenants.filter((t) => t.status === "active").length;
   const pendapatan = tx
@@ -33,6 +38,56 @@ export default async function SuperadminDashboard() {
         <StatCard label="Paket SaaS" value={packages.length} icon={Package} />
         <StatCard label="Pendapatan SaaS" value={formatRupiah(pendapatan)} icon={CreditCard} />
       </div>
+
+      <Card className="mt-6">
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Rocket className="size-5" />
+              Update Aplikasi
+            </CardTitle>
+            <CardDescription>
+              Deploy manual dari GitHub — hanya superadmin. Versi saat ini{" "}
+              <code className="rounded bg-muted px-1">{deploy.git.commit ?? "—"}</code>
+            </CardDescription>
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link href="/superadmin/deploy">Kelola update</Link>
+          </Button>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+          <Badge
+            variant={
+              deploy.status === "running"
+                ? "warning"
+                : deploy.status === "success"
+                  ? "success"
+                  : deploy.status === "failed"
+                    ? "destructive"
+                    : "secondary"
+            }
+          >
+            {deploy.status === "idle"
+              ? "Siap"
+              : deploy.status === "running"
+                ? "Deploy berjalan"
+                : deploy.status === "success"
+                  ? "Deploy sukses"
+                  : "Deploy gagal"}
+          </Badge>
+          {!deploy.enabled && (
+            <span className="text-muted-foreground">
+              Set <code className="rounded bg-muted px-1">DEPLOY_ENABLED=true</code> di production
+            </span>
+          )}
+          {deploy.finishedAt && (
+            <span className="text-muted-foreground">
+              Terakhir: {formatDate(deploy.finishedAt)}
+              {deploy.startedBy ? ` · ${deploy.startedBy}` : ""}
+            </span>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>

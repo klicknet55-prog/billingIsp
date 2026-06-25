@@ -16,6 +16,7 @@ import {
   Network,
   Package,
   Plug,
+  Rocket,
   Router as RouterIcon,
   Settings,
   Ticket,
@@ -50,6 +51,7 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/superadmin/transactions", label: "Transaksi", icon: CreditCard },
     { href: SUPERADMIN_PENGATURAN_HREF, label: "Pengaturan", icon: Settings },
     { href: "/superadmin/backup", label: "Backup", icon: HardDrive },
+    { href: "/superadmin/deploy", label: "Update App", icon: Rocket },
   ],
   isp: [
     { href: "/isp", label: "Dashboard", icon: LayoutDashboard },
