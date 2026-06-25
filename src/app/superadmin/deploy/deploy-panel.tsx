@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Rocket, Trash2 } from "lucide-react";
+import { GitCompare, RefreshCw, Rocket, Trash2 } from "lucide-react";
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/features/auth/actions";
 import {
+  checkDeployUpdateAction,
   clearDeployLogsAction,
   getDeployStatusAction,
   startDeployAction,
@@ -38,7 +39,13 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
   const [state, action] = useActionState(startDeployAction, initial);
   const [, startRefresh] = useTransition();
   const [clearing, startClear] = useTransition();
+  const [checking, startCheck] = useTransition();
   const { toast } = useToast();
+
+  const updateBlocked =
+    info.updateCheck !== null && info.updateCheck.available === false;
+  const canDeploy =
+    info.enabled && info.status !== "running" && !updateBlocked;
 
   const refresh = useCallback(() => {
     startRefresh(async () => {
@@ -46,6 +53,31 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
       setInfo(next);
     });
   }, [startRefresh]);
+
+  function handleCheckUpdate() {
+    startCheck(async () => {
+      try {
+        const check = await checkDeployUpdateAction();
+        refresh();
+        if (check.available) {
+          toast({
+            title: `Update tersedia: ${check.localCommit} → ${check.remoteCommit}`,
+            variant: "success",
+          });
+        } else {
+          toast({
+            title: `Sudah versi terbaru (${check.localCommit})`,
+            variant: "success",
+          });
+        }
+      } catch (err) {
+        toast({
+          title: err instanceof Error ? err.message : "Gagal cek update",
+          variant: "error",
+        });
+      }
+    });
+  }
 
   function handleClearLogs() {
     if (info.status === "running") return;
@@ -125,6 +157,45 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
         </p>
       )}
 
+      {info.updateCheck && (
+        <div
+          className={`rounded-md border p-3 text-sm ${
+            info.updateCheck.available
+              ? "border-primary/40 bg-primary/5"
+              : "border-emerald-500/40 bg-emerald-500/10"
+          }`}
+        >
+          {info.updateCheck.available ? (
+            <p>
+              <strong>Update tersedia:</strong>{" "}
+              <span className="font-mono">
+                {info.updateCheck.localCommit} → {info.updateCheck.remoteCommit}
+              </span>
+              {info.updateCheck.remoteMessage && (
+                <span className="ml-1 text-muted-foreground">
+                  — {info.updateCheck.remoteMessage}
+                </span>
+              )}
+            </p>
+          ) : (
+            <p>
+              <strong>Sudah versi terbaru</strong> ({info.updateCheck.localCommit} di branch{" "}
+              {info.updateCheck.branch}). Tombol Update dinonaktifkan.
+            </p>
+          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            Dicek: {formatDate(info.updateCheck.checkedAt)}
+          </p>
+        </div>
+      )}
+
+      {!info.updateCheck && info.enabled && (
+        <p className="text-sm text-muted-foreground">
+          Klik <strong>Cek update</strong> untuk membandingkan versi server dengan GitHub sebelum
+          deploy.
+        </p>
+      )}
+
       {info.steps.length > 0 && (
         <ol className="space-y-2 text-sm">
           {info.steps.map((step) => (
@@ -160,13 +231,26 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
             name="confirm"
             placeholder="DEPLOY"
             autoComplete="off"
-            disabled={!info.enabled || info.status === "running"}
+            disabled={!canDeploy}
           />
           {fe.confirm && <p className="text-xs text-destructive">{fe.confirm}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
-          <SubmitButton disabled={!info.enabled || info.status === "running"}>
-            {info.status === "running" ? "Deploy berjalan…" : "Update Aplikasi"}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={info.status === "running" || checking}
+            onClick={handleCheckUpdate}
+          >
+            <GitCompare className="size-4" />
+            {checking ? "Mengecek…" : "Cek update"}
+          </Button>
+          <SubmitButton disabled={!canDeploy}>
+            {info.status === "running"
+              ? "Deploy berjalan…"
+              : updateBlocked
+                ? "Sudah versi terbaru"
+                : "Update Aplikasi"}
           </SubmitButton>
           <Button type="button" variant="outline" onClick={refresh}>
             <RefreshCw className="size-4" /> Refresh status

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
 import {
+  checkRemoteUpdate,
   clearDeployLogs,
   getDeployInfo,
   isDeployEnabled,
@@ -32,6 +33,19 @@ export async function startDeployAction(
     return { error: "Deploy sedang berjalan. Tunggu hingga selesai." };
   }
 
+  try {
+    const check = await checkRemoteUpdate(true);
+    if (!check.available) {
+      return {
+        error: `Sudah versi terbaru (${check.localCommit}). Tidak perlu deploy ulang.`,
+      };
+    }
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Gagal memverifikasi update dari GitHub.",
+    };
+  }
+
   await startDeployProcess(user.email);
   revalidatePath("/superadmin");
   revalidatePath("/superadmin/deploy");
@@ -43,6 +57,16 @@ export async function getDeployStatusAction(): Promise<
 > {
   await requireUser(["superadmin"]);
   return getDeployInfo();
+}
+
+export async function checkDeployUpdateAction(): Promise<
+  Awaited<ReturnType<typeof checkRemoteUpdate>>
+> {
+  await requireUser(["superadmin"]);
+  const check = await checkRemoteUpdate(true);
+  revalidatePath("/superadmin");
+  revalidatePath("/superadmin/deploy");
+  return check;
 }
 
 export async function clearDeployLogsAction(): Promise<ActionState> {

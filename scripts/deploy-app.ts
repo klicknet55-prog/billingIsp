@@ -10,6 +10,7 @@
 import { execSync } from "node:child_process";
 import { copyFile, mkdir, readFile, unlink, writeFile, appendFile, access } from "node:fs/promises";
 import path from "node:path";
+import { compareWithRemote, resolveDeployBranch } from "../src/features/platform-deploy/git-update";
 
 const ROOT = process.cwd();
 const DEPLOY_DIR = path.join(ROOT, "data", "deploy");
@@ -125,7 +126,7 @@ async function main() {
   await writeFile(LOCK_FILE, String(process.pid), "utf8");
   await writeFile(LOG_FILE, "", "utf8");
 
-  const branch = process.env.DEPLOY_GIT_BRANCH?.trim() || git("git branch --show-current");
+  const branch = resolveDeployBranch(ROOT);
   const state = emptyState();
   state.status = "running";
   state.startedAt = new Date().toISOString();
@@ -156,7 +157,35 @@ async function main() {
     await setStep(state, "backup_database", "ok");
 
     await setStep(state, "git_pull", "running");
-    run("git fetch origin");
+    const cmp = compareWithRemote(ROOT, branch);
+    if (!cmp.available) {
+      state.commitBefore = cmp.localShort;
+      state.commitAfter = cmp.remoteShort;
+      await setStep(state, "git_pull", "ok", "up-to-date");
+      await log(`Sudah versi terbaru (${cmp.localShort}) — deploy dilewati`);
+      state.status = "success";
+      state.finishedAt = new Date().toISOString();
+      state.error = null;
+      await writeState(state);
+      await writeFile(
+        path.join(DEPLOY_DIR, "update-check.json"),
+        JSON.stringify(
+          {
+            checkedAt: new Date().toISOString(),
+            branch: cmp.branch,
+            localCommit: cmp.localShort,
+            remoteCommit: cmp.remoteShort,
+            remoteMessage: cmp.remoteMessage,
+            available: false,
+          },
+          null,
+          2
+        ),
+        "utf8"
+      );
+      await log("Deploy sukses (tidak ada perubahan)");
+      return;
+    }
     if (branch) {
       run(`git checkout ${branch}`);
       run(`git pull origin ${branch}`);

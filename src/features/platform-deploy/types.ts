@@ -25,6 +25,17 @@ export interface DeployInfo {
     commit: string | null;
     message: string | null;
   };
+  updateCheck: DeployUpdateCheck | null;
+}
+
+/** Hasil cek update dari GitHub (di-cache setelah tombol Cek update). */
+export interface DeployUpdateCheck {
+  checkedAt: string;
+  branch: string;
+  localCommit: string;
+  remoteCommit: string;
+  remoteMessage: string | null;
+  available: boolean;
 }
 
 const STEP_LABELS: Record<string, string> = {

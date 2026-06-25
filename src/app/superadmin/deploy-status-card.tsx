@@ -82,6 +82,13 @@ export function DeployStatusCard({ initialInfo }: { initialInfo: DeployInfo }) {
       <CardContent className="space-y-4">
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <Badge variant={statusVariant[info.status]}>{statusLabel[info.status]}</Badge>
+          {info.updateCheck && (
+            <Badge variant={info.updateCheck.available ? "warning" : "success"}>
+              {info.updateCheck.available
+                ? `Update: ${info.updateCheck.remoteCommit}`
+                : "Versi terbaru"}
+            </Badge>
+          )}
           {!info.enabled && (
             <span className="text-muted-foreground">
               Set <code className="rounded bg-muted px-1">DEPLOY_ENABLED=true</code> di production
