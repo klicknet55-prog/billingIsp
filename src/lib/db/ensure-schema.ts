@@ -1,10 +1,18 @@
 /**
  * Tambah kolom SQLite yang hilang (idempotent). Aman dijalankan berulang.
  * Dipakai saat deploy production jika `db:push` tidak membaca `.env` yang sama dengan app.
+ *
+ * PostgreSQL: gunakan `npm run db:migrate:pg` — script ini khusus SQLite.
  */
 import Database from "better-sqlite3";
+import { isPostgresDriver } from "./driver";
 import { applyAppSchemaMigrations } from "./runtime-schema";
 import { hasDbTable } from "./schema-patches";
+
+if (isPostgresDriver()) {
+  console.log("DATABASE_DRIVER=postgres — lewati ensure-schema (SQLite). Jalankan: npm run db:migrate:pg");
+  process.exit(0);
+}
 
 const DB_PATH = process.env.DATABASE_URL ?? "./netmanage.db";
 

@@ -364,22 +364,56 @@ Kolektor buka `/kolektor` tanpa sinyal masih lihat daftar tugas terakhir; tiket 
 
 **Tujuan:** Database production siap multi-tenant skala menengah.
 
-**Prasyarat:** Fase 1 backup production **wajib**; ikuti [`docs/database-migration-plan.md`](./database-migration-plan.md).
+**Status:** Persiapan — **server production lama tetap SQLite**; PostgreSQL hanya di **server/deploy baru** nanti.
 
-### Checklist ringkas
+**Prasyarat:** Fase 1 backup production **wajib**; ikuti [`docs/database-migration-plan.md`](./database-migration-plan.md) dan [`docs/postgres-new-server-runbook.md`](./postgres-new-server-runbook.md).
 
-- [ ] Backup full production (Fase 1 superadmin tool + manual)
-- [ ] Konversi schema ke `pgTable`
-- [ ] Folder `drizzle/` migrations versioned
-- [ ] Script migrasi data SQLite → Postgres
-- [ ] Staging cutover test + rollback plan
-- [ ] Production cutover + smoke test 24 jam
+### Strategi 2 server (disepakati)
+
+| Lingkungan | Database | Catatan |
+|------------|----------|---------|
+| **Server lama (production sekarang)** | SQLite `netmanage.db` | **Tidak diubah** — deploy rutin seperti biasa |
+| **Server baru (nanti)** | PostgreSQL | Clone repo, migrate data, Nginx, cutover DNS opsional |
+| **Dev lokal** | SQLite (default) | Postgres opsional untuk uji migrasi |
+
+```mermaid
+flowchart LR
+  Old[Server lama] --> SQLite[(SQLite)]
+  New[Server baru] --> PG[(PostgreSQL)]
+  SQLite -->|backup + script| PG
+```
+
+**Branch kode:** `feat/postgres-migration` — dual driver + schema PG; jangan paksa server lama pakai Postgres.
+
+### Checklist — Persiapan kode (repo)
+
+- [x] `DATABASE_DRIVER=sqlite|postgres` (default **sqlite**)
+- [x] `schema.pg.ts` + script `db:generate:pg` / `db:migrate:pg`
+- [x] Script `npm run db:migrate-sqlite-to-pg`
+- [x] Runbook server baru — [`postgres-new-server-runbook.md`](./postgres-new-server-runbook.md)
+- [x] Dual `db/index.ts` (SQLite prod / Postgres server baru)
+- [x] Generate & commit folder `drizzle/pg/` (`npm run db:generate:pg`)
+- [x] Pre-deploy backup `pg_dump` + superadmin full backup `.sql` (server PG)
+
+### Checklist — Server lama (jangan ubah)
+
+- [x] `DATABASE_URL=./netmanage.db` (tanpa `DATABASE_DRIVER=postgres`)
+- [x] `npm run db:ensure-schema` tetap dipakai setiap deploy
+- [ ] Backup rutin sebelum mulai uji di server baru
+
+### Checklist — Server baru (cutover nanti)
+
+- [ ] Provision PostgreSQL + `.env` dengan `DATABASE_DRIVER=postgres`
+- [ ] `npm run db:migrate:pg` + import data SQLite
+- [ ] PM2/systemd + Nginx + cron
+- [ ] Smoke test 24 jam ([runbook](./postgres-new-server-runbook.md))
+- [ ] Cutover DNS (opsional) atau subdomain baru dulu
 
 ### Dampak pada Backup & Restore
 
 - Format JSON tenant **tetap sama** (DB-agnostic)
-- Full backup superadmin: pg_dump menggantikan SQLite `.backup()`
-- Update `scripts/backup-full.ts` untuk Postgres
+- Full backup superadmin: `pg_dump` → `.sql` di server PG; SQLite `.backup()` di server lama
+- Pre-deploy backup dashboard: `data/backups/platform/pre-deploy-*.sql` (PG) atau `*.db` (SQLite)
 
 ---
 

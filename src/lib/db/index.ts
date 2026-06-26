@@ -1,26 +1,78 @@
 import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
+import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { applyAppSchemaMigrations } from "./runtime-schema";
-import * as schema from "./schema";
+import * as sqliteSchema from "./schema.sqlite";
+import { pgSchema } from "./schema.pg";
+import { getDatabaseDriver, isPostgresDriver } from "./driver";
 
 const DB_PATH = process.env.DATABASE_URL ?? "./netmanage.db";
 
-// Singleton agar tidak membuat banyak koneksi saat hot-reload (dev).
 const globalForDb = globalThis as unknown as {
   sqlite?: Database.Database;
+  pgClient?: ReturnType<typeof postgres>;
 };
 
-const sqlite =
-  globalForDb.sqlite ??
-  (() => {
-    const conn = new Database(DB_PATH);
-    conn.pragma("journal_mode = WAL");
-    conn.pragma("foreign_keys = ON");
-    applyAppSchemaMigrations(conn);
-    return conn;
-  })();
+/** Tipe DB aplikasi — mengacu skema SQLite; API query Drizzle kompatibel dengan Postgres. */
+export type AppDb = BetterSQLite3Database<typeof sqliteSchema>;
 
-if (process.env.NODE_ENV !== "production") globalForDb.sqlite = sqlite;
+function createSqliteDb() {
+  const sqlite =
+    globalForDb.sqlite ??
+    (() => {
+      const conn = new Database(DB_PATH);
+      conn.pragma("journal_mode = WAL");
+      conn.pragma("foreign_keys = ON");
+      applyAppSchemaMigrations(conn);
+      return conn;
+    })();
 
-export const db = drizzle(sqlite, { schema });
-export { schema, sqlite };
+  if (process.env.NODE_ENV !== "production") globalForDb.sqlite = sqlite;
+
+  return {
+    db: drizzleSqlite(sqlite, { schema: sqliteSchema }) as AppDb,
+    sqlite,
+  };
+}
+
+function createPostgresDb() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    throw new Error("DATABASE_URL wajib untuk DATABASE_DRIVER=postgres");
+  }
+
+  const client =
+    globalForDb.pgClient ??
+    postgres(url, {
+      max: Number(process.env.DATABASE_POOL_MAX ?? 10),
+      idle_timeout: 20,
+      connect_timeout: 10,
+    });
+
+  if (process.env.NODE_ENV !== "production") globalForDb.pgClient = client;
+
+  return {
+    db: drizzlePg(client, { schema: pgSchema }) as unknown as AppDb,
+    pgClient: client,
+  };
+}
+
+const active = isPostgresDriver() ? createPostgresDb() : createSqliteDb();
+
+export const db: AppDb = active.db;
+export const schema = sqliteSchema;
+export const sqlite = "sqlite" in active ? active.sqlite : undefined;
+export const pgClient = "pgClient" in active ? active.pgClient : undefined;
+export const databaseDriver = getDatabaseDriver();
+
+/** Operasi raw SQLite (backup file, seed) — hanya saat driver sqlite. */
+export function requireSqlite(): Database.Database {
+  if (!sqlite) {
+    throw new Error(
+      "Koneksi SQLite tidak tersedia (DATABASE_DRIVER=postgres). Gunakan pg_dump untuk backup Postgres."
+    );
+  }
+  return sqlite;
+}

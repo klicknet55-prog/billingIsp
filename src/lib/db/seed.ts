@@ -10,7 +10,7 @@
  *  - Pelanggan   : login OTP via nomor 081200000001 (kode tampil di console)
  */
 import { eq } from "drizzle-orm";
-import { db, sqlite } from "./index";
+import { db, requireSqlite } from "./index";
 import {
   invoices,
   kategoriPengeluaran,
@@ -44,6 +44,7 @@ const now = Date.now();
  * FK dimatikan sementara agar urutan hapus aman di DB production yang sudah terisi.
  */
 async function reset() {
+  const sqlite = requireSqlite();
   sqlite.pragma("foreign_keys = OFF");
   try {
     await db.delete(ticketAssignments);

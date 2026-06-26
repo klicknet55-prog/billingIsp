@@ -17,9 +17,14 @@ function downloadBase64(filename: string, base64: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
-export function FullBackupPanel() {
+type FullBackupPanelProps = {
+  format: "sqlite" | "postgres";
+};
+
+export function FullBackupPanel({ format }: FullBackupPanelProps) {
   const { toast } = useToast();
   const [pending, start] = useTransition();
+  const ext = format === "postgres" ? ".sql" : ".db";
 
   const handleExport = () => {
     start(async () => {
@@ -38,7 +43,7 @@ export function FullBackupPanel() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Unduh snapshot SQLite lengkap (semua tenant, superadmin, dan konfigurasi platform).
+        Unduh snapshot database lengkap (semua tenant, superadmin, dan konfigurasi platform).
         Simpan file di lokasi aman — berisi data sensitif termasuk password terenkripsi.
       </p>
       <button
@@ -47,7 +52,7 @@ export function FullBackupPanel() {
         disabled={pending}
         className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
-        {pending ? "Menyiapkan…" : "Unduh backup database (.db)"}
+        {pending ? "Menyiapkan…" : `Unduh backup database (${ext})`}
       </button>
     </div>
   );

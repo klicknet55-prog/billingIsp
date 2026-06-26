@@ -1,6 +1,6 @@
 import "server-only";
 import { eq } from "drizzle-orm";
-import { db, sqlite } from "@/lib/db";
+import { db, requireSqlite } from "@/lib/db";
 import {
   invoices,
   kategoriPengeluaran,
@@ -256,6 +256,7 @@ export async function restoreTenantBackup(
     snapshotPath = await saveTenantSnapshot(tenantId, "pre-restore");
   }
 
+  const sqlite = requireSqlite();
   sqlite.exec("BEGIN IMMEDIATE");
   try {
     if (mode === "replace") {

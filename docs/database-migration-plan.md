@@ -2,9 +2,20 @@
 
 > Dokumen rencana migrasi database NetManage dari SQLite (Drizzle + better-sqlite3) ke PostgreSQL atau MySQL/MariaDB. Mencakup perubahan kode, skema, migrasi data, dan cutover production.
 
-**Status:** Draft — belum dieksekusi  
+**Status:** Persiapan — **server production lama tetap SQLite**; PostgreSQL untuk **deploy server baru** nanti.  
 **Branch disarankan:** `feat/postgres-migration`  
-**Estimasi:** ~1 hari kerja
+**Runbook server baru:** [`postgres-new-server-runbook.md`](./postgres-new-server-runbook.md)  
+**Estimasi implementasi kode:** ~1 hari kerja
+
+---
+
+## Strategi deployment (2 server)
+
+1. **Server lama** — tidak diubah: `DATABASE_DRIVER=sqlite` (default), `DATABASE_URL=./netmanage.db`, deploy rutin.
+2. **Repo** — kembangkan dual-driver + schema PG di branch `feat/postgres-migration`.
+3. **Server baru** — provision Postgres, migrate data dari backup SQLite, smoke test, cutover DNS opsional.
+
+Tidak ada dual-write. Cutover data = maintenance window singkat atau clone dari backup terakhir.
 
 ---
 

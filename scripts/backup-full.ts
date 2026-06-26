@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * Snapshot SQLite penuh via better-sqlite3 .backup()
+ * Snapshot database penuh — SQLite (.backup) atau PostgreSQL (pg_dump).
  * Usage: npm run backup:full [-- --out=./netmanage-full.db]
  */
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";

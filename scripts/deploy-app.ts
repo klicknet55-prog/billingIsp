@@ -11,6 +11,7 @@ import { execSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, unlink, writeFile, appendFile, access } from "node:fs/promises";
 import path from "node:path";
 import { compareWithRemote, resolveDeployBranch } from "../src/features/platform-deploy/git-update";
+import { isPostgresDeployEnv, runPgDump } from "../src/lib/db/pg-backup";
 
 const ROOT = process.cwd();
 const DEPLOY_DIR = path.join(ROOT, "data", "deploy");
@@ -174,18 +175,32 @@ async function main() {
 
   try {
     await setStep(state, "backup_database", "running");
-    const dbPath = path.resolve(process.env.DATABASE_URL ?? "./netmanage.db");
     const backupDir = path.join(ROOT, "data", "backups", "platform");
     await mkdir(backupDir, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupPath = path.join(backupDir, `pre-deploy-${stamp}.db`);
-    if (await fileExists(dbPath)) {
-      await copyFile(dbPath, backupPath);
-      await log(`Backup DB → ${backupPath}`);
+
+    if (isPostgresDeployEnv()) {
+      const backupPath = path.join(backupDir, `pre-deploy-${stamp}.sql`);
+      try {
+        runPgDump(backupPath);
+        await log(`Backup PG → ${backupPath}`);
+        await setStep(state, "backup_database", "ok");
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        await log(`Lewati backup PG (pg_dump gagal: ${msg.slice(0, 200)})`);
+        await setStep(state, "backup_database", "ok", "pg_dump skipped");
+      }
     } else {
-      await log(`Lewati backup DB (file tidak ada: ${dbPath})`);
+      const dbPath = path.resolve(process.env.DATABASE_URL ?? "./netmanage.db");
+      const backupPath = path.join(backupDir, `pre-deploy-${stamp}.db`);
+      if (await fileExists(dbPath)) {
+        await copyFile(dbPath, backupPath);
+        await log(`Backup DB → ${backupPath}`);
+      } else {
+        await log(`Lewati backup DB (file tidak ada: ${dbPath})`);
+      }
+      await setStep(state, "backup_database", "ok");
     }
-    await setStep(state, "backup_database", "ok");
 
     await setStep(state, "git_pull", "running");
     const cmp = compareWithRemote(ROOT, branch);
@@ -226,9 +241,16 @@ async function main() {
     await log("npm ci selesai");
 
     await setStep(state, "db_ensure_schema", "running");
-    run(`${process.execPath} --env-file=.env --import tsx src/lib/db/ensure-schema.ts`);
+    const dbDriver = process.env.DATABASE_DRIVER?.trim().toLowerCase();
+    if (dbDriver === "postgres" || dbDriver === "postgresql") {
+      run("npm run db:migrate:pg");
+      await log("db:migrate:pg selesai (PostgreSQL)");
+    } else {
+      run(`${process.execPath} --env-file=.env --import tsx src/lib/db/ensure-schema.ts`);
+      await log("db:ensure-schema selesai (SQLite)");
+    }
+
     await setStep(state, "db_ensure_schema", "ok");
-    await log("db:ensure-schema selesai");
 
     await setStep(state, "npm_build", "running");
     run("npm run build");
