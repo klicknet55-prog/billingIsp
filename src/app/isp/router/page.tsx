@@ -5,10 +5,6 @@ import { TunnelhostServiceLinks } from "@/components/integrations/tunnelhost-ser
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,14 +14,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  createRouterAction,
   deleteRouterAction,
   refreshRouterAction,
 } from "@/features/routers/actions";
 import { listRouters } from "@/features/routers/service";
 import { getTenantQuotaSnapshot } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
-import { RouterFormDialog } from "./router-form-dialog";
+import { RouterCreateDialog, RouterFormDialog } from "./router-form-dialog";
 
 export default async function RouterPage({
   searchParams,
@@ -56,43 +51,7 @@ export default async function RouterPage({
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <TunnelhostServiceLinks />
-            <Disclosure label="Tambah Router">
-            <p className="mb-3 text-xs text-muted-foreground">
-              Kredensial Mikrotik disimpan per tenant (ISP → Router). Setiap ISP mengelola router sendiri.
-            </p>
-            <form action={createRouterAction} className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="nama">Nama</Label>
-                <Input id="nama" name="nama" required placeholder="Router Pusat" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="connectionMode">Mode Koneksi</Label>
-                <Select id="connectionMode" name="connectionMode" defaultValue="rest">
-                  <option value="rest">REST API (RouterOS v7)</option>
-                  <option value="legacy_api">Legacy API (8728/8729)</option>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="ipAddress">IP Address</Label>
-                <Input id="ipAddress" name="ipAddress" required placeholder="192.168.88.1 atau hostname DDNS" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="apiPort">Port API / HTTPS</Label>
-                <Input id="apiPort" name="apiPort" defaultValue="443" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" name="username" required placeholder="admin" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" required />
-              </div>
-              <div className="sm:col-span-2">
-                <Button type="submit">Simpan</Button>
-              </div>
-            </form>
-            </Disclosure>
+            <RouterCreateDialog />
           </div>
         }
       />
@@ -128,7 +87,7 @@ export default async function RouterPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Nama</TableHead>
-                <TableHead>IP</TableHead>
+                <TableHead className="hidden md:table-cell">IP</TableHead>
                 <TableHead>Mode</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -138,7 +97,9 @@ export default async function RouterPage({
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.nama}</TableCell>
-                  <TableCell className="font-mono text-xs">{r.ipAddress}:{r.apiPort}</TableCell>
+                  <TableCell className="hidden font-mono text-xs md:table-cell">
+                    {r.ipAddress}:{r.apiPort}
+                  </TableCell>
                   <TableCell className="uppercase">{r.connectionMode === "rest" ? "REST" : "LEGACY"}</TableCell>
                   <TableCell>
                     <Badge variant={r.isOnline ? "success" : "destructive"}>
@@ -146,7 +107,7 @@ export default async function RouterPage({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center justify-end gap-1">
+                    <div className="flex flex-wrap items-center justify-end gap-1">
                       <RouterFormDialog
                         router={r}
                         trigger={

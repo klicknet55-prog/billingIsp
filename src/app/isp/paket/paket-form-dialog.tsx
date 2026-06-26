@@ -1,5 +1,6 @@
 "use client";
 
+import { Plus } from "lucide-react";
 import { useActionState, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -10,6 +11,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/features/auth/actions";
 import { fetchMikrotikProfilesAction, updatePaketAction } from "@/features/packages/actions";
+import { PaketForm } from "./paket-form";
 
 interface RouterOption {
   id: string;
@@ -203,6 +205,24 @@ function FormBody({
         <SubmitButton>Simpan</SubmitButton>
       </div>
     </form>
+  );
+}
+
+export function PaketCreateDialog({ routers }: { routers: RouterOption[] }) {
+  return (
+    <Dialog
+      trigger={
+        <Button size="sm">
+          <Plus />
+          Tambah Paket
+        </Button>
+      }
+      title="Tambah Paket"
+      description="Buat paket layanan baru dan mapping profile PPPoE/Hotspot ke Mikrotik."
+      className="max-w-2xl"
+    >
+      {(close) => <PaketForm routers={routers} onCancel={close} />}
+    </Dialog>
   );
 }
 

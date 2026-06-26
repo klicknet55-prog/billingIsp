@@ -2,7 +2,6 @@ import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
 import {
   Table,
   TableBody,
@@ -16,8 +15,7 @@ import { listPaket } from "@/features/packages/service";
 import { listRouters } from "@/features/routers/service";
 import { requireUser } from "@/lib/auth";
 import { formatRupiah } from "@/lib/utils";
-import { PaketForm } from "./paket-form";
-import { PaketFormDialog } from "./paket-form-dialog";
+import { PaketCreateDialog, PaketFormDialog } from "./paket-form-dialog";
 
 export default async function PaketPage() {
   const user = await requireUser(["owner", "admin", "teknisi"]);
@@ -33,11 +31,7 @@ export default async function PaketPage() {
       <PageHeader
         title="Paket Internet"
         description="Atur paket layanan, termasuk mapping profile PPPoE/Hotspot Mikrotik."
-        action={
-          <Disclosure label="Tambah Paket">
-            <PaketForm routers={routerOptions} />
-          </Disclosure>
-        }
+        action={<PaketCreateDialog routers={routerOptions} />}
       />
 
       <Card>
@@ -46,10 +40,10 @@ export default async function PaketPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nama</TableHead>
-                <TableHead>Kecepatan</TableHead>
+                <TableHead className="hidden md:table-cell">Kecepatan</TableHead>
                 <TableHead>Tipe</TableHead>
                 <TableHead>Router</TableHead>
-                <TableHead>Profile</TableHead>
+                <TableHead className="hidden md:table-cell">Profile</TableHead>
                 <TableHead>Harga</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
@@ -62,13 +56,15 @@ export default async function PaketPage() {
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nama}</TableCell>
-                    <TableCell>{p.kecepatan}</TableCell>
+                    <TableCell className="hidden md:table-cell">{p.kecepatan}</TableCell>
                     <TableCell className="uppercase">{p.tipe}</TableCell>
                     <TableCell>{router?.nama ?? "-"}</TableCell>
-                    <TableCell className="font-mono text-xs">{profile ?? "-"}</TableCell>
+                    <TableCell className="hidden font-mono text-xs md:table-cell">
+                      {profile ?? "-"}
+                    </TableCell>
                     <TableCell>{formatRupiah(p.hargaBulanan)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         <PaketFormDialog
                           paket={p}
                           routers={routerOptions}

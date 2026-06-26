@@ -1,11 +1,12 @@
 import "server-only";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { hasAnyOutstanding } from "@/features/billing/tagihan-service";
 import {
-  invoices,
   messageBatches,
   messageSendLogs,
   pelanggan,
+  tagihan,
   tenants,
   users,
 } from "@/lib/db/schema";
@@ -80,23 +81,13 @@ export async function composePelangganMessage(
     return { message: renderTemplate(body, vars), templateKey: "manual_custom" };
   }
 
-  const rows = await db
-    .select()
-    .from(invoices)
-    .where(
-      and(
-        eq(invoices.tenantId, tenantId),
-        eq(invoices.pelangganId, pelangganId),
-        eq(invoices.status, "unpaid")
-      )
-    )
-    .orderBy(desc(invoices.createdAt))
-    .limit(1);
-  const inv = rows[0];
-  if (!inv) throw new Error("Tidak ada tagihan belum lunas untuk pelanggan ini.");
+  const outstanding = await hasAnyOutstanding(tenantId, pelangganId);
+  if (!outstanding) {
+    throw new Error("Tidak ada tagihan belum lunas untuk pelanggan ini.");
+  }
 
   const body = await getTemplateBody("tenant", "manual_invoice", tenantId);
-  const vars = await buildPelangganContext(tenantId, pelangganId, inv.id);
+  const vars = await buildPelangganContext(tenantId, pelangganId);
   return { message: renderTemplate(body, vars), templateKey: "manual_invoice" };
 }
 
@@ -394,19 +385,24 @@ export async function listRecentSendLogs(scope: MessageScope, tenantId?: string 
   });
 }
 
-export async function getPelangganIdsWithUnpaidInvoice(tenantId: string, ids: string[]) {
+export async function getPelangganIdsWithOutstandingTagihan(tenantId: string, ids: string[]) {
   if (ids.length === 0) return [];
   const rows = await db
-    .selectDistinct({ pelangganId: invoices.pelangganId })
-    .from(invoices)
+    .selectDistinct({ pelangganId: tagihan.pelangganId })
+    .from(tagihan)
     .where(
       and(
-        eq(invoices.tenantId, tenantId),
-        eq(invoices.status, "unpaid"),
-        inArray(invoices.pelangganId, ids)
+        eq(tagihan.tenantId, tenantId),
+        inArray(tagihan.status, ["open", "tunggakan"]),
+        inArray(tagihan.pelangganId, ids)
       )
     );
   return rows.map((r) => r.pelangganId);
+}
+
+/** @deprecated gunakan getPelangganIdsWithOutstandingTagihan */
+export async function getPelangganIdsWithUnpaidInvoice(tenantId: string, ids: string[]) {
+  return getPelangganIdsWithOutstandingTagihan(tenantId, ids);
 }
 
 export async function listTenantsForMessaging() {

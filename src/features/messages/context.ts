@@ -1,26 +1,49 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
-  invoices,
   packageTenants,
   paketInternet,
   pelanggan,
   routers,
-  subscriptions,
+  tagihan,
   tenants,
   users,
 } from "@/lib/db/schema";
+import { getTagihanSummary } from "@/features/billing/tagihan-service";
 import { portalPayLink } from "@/features/jobs/billing";
 import { formatBillingPeriod, formatDate, formatRupiah } from "@/lib/utils";
 import { getTenantSubscriptionStatus } from "@/features/tenants/service";
 
 export type PelangganContextVars = Record<string, string>;
 
+/** YYYY-MM → contoh: Juni 2026 */
+export function formatTagihanPeriode(periode: string): string {
+  const match = /^(\d{4})-(\d{2})$/.exec(periode);
+  if (!match) return periode;
+  return formatBillingPeriod(new Date(Number(match[1]), Number(match[2]) - 1, 1));
+}
+
+/** Ringkasan tunggakan untuk placeholder [[tunggakan]]. */
+export function formatTunggakanLabel(
+  rows: { periode: string; amount: number }[]
+): string {
+  if (rows.length === 0) return "-";
+  const total = rows.reduce((s, r) => s + r.amount, 0);
+  const periods = rows
+    .slice()
+    .sort((a, b) => a.periode.localeCompare(b.periode))
+    .map((r) => formatTagihanPeriode(r.periode));
+  if (periods.length === 1) {
+    return `${formatRupiah(total)} (${periods[0]})`;
+  }
+  return `${formatRupiah(total)} (${periods.join(", ")})`;
+}
+
 export async function buildPelangganContext(
   tenantId: string,
   pelangganId: string,
-  invoiceId?: string | null
+  tagihanId?: string | null
 ): Promise<PelangganContextVars> {
   const cust = await db.query.pelanggan.findFirst({
     where: and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, pelangganId)),
@@ -35,37 +58,32 @@ export async function buildPelangganContext(
     ? await db.query.routers.findFirst({ where: eq(routers.id, cust.routerId) })
     : null;
 
-  let inv = invoiceId
-    ? await db.query.invoices.findFirst({
-        where: and(eq(invoices.tenantId, tenantId), eq(invoices.id, invoiceId)),
+  const summary = await getTagihanSummary(tenantId, pelangganId);
+
+  let focus = tagihanId
+    ? await db.query.tagihan.findFirst({
+        where: and(
+          eq(tagihan.tenantId, tenantId),
+          eq(tagihan.pelangganId, pelangganId),
+          eq(tagihan.id, tagihanId)
+        ),
       })
     : null;
 
-  if (!inv) {
-    const rows = await db
-      .select()
-      .from(invoices)
-      .where(
-        and(
-          eq(invoices.tenantId, tenantId),
-          eq(invoices.pelangganId, pelangganId),
-          eq(invoices.status, "unpaid")
-        )
-      )
-      .orderBy(desc(invoices.createdAt))
-      .limit(1);
-    inv = rows[0] ?? null;
+  if (!focus) {
+    focus = summary.bulanIni ?? summary.tunggakan[0] ?? null;
   }
 
-  const dueDate = inv?.tglJatuhTempo ?? cust.tglJatuhTempo ?? new Date();
+  const dueDate = focus?.dueDate ?? cust.tglJatuhTempo ?? new Date();
 
   return {
     nama_pelanggan: cust.nama,
     no_wa: cust.noWa,
     alamat: cust.alamat ?? "",
-    tagihan: formatBillingPeriod(dueDate),
-    no_invoice: inv?.noInvoice ?? "-",
-    jumlah_tagihan: inv ? formatRupiah(inv.totalTagihan) : "-",
+    tagihan: focus ? formatTagihanPeriode(focus.periode) : "-",
+    no_invoice: focus?.periode ?? "-",
+    jumlah_tagihan: focus ? formatRupiah(focus.amount) : "-",
+    tunggakan: formatTunggakanLabel(summary.tunggakan),
     jatuh_tempo: formatDate(dueDate),
     link_bayar: portalPayLink(tenantId, pelangganId),
     nama_usaha: tenant?.namaUsaha ?? "",
@@ -107,19 +125,31 @@ export async function buildTenantOwnerContext(tenantId: string): Promise<Record<
   };
 }
 
+/** Konteks cron reminder/isolasi — overlay tagihan spesifik di atas ringkasan pelanggan. */
+export async function buildTagihanCronContext(
+  tenantId: string,
+  pelangganId: string,
+  row: { periode: string; amount: number; dueDate: Date }
+): Promise<PelangganContextVars> {
+  const base = await buildPelangganContext(tenantId, pelangganId);
+  return {
+    ...base,
+    tagihan: formatTagihanPeriode(row.periode),
+    no_invoice: row.periode,
+    jumlah_tagihan: formatRupiah(row.amount),
+    jatuh_tempo: formatDate(row.dueDate),
+  };
+}
+
+/** @deprecated Gunakan buildTagihanCronContext */
 export async function buildInvoiceCronContext(
   tenantId: string,
   pelangganId: string,
   invoice: { noInvoice: string; totalTagihan: number; tglJatuhTempo: Date | null }
 ): Promise<PelangganContextVars> {
-  const base = await buildPelangganContext(tenantId, pelangganId);
-  const dueDate = invoice.tglJatuhTempo ?? new Date();
-  return {
-    ...base,
-    no_invoice: invoice.noInvoice,
-    jumlah_tagihan: formatRupiah(invoice.totalTagihan),
-    jatuh_tempo: formatDate(dueDate),
-    tagihan: formatBillingPeriod(dueDate),
-    link_bayar: portalPayLink(tenantId, pelangganId),
-  };
+  return buildTagihanCronContext(tenantId, pelangganId, {
+    periode: invoice.noInvoice,
+    amount: invoice.totalTagihan,
+    dueDate: invoice.tglJatuhTempo ?? new Date(),
+  });
 }

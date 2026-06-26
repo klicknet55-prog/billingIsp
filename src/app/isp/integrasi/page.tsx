@@ -7,10 +7,19 @@ import {
   getTenantWhatsAppConfigRow,
 } from "@/features/integrations/service";
 import { DuitkuConfigForm, WhatsAppConfigForm } from "./integration-forms";
+import { getGowaEnvDefaults, getKlicknetDevicePrefix } from "@/lib/integrations/whatsapp/config";
+import { getCurrentTenant } from "@/lib/tenant";
 
 export default async function IntegrasiPage() {
   const user = await requireUser(["owner", "admin"]);
   const tenantId = user.tenantId!;
+  const tenant = await getCurrentTenant();
+  const gowaEnv = getGowaEnvDefaults();
+  const deviceIdPrefix = getKlicknetDevicePrefix({
+    scope: "tenant",
+    tenantId,
+    tenantDomain: tenant?.domain,
+  });
   const [duitku, wa] = await Promise.all([
     getTenantDuitkuConfigRow(tenantId),
     getTenantWhatsAppConfigRow(tenantId),
@@ -56,10 +65,14 @@ export default async function IntegrasiPage() {
           </CardHeader>
           <CardContent>
             <WhatsAppConfigForm
+              gowaEnv={gowaEnv}
+              deviceIdPrefix={deviceIdPrefix}
               defaults={{
-                apiUrl: wa?.apiUrl ?? "",
-                provider: wa?.provider ?? "gateway",
+                apiUrl: wa?.apiUrl ?? gowaEnv.baseUrl,
+                provider: wa?.provider ?? (gowaEnv.baseUrl ? "klicknet" : "waba"),
                 phoneNumberId: wa?.phoneNumberId,
+                deviceId: wa?.deviceId,
+                basicAuthUser: wa?.basicAuthUser,
                 isEnabled: wa?.isEnabled ?? false,
                 hasToken: !!wa?.apiTokenEncrypted,
               }}

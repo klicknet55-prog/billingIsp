@@ -18,7 +18,7 @@ const links = [
 export function PortalNav({ namaUsaha }: { namaUsaha: string }) {
   const pathname = usePathname();
   return (
-    <header className="border-b">
+    <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2 font-semibold">
           <Network className="text-primary" />

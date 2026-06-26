@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
+import { normalizePhone } from "@/lib/auth/otp";
 import { db } from "@/lib/db";
 import {
   invoices,
@@ -384,6 +385,7 @@ export interface RegisterTenantInput {
   namaUsaha: string;
   domain: string;
   adminNama: string;
+  adminPhone: string;
   email: string;
   password: string;
   packageId: string;
@@ -413,6 +415,9 @@ export async function registerTenant(
   const email = input.email.toLowerCase().trim();
   const existsEmail = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existsEmail) return { error: "Email sudah terdaftar." };
+
+  const adminPhone = normalizePhone(input.adminPhone.trim());
+  if (adminPhone.length < 10) return { error: "No. WhatsApp admin wajib diisi (min. 10 digit)." };
 
   const pkg = await db.query.packageTenants.findFirst({
     where: and(eq(packageTenants.id, input.packageId), eq(packageTenants.isActive, true)),
@@ -452,7 +457,7 @@ export async function registerTenant(
     email,
     passwordHash: hashPassword(input.password),
     role: "owner",
-    phone: null,
+    phone: adminPhone,
     latitude: null,
     longitude: null,
     isActive: true,

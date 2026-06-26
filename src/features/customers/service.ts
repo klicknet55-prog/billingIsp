@@ -20,6 +20,7 @@ import { isMikrotikEmptyReplyError, isMikrotikTimeoutError } from "@/lib/integra
 import { createLogger } from "@/lib/logger";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { newId } from "@/lib/utils";
+import { computeInitialDueDate } from "@/features/jobs/due-date";
 import { routerToCredentials } from "@/features/routers/service";
 import { assertPelangganOdpCapacity } from "@/features/odp/service";
 
@@ -97,6 +98,7 @@ export interface PelangganInput {
   routerId?: string | null;
   odpId?: string | null;
   odpPort?: string | null;
+  tglDaftar?: Date | null;
   tglJatuhTempo?: Date | null;
 }
 
@@ -222,6 +224,9 @@ export async function createPelanggan(
 
   await assertPelangganOdpCapacity(tenantId, aligned.odpId);
 
+  const tglDaftar = aligned.tglDaftar ?? new Date();
+  const tglJatuhTempo = aligned.tglJatuhTempo ?? computeInitialDueDate(tglDaftar);
+
   const id = newId("pel");
   await db.insert(pelanggan).values({
     id,
@@ -239,7 +244,8 @@ export async function createPelanggan(
     routerId: aligned.routerId || null,
     odpId: aligned.odpId || null,
     odpPort: aligned.odpPort?.trim() || null,
-    tglJatuhTempo: aligned.tglJatuhTempo ?? null,
+    tglDaftar,
+    tglJatuhTempo,
     createdBy,
   });
 
@@ -273,6 +279,10 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
   await assertPaketMatchesRouter(tenantId, aligned);
   await assertPelangganOdpCapacity(tenantId, aligned.odpId, id);
   await syncCustomerConnection(tenantId, aligned, aligned.nama);
+  const tglDaftar = aligned.tglDaftar ?? undefined;
+  const tglJatuhTempo =
+    aligned.tglJatuhTempo ??
+    (tglDaftar ? computeInitialDueDate(tglDaftar) : undefined);
   await db
     .update(pelanggan)
     .set({
@@ -289,7 +299,8 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
       routerId: aligned.routerId || null,
       odpId: aligned.odpId || null,
       odpPort: aligned.odpPort?.trim() || null,
-      tglJatuhTempo: aligned.tglJatuhTempo ?? null,
+      ...(tglDaftar ? { tglDaftar } : {}),
+      ...(tglJatuhTempo ? { tglJatuhTempo } : {}),
     })
     .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));
 }

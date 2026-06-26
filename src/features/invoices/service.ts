@@ -57,6 +57,38 @@ export function listInvoices(tenantId: string, pelangganId?: string) {
   return joinedInvoices(tenantId, false, pelangganId);
 }
 
+/** Riwayat nota pembayaran (paid only). */
+export async function listReceipts(tenantId: string, pelangganId?: string) {
+  const where = pelangganId
+    ? and(
+        eq(invoices.tenantId, tenantId),
+        eq(invoices.status, "paid"),
+        eq(invoices.pelangganId, pelangganId)
+      )
+    : and(eq(invoices.tenantId, tenantId), eq(invoices.status, "paid"));
+  const rows = await db
+    .select({
+      i: invoices,
+      nama: pelanggan.nama,
+      wa: pelanggan.noWa,
+      lat: pelanggan.latitude,
+      lng: pelanggan.longitude,
+      alamat: pelanggan.alamat,
+    })
+    .from(invoices)
+    .innerJoin(pelanggan, eq(invoices.pelangganId, pelanggan.id))
+    .where(where)
+    .orderBy(desc(invoices.createdAt));
+  return rows.map<InvoiceRow>((r) => ({
+    ...r.i,
+    pelangganNama: r.nama,
+    pelangganWa: r.wa,
+    latitude: r.lat,
+    longitude: r.lng,
+    alamat: r.alamat,
+  }));
+}
+
 export function listUnpaidInvoices(tenantId: string) {
   return joinedInvoices(tenantId, true);
 }

@@ -45,7 +45,7 @@ export default async function StafPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nama</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead className="hidden md:table-cell">Email</TableHead>
                 <TableHead>Peran</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -55,15 +55,15 @@ export default async function StafPage() {
               {staff.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.nama}</TableCell>
-                  <TableCell className="text-muted-foreground">{s.email}</TableCell>
+                  <TableCell className="hidden text-muted-foreground md:table-cell">{s.email}</TableCell>
                   <TableCell className="capitalize">{s.role}</TableCell>
                   <TableCell>
                     <Badge variant={s.isActive ? "success" : "secondary"}>
                       {s.isActive ? "Aktif" : "Nonaktif"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center justify-end gap-1">
+                  <TableCell className="text-right">
+                    <div className="flex flex-wrap items-center justify-end gap-1">
                       <StaffFormDialog
                         staff={s}
                         trigger={

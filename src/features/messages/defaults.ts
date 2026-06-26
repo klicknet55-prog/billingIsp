@@ -2,13 +2,13 @@ import type { PlatformTemplateKey, TenantTemplateKey } from "@/features/messages
 
 export const DEFAULT_TENANT_TEMPLATES: Record<TenantTemplateKey, string> = {
   invoice_new:
-    "Tagihan [[no_invoice]] ([[tagihan]]) sebesar [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Bayar: [[link_bayar]]",
+    "Tagihan periode [[tagihan]] sebesar [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Bayar: [[link_bayar]]",
   invoice_pre_due:
-    "Pengingat [[nama_pelanggan]]: tagihan [[no_invoice]] ([[tagihan]]) [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Bayar: [[link_bayar]]",
+    "Pengingat [[nama_pelanggan]]: tagihan [[tagihan]] [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Bayar: [[link_bayar]]",
   invoice_overdue:
-    "[[nama_pelanggan]], tagihan [[no_invoice]] ([[jumlah_tagihan]]) telah jatuh tempo. Layanan dinonaktifkan sementara. Bayar: [[link_bayar]]",
+    "[[nama_pelanggan]], tagihan [[tagihan]] ([[jumlah_tagihan]]) telah jatuh tempo. Total tunggakan: [[tunggakan]]. Layanan dinonaktifkan sementara. Bayar: [[link_bayar]]",
   manual_invoice:
-    "Halo [[nama_pelanggan]], tagihan [[tagihan]] ([[no_invoice]]) sebesar [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Bayar di: [[link_bayar]]",
+    "Halo [[nama_pelanggan]], tagihan [[tagihan]] sebesar [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Tunggakan: [[tunggakan]]. Bayar di: [[link_bayar]]",
   manual_custom:
     "Halo [[nama_pelanggan]], ini pesan dari [[nama_usaha]]. Terima kasih.",
 };
@@ -27,8 +27,9 @@ export const SAMPLE_PELANGGAN_VARS: Record<string, string> = {
   no_wa: "6281234567890",
   alamat: "Jl. Merdeka No. 1",
   tagihan: "Juni 2026",
-  no_invoice: "INV-202606-001",
+  no_invoice: "2026-06",
   jumlah_tagihan: "Rp150.000",
+  tunggakan: "Rp300.000 (Mei 2026, April 2026)",
   jatuh_tempo: "15 Jun 2026",
   link_bayar: "https://app.example/portal/masuk?t=contoh",
   nama_usaha: "RT-RW Net",

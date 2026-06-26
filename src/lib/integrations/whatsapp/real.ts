@@ -1,15 +1,14 @@
 import { createLogger } from "@/lib/logger";
-import { getTenantWhatsAppConfig } from "@/features/integrations/service";
+import {
+  getPlatformWhatsAppConfig,
+  getTenantWhatsAppConfig,
+} from "@/features/integrations/service";
+import { klicknetSendText } from "./klicknet";
+import { getGowaBaseUrlFromEnv, resolveKlicknetAuth } from "./config";
 import type { WhatsAppClient } from "./types";
 
 const log = createLogger("whatsapp:real");
 
-/**
- * Implementasi WhatsApp Business API (WABA Cloud API).
- * WHATSAPP_API_URL: endpoint messages, mis.
- *   https://graph.facebook.com/v21.0/<PHONE_NUMBER_ID>/messages
- * WHATSAPP_API_TOKEN: access token permanen.
- */
 function normalizePhone(raw: string): string {
   let p = raw.replace(/\D/g, "");
   if (p.startsWith("0")) p = `62${p.slice(1)}`;
@@ -18,9 +17,27 @@ function normalizePhone(raw: string): string {
 
 async function sendText(to: string, body: string, tenantId?: string) {
   const tenantCfg = tenantId ? await getTenantWhatsAppConfig(tenantId) : null;
-  const url = tenantCfg?.apiUrl ?? process.env.WHATSAPP_API_URL ?? "";
-  const token = tenantCfg?.apiToken ?? process.env.WHATSAPP_API_TOKEN ?? "";
-  const provider = tenantCfg?.provider ?? "waba";
+  const platformCfg = !tenantCfg ? await getPlatformWhatsAppConfig() : null;
+  const cfg = tenantCfg ?? platformCfg;
+
+  const provider = cfg?.provider ?? "waba";
+  const url =
+    cfg?.apiUrl?.trim() ||
+    (provider === "klicknet" ? getGowaBaseUrlFromEnv() : "") ||
+    process.env.WHATSAPP_API_URL ||
+    "";
+  const klicknetAuth =
+    provider === "klicknet"
+      ? resolveKlicknetAuth({
+          basicAuthUser: cfg?.basicAuthUser,
+          password: cfg?.apiToken,
+        })
+      : null;
+  const token =
+    provider === "klicknet"
+      ? klicknetAuth?.password ?? ""
+      : cfg?.apiToken ?? process.env.WHATSAPP_API_TOKEN ?? "";
+
   if (!url || !token) {
     throw new Error(
       "WhatsApp belum dikonfigurasi. Isi di ISP → Integrasi, atau set WHATSAPP_API_URL & WHATSAPP_API_TOKEN di .env. Untuk development, gunakan WHATSAPP_DRIVER=mock."
@@ -28,7 +45,20 @@ async function sendText(to: string, body: string, tenantId?: string) {
   }
   const phone = normalizePhone(to);
 
-  // Mode gateway siap pakai: GET ...?phone=...&message=...&secret=...
+  if (provider === "klicknet") {
+    await klicknetSendText(
+      {
+        baseUrl: url,
+        username: klicknetAuth?.username ?? cfg?.basicAuthUser ?? "",
+        password: token,
+        deviceId: cfg?.deviceId,
+      },
+      phone,
+      body
+    );
+    return;
+  }
+
   if (provider === "gateway") {
     const u = new URL(url);
     u.searchParams.set("phone", phone);

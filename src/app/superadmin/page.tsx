@@ -55,10 +55,15 @@ export default async function SuperadminDashboard() {
             </p>
             {health.cronLastResult && (
               <p className="mt-1 text-xs text-muted-foreground">
-                billing.generated=
+                billing.tagihanCreated=
                 {String(
-                  (health.cronLastResult.billing as { generated?: number } | undefined)
-                    ?.generated ?? "-"
+                  (health.cronLastResult.billing as { tagihanCreated?: number } | undefined)
+                    ?.tagihanCreated ?? "-"
+                )}
+                , tunggakan=
+                {String(
+                  (health.cronLastResult.billing as { tunggakan?: number } | undefined)?.tunggakan ??
+                    "-"
                 )}
                 , saas.suspended=
                 {String(

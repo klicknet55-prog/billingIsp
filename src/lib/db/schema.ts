@@ -162,12 +162,15 @@ export const pelanggan = sqliteTable("pelanggan", {
   kolektorId: text("kolektor_id").references(() => users.id),
   odpId: text("odp_id").references(() => odp.id),
   odpPort: text("odp_port"),
+  /** Tanggal pendaftaran pelanggan — anchor billing (default = hari dibuat). */
+  tglDaftar: integer("tgl_daftar", { mode: "timestamp" }),
   tglJatuhTempo: integer("tgl_jatuh_tempo", { mode: "timestamp" }),
   isIsolated: integer("is_isolated", { mode: "boolean" }).notNull().default(false),
   createdBy: text("created_by").references(() => users.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
+/** Nota pembayaran — dibuat setelah bayar sukses. Status legacy unpaid/overdue untuk migrasi. */
 export const invoices = sqliteTable("invoice", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id")
@@ -180,12 +183,63 @@ export const invoices = sqliteTable("invoice", {
   totalTagihan: integer("total_tagihan").notNull().default(0),
   status: text("status", { enum: ["unpaid", "paid", "overdue"] })
     .notNull()
-    .default("unpaid"),
+    .default("paid"),
+  lineItems: text("line_items", { mode: "json" })
+    .$type<{ periode: string; amount: number; label: string }[]>(),
   tglJatuhTempo: integer("tgl_jatuh_tempo", { mode: "timestamp" }),
   preDueRemindedAt: integer("pre_due_reminded_at", { mode: "timestamp" }),
   tglLunas: integer("tgl_lunas", { mode: "timestamp" }),
   metodeBayar: text("metode_bayar"),
   createdBy: text("created_by").references(() => users.id),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+/** Kewajiban bayar per periode — bukan nota. */
+export const tagihan = sqliteTable("tagihan", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  pelangganId: text("pelanggan_id")
+    .notNull()
+    .references(() => pelanggan.id),
+  periode: text("periode").notNull(),
+  amount: integer("amount").notNull(),
+  dueDate: integer("due_date", { mode: "timestamp" }).notNull(),
+  kind: text("kind", { enum: ["first", "recurring"] }).notNull(),
+  status: text("status", { enum: ["open", "tunggakan", "processing", "paid"] })
+    .notNull()
+    .default("open"),
+  receiptId: text("receipt_id").references(() => invoices.id),
+  preDueRemindedAt: integer("pre_due_reminded_at", { mode: "timestamp" }),
+  paidAt: integer("paid_at", { mode: "timestamp" }),
+  metodeBayar: text("metode_bayar"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const receiptTagihanLinks = sqliteTable("receipt_tagihan_link", {
+  id: text("id").primaryKey(),
+  receiptId: text("receipt_id")
+    .notNull()
+    .references(() => invoices.id),
+  tagihanId: text("tagihan_id")
+    .notNull()
+    .references(() => tagihan.id),
+  amount: integer("amount").notNull(),
+});
+
+export const paymentAttempts = sqliteTable("payment_attempt", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  pelangganId: text("pelanggan_id")
+    .notNull()
+    .references(() => pelanggan.id),
+  idempotencyKey: text("idempotency_key").notNull(),
+  selection: text("selection", { enum: ["bulan_ini", "tunggakan", "keduanya"] }).notNull(),
+  status: text("status", { enum: ["pending", "completed", "failed"] }).notNull(),
+  receiptId: text("receipt_id"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
@@ -292,10 +346,24 @@ export const tenantWhatsAppConfigs = sqliteTable("tenant_whatsapp_config", {
     .references(() => tenants.id),
   apiUrl: text("api_url").notNull(),
   apiTokenEncrypted: text("api_token_encrypted").notNull(),
-  provider: text("provider", { enum: ["gateway", "waba"] }).notNull().default("gateway"),
+  provider: text("provider", { enum: ["gateway", "waba", "klicknet"] }).notNull().default("waba"),
   phoneNumberId: text("phone_number_id"),
+  deviceId: text("device_id"),
+  basicAuthUser: text("basic_auth_user"),
   isEnabled: integer("is_enabled", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const platformWhatsAppConfigs = sqliteTable("platform_whatsapp_config", {
+  id: text("id").primaryKey(),
+  apiUrl: text("api_url").notNull(),
+  apiTokenEncrypted: text("api_token_encrypted").notNull(),
+  provider: text("provider", { enum: ["gateway", "waba", "klicknet"] }).notNull().default("waba"),
+  phoneNumberId: text("phone_number_id"),
+  deviceId: text("device_id"),
+  basicAuthUser: text("basic_auth_user"),
+  isEnabled: integer("is_enabled", { mode: "boolean" }).notNull().default(true),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
 });
 

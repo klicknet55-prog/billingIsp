@@ -12,7 +12,13 @@ interface RouterOption {
   nama: string;
 }
 
-export function PaketForm({ routers }: { routers: RouterOption[] }) {
+export function PaketForm({
+  routers,
+  onCancel,
+}: {
+  routers: RouterOption[];
+  onCancel?: () => void;
+}) {
   const [routerId, setRouterId] = useState("");
   const [tipe, setTipe] = useState<"pppoe" | "hotspot">("pppoe");
   const [profiles, setProfiles] = useState<string[]>([]);
@@ -134,7 +140,12 @@ export function PaketForm({ routers }: { routers: RouterOption[] }) {
         </div>
       )}
 
-      <div className="sm:col-span-2">
+      <div className="flex justify-end gap-2 sm:col-span-2">
+        {onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Batal
+          </Button>
+        )}
         <Button type="submit">Simpan</Button>
       </div>
     </form>

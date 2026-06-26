@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { changeTenantSubscriptionPackage } from "@/features/tenants/service";
 import { notifyNewTenantWelcome } from "@/features/tenants/welcome";
+import { payTagihan } from "@/features/billing/payment-service";
+import type { PaymentSelection } from "@/features/billing/tagihan-service";
 import { markInvoicePaid } from "@/features/invoices/service";
 import { getTenantDuitkuConfig } from "@/features/integrations/service";
 import { db } from "@/lib/db";
@@ -40,6 +42,12 @@ export async function POST(req: Request) {
     const invoiceId = orderId.slice(4);
     const inv = await db.query.invoices.findFirst({ where: eq(invoices.id, invoiceId) });
     tenantIdForSignature = inv?.tenantId ?? null;
+  } else if (orderId.startsWith("PAY-")) {
+    const logId = orderId.slice(4);
+    const tx = await db.query.paymentGatewayLogs.findFirst({
+      where: eq(paymentGatewayLogs.id, logId),
+    });
+    tenantIdForSignature = tx?.tenantId ?? null;
   }
   const tenantDuitkuCfg = tenantIdForSignature
     ? await getTenantDuitkuConfig(tenantIdForSignature)
@@ -68,7 +76,42 @@ export async function POST(req: Request) {
     return new Response("OK", { status: 200 });
   }
 
-  if (result.orderId.startsWith("INV-")) {
+  if (result.orderId.startsWith("PAY-")) {
+    const logId = result.orderId.slice(4);
+    const txLogPay =
+      txLog?.id === logId
+        ? txLog
+        : await db.query.paymentGatewayLogs.findFirst({
+            where: eq(paymentGatewayLogs.id, logId),
+          });
+    if (txLogPay?.referenceId.startsWith("{")) {
+      try {
+        const meta = JSON.parse(txLogPay.referenceId) as {
+          kind?: string;
+          pelangganId?: string;
+          selection?: PaymentSelection;
+          idempotencyKey?: string;
+        };
+        if (
+          meta.kind === "tagihan_pay" &&
+          meta.pelangganId &&
+          meta.selection &&
+          meta.idempotencyKey &&
+          txLogPay.tenantId
+        ) {
+          await payTagihan({
+            tenantId: txLogPay.tenantId,
+            pelangganId: meta.pelangganId,
+            selection: meta.selection,
+            metode: result.paymentMethod || "Duitku",
+            idempotencyKey: meta.idempotencyKey,
+          });
+        }
+      } catch (err) {
+        log.error(`Gagal finalisasi PAY-${logId}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+  } else if (result.orderId.startsWith("INV-")) {
     const invoiceId = result.orderId.slice(4);
     const inv = await db.query.invoices.findFirst({ where: eq(invoices.id, invoiceId) });
     if (inv && inv.status !== "paid") {

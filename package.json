@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "node --env-file=.env ./node_modules/drizzle-kit/bin.cjs push",
     "db:ensure-schema": "node --env-file=.env --import tsx src/lib/db/ensure-schema.ts",
+    "db:migrate-tagihan": "node --env-file=.env --import tsx scripts/migrate-invoice-to-tagihan.ts",
     "db:seed": "node --env-file=.env --import tsx src/lib/db/seed.ts",
     "db:backfill-integrations": "node --env-file=.env --import tsx src/lib/db/backfill-tenant-integrations.ts",
     "backup:tenant": "node --env-file=.env --import tsx scripts/backup-tenant.ts",

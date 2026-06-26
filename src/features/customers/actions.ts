@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { normalizePhone } from "@/lib/auth/otp";
+import { parseLocalDate } from "@/features/jobs/due-date";
 import {
   createPelanggan,
   deletePelangganRecords,
@@ -24,6 +25,7 @@ function num(v: FormDataEntryValue | null): number | null {
 
 function parseInput(formData: FormData): PelangganInput {
   const tgl = String(formData.get("tglJatuhTempo") ?? "");
+  const tglDaftarRaw = String(formData.get("tglDaftar") ?? "");
   const rawType = String(formData.get("connectionType") ?? "pppoe");
   const connectionType = rawType === "hotspot" ? "hotspot" : "pppoe";
   return {
@@ -40,7 +42,8 @@ function parseInput(formData: FormData): PelangganInput {
     routerId: String(formData.get("routerId") ?? "") || null,
     odpId: String(formData.get("odpId") ?? "") || null,
     odpPort: String(formData.get("odpPort") ?? "").trim() || null,
-    tglJatuhTempo: tgl ? new Date(tgl) : null,
+    tglDaftar: tglDaftarRaw ? (parseLocalDate(tglDaftarRaw) ?? new Date()) : new Date(),
+    tglJatuhTempo: tgl ? parseLocalDate(tgl) : null,
   };
 }
 

@@ -88,6 +88,26 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     column: "cron_last_result",
     sql: "ALTER TABLE platform_settings ADD COLUMN cron_last_result TEXT",
   },
+  {
+    table: "pelanggan",
+    column: "tgl_daftar",
+    sql: "ALTER TABLE pelanggan ADD COLUMN tgl_daftar INTEGER",
+  },
+  {
+    table: "invoice",
+    column: "line_items",
+    sql: "ALTER TABLE invoice ADD COLUMN line_items TEXT",
+  },
+  {
+    table: "tenant_whatsapp_config",
+    column: "device_id",
+    sql: "ALTER TABLE tenant_whatsapp_config ADD COLUMN device_id TEXT",
+  },
+  {
+    table: "tenant_whatsapp_config",
+    column: "basic_auth_user",
+    sql: "ALTER TABLE tenant_whatsapp_config ADD COLUMN basic_auth_user TEXT",
+  },
 ];
 
 function hasColumn(db: Database.Database, table: string, column: string) {
@@ -100,6 +120,17 @@ export function hasDbTable(db: Database.Database, table: string) {
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
     .get(table) as { name: string } | undefined;
   return !!row;
+}
+
+function isDuplicateColumnError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: string }).code === "SQLITE_ERROR" &&
+    "message" in err &&
+    String((err as { message?: string }).message).includes("duplicate column name")
+  );
 }
 
 /** Tambah kolom yang hilang (idempotent). Dipanggil saat startup app dan CLI ensure-schema. */
@@ -119,9 +150,17 @@ export function applyColumnPatches(
       if (log) console.log(`[skip] ${patch.table}.${patch.column} sudah ada`);
       continue;
     }
-    db.exec(patch.sql);
-    applied++;
-    if (log) console.log(`[ok]   ${patch.table}.${patch.column} ditambahkan`);
+    try {
+      db.exec(patch.sql);
+      applied++;
+      if (log) console.log(`[ok]   ${patch.table}.${patch.column} ditambahkan`);
+    } catch (err) {
+      if (isDuplicateColumnError(err)) {
+        if (log) console.log(`[skip] ${patch.table}.${patch.column} sudah ada (race)`);
+        continue;
+      }
+      throw err;
+    }
   }
 
   return applied;

@@ -4,9 +4,11 @@ import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messageBatches, type MessageBatchPayload } from "@/lib/db/schema";
+import { runBatchSend } from "@/features/messages/send";
 import { newId } from "@/lib/utils";
 
 const MAX_BATCH_SIZE = 100;
+const STALE_QUEUED_MS = 90_000;
 
 export async function hasRunningBatch(scope: "tenant" | "platform", tenantId?: string | null) {
   const row = await db.query.messageBatches.findFirst({
@@ -58,6 +60,16 @@ export async function createMessageBatch(input: {
 }
 
 function spawnBatchProcess(batchId: string) {
+  const runInline =
+    process.env.NODE_ENV === "development" || process.env.MESSAGE_BATCH_INLINE === "1";
+
+  if (runInline) {
+    void runBatchSend(batchId).catch((err) => {
+      console.error(`[message-batch] ${batchId}:`, err);
+    });
+    return;
+  }
+
   const script = path.join(process.cwd(), "scripts", "send-message-batch.ts");
   const child = spawn(process.execPath, ["--import", "tsx", script, batchId], {
     cwd: process.cwd(),
@@ -68,8 +80,35 @@ function spawnBatchProcess(batchId: string) {
   child.unref();
 }
 
-export async function getBatchStatus(batchId: string) {
+/** Tandai batch queued yang tidak pernah jalan (spawn gagal / dev timeout). */
+export async function recoverStaleBatch(batchId: string) {
+  const batch = await db.query.messageBatches.findFirst({
+    where: eq(messageBatches.id, batchId),
+  });
+  if (!batch || batch.status !== "queued") return batch;
+
+  const age = Date.now() - batch.createdAt.getTime();
+  if (age < STALE_QUEUED_MS) return batch;
+
+  await db
+    .update(messageBatches)
+    .set({
+      status: "failed",
+      error:
+        "Batch tidak dimulai (proses background gagal). Di development batch sekarang dijalankan inline — coba kirim ulang.",
+      finishedAt: new Date(),
+    })
+    .where(eq(messageBatches.id, batchId));
+
   return db.query.messageBatches.findFirst({ where: eq(messageBatches.id, batchId) });
+}
+
+export async function getBatchStatus(batchId: string) {
+  const batch = await db.query.messageBatches.findFirst({ where: eq(messageBatches.id, batchId) });
+  if (batch?.status === "queued") {
+    return recoverStaleBatch(batchId);
+  }
+  return batch;
 }
 
 export { MAX_BATCH_SIZE };

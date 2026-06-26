@@ -1,5 +1,5 @@
 import "server-only";
-import { buildInvoiceCronContext } from "@/features/messages/context";
+import { buildTagihanCronContext } from "@/features/messages/context";
 import { renderTemplate } from "@/features/messages/render";
 import { getTemplateBody } from "@/features/messages/templates";
 import type { TenantTemplateKey } from "@/features/messages/types";
@@ -14,7 +14,7 @@ export async function formatInvoiceMessageFromTemplate(
   tenantId: string,
   pelangganId: string,
   parts: {
-    noInvoice: string;
+    periode: string;
     amount: number;
     dueDate: Date;
     kind: "new" | "pre_due" | "overdue";
@@ -23,10 +23,10 @@ export async function formatInvoiceMessageFromTemplate(
 ): Promise<string> {
   const key = KIND_TO_KEY[parts.kind];
   const body = await getTemplateBody("tenant", key, tenantId);
-  const vars = await buildInvoiceCronContext(tenantId, pelangganId, {
-    noInvoice: parts.noInvoice,
-    totalTagihan: parts.amount,
-    tglJatuhTempo: parts.dueDate,
+  const vars = await buildTagihanCronContext(tenantId, pelangganId, {
+    periode: parts.periode,
+    amount: parts.amount,
+    dueDate: parts.dueDate,
   });
   return renderTemplate(body, { ...vars, link_bayar: parts.payUrl });
 }

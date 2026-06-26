@@ -4,7 +4,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Disclosure } from "@/components/ui/disclosure";
 import {
   Table,
   TableBody,
@@ -13,12 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  createPelangganAction,
-  toggleIsolasiAction,
-} from "@/features/customers/actions";
+import { toggleIsolasiAction } from "@/features/customers/actions";
+import { PelangganCreateDialog } from "@/features/customers/components/pelanggan-create-dialog";
 import { PelangganDeleteDialog } from "@/features/customers/components/pelanggan-delete-dialog";
-import { PelangganFields } from "@/features/customers/components/pelanggan-fields";
 import { listPelanggan } from "@/features/customers/service";
 import { listOdpOptions } from "@/features/odp/service";
 import { listPaket } from "@/features/packages/service";
@@ -59,24 +55,19 @@ export default async function PelangganPage({
           quota ? ` (Paket ${quota.paketNama})` : ""
         }`}
         action={
-          <Disclosure label="Tambah Pelanggan">
-            <form action={createPelangganAction} className="space-y-4">
-              <PelangganFields
-                paketOptions={paket.map((p) => ({
-                  id: p.id,
-                  label: `${p.nama} (${p.kecepatan})`,
-                  routerId: p.routerId,
-                  tipe: p.tipe,
-                }))}
-                routerOptions={routers.map((r) => ({
-                  id: r.id,
-                  label: r.nama,
-                }))}
-                odpOptions={odpOptions}
-              />
-              <Button type="submit">Simpan</Button>
-            </form>
-          </Disclosure>
+          <PelangganCreateDialog
+            paketOptions={paket.map((p) => ({
+              id: p.id,
+              label: `${p.nama} (${p.kecepatan})`,
+              routerId: p.routerId,
+              tipe: p.tipe,
+            }))}
+            routerOptions={routers.map((r) => ({
+              id: r.id,
+              label: r.nama,
+            }))}
+            odpOptions={odpOptions}
+          />
         }
       />
 
@@ -112,9 +103,9 @@ export default async function PelangganPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Nama</TableHead>
-                <TableHead>WhatsApp</TableHead>
+                <TableHead className="hidden md:table-cell">WhatsApp</TableHead>
                 <TableHead>Tipe</TableHead>
-                <TableHead>Username</TableHead>
+                <TableHead className="hidden md:table-cell">Username</TableHead>
                 <TableHead>Paket</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -126,9 +117,11 @@ export default async function PelangganPage({
                 return (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nama}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.noWa}</TableCell>
+                    <TableCell className="hidden text-muted-foreground md:table-cell">{p.noWa}</TableCell>
                     <TableCell className="uppercase">{p.connectionType}</TableCell>
-                    <TableCell className="font-mono text-xs">{p.connectionUsername ?? "-"}</TableCell>
+                    <TableCell className="hidden font-mono text-xs md:table-cell">
+                      {p.connectionUsername ?? "-"}
+                    </TableCell>
                     <TableCell>{p.paketNama ?? "-"}</TableCell>
                     <TableCell>
                       <Badge variant={p.isIsolated ? "destructive" : "success"}>
@@ -136,7 +129,7 @@ export default async function PelangganPage({
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex flex-wrap items-center justify-end gap-1">
                         {nav && (
                           <Button asChild variant="ghost" size="icon" title="Navigasi">
                             <a href={nav} target="_blank" rel="noreferrer">

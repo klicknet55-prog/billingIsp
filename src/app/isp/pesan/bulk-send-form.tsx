@@ -95,7 +95,17 @@ export function BulkSendForm({
 
   return (
     <div className="space-y-4">
-      {batchId && <BatchProgress batchId={batchId} />}
+      {batchId && (
+        <BatchProgress
+          batchId={batchId}
+          onDone={() => {
+            toast({
+              title: "Batch selesai — lihat tab Riwayat untuk detail",
+              variant: "success",
+            });
+          }}
+        />
+      )}
 
       <form action={action} className="space-y-4">
         <input type="hidden" name="recipientIds" value={payload} readOnly />

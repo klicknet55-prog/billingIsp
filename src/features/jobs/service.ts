@@ -1,19 +1,13 @@
 import "server-only";
 import { and, eq, gte, isNull, lt, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { invoices, paketInternet, pelanggan, tenants } from "@/lib/db/schema";
-import { setIsolasi } from "@/features/customers/service";
+import { paketInternet, pelanggan, tagihan, tenants } from "@/lib/db/schema";
 import {
-  nextDueDateFromDay,
-  portalPayLink,
-  REMINDER_DAYS,
-  shouldGenerateInvoice,
-  startOfDay,
-} from "@/features/jobs/billing";
-import {
-  createSystemInvoice,
-  hasInvoiceForBillingPeriod,
-} from "@/features/invoices/service";
+  ensureTagihanForCustomer,
+  isolateOverdueUnpaid,
+} from "@/features/billing/tagihan-service";
+import { portalPayLink, REMINDER_DAYS } from "@/features/jobs/billing";
+import { startOfDay } from "@/features/jobs/due-date";
 import { formatInvoiceMessageFromTemplate } from "@/features/messages/invoice-message";
 import { paceAfterSend, waitBeforeSend } from "@/features/messages/throttle";
 import { getWhatsAppClient } from "@/lib/integrations/whatsapp";
@@ -24,40 +18,26 @@ const log = createLogger("jobs");
 const DAY = 24 * 60 * 60 * 1000;
 let billingSendCount = 0;
 
-async function notifyPelangganWa(
-  phone: string,
-  message: string,
-  tenantId: string
-) {
-  await waitBeforeSend();
-  await getWhatsAppClient().sendNotification(phone, message, tenantId);
-  billingSendCount++;
-  await paceAfterSend(billingSendCount);
+async function notifyPelangganWa(phone: string, message: string, tenantId: string) {
+  try {
+    await waitBeforeSend();
+    await getWhatsAppClient().sendNotification(phone, message, tenantId);
+    billingSendCount++;
+    await paceAfterSend(billingSendCount);
+  } catch (err) {
+    log.warn(`WA gagal ke ${phone}: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export interface BillingCycleResult {
-  generated: number;
-  generatedNotified: number;
-  overdue: number;
+  tagihanCreated: number;
+  tunggakan: number;
   isolated: number;
   reminded: number;
   preDueReminded: number;
 }
 
-function resolveDueDate(
-  custTglJatuhTempo: Date | null,
-  custCreatedAt: Date,
-  now: Date
-): Date {
-  if (custTglJatuhTempo) {
-    const anchor = startOfDay(custTglJatuhTempo);
-    if (anchor >= startOfDay(now)) return anchor;
-    return nextDueDateFromDay(anchor.getDate(), now);
-  }
-  return nextDueDateFromDay(custCreatedAt.getDate(), now);
-}
-
-async function generateMonthlyInvoices(now: Date, result: BillingCycleResult) {
+async function syncTagihanForTenants(now: Date, result: BillingCycleResult) {
   const activeTenants = await db
     .select({ id: tenants.id })
     .from(tenants)
@@ -68,137 +48,115 @@ async function generateMonthlyInvoices(now: Date, result: BillingCycleResult) {
       .select({
         id: pelanggan.id,
         noWa: pelanggan.noWa,
-        tglJatuhTempo: pelanggan.tglJatuhTempo,
-        createdAt: pelanggan.createdAt,
-        paketId: pelanggan.paketInternetId,
         harga: paketInternet.hargaBulanan,
-        paketNama: paketInternet.nama,
       })
       .from(pelanggan)
       .innerJoin(paketInternet, eq(pelanggan.paketInternetId, paketInternet.id))
       .where(and(eq(pelanggan.tenantId, tenantId), eq(paketInternet.isActive, true)));
 
     for (const cust of customers) {
-      if (!cust.paketId || cust.harga <= 0) continue;
-
-      const dueDate = resolveDueDate(cust.tglJatuhTempo, cust.createdAt, now);
-      if (!shouldGenerateInvoice(now, dueDate)) continue;
-
-      const exists = await hasInvoiceForBillingPeriod(tenantId, cust.id, dueDate);
-      if (exists) continue;
-
-      const inv = await createSystemInvoice(tenantId, {
-        pelangganId: cust.id,
-        totalTagihan: cust.harga,
-        tglJatuhTempo: dueDate,
-      });
-      result.generated++;
-
-      const msg = await formatInvoiceMessageFromTemplate(tenantId, cust.id, {
-        noInvoice: inv.noInvoice,
-        amount: inv.totalTagihan,
-        dueDate,
-        kind: "new",
-        payUrl: portalPayLink(tenantId, cust.id),
-      });
-      await notifyPelangganWa(cust.noWa, msg, tenantId);
-      result.generatedNotified++;
+      if (cust.harga <= 0) continue;
+      try {
+        const created = await ensureTagihanForCustomer(tenantId, cust.id, cust.harga, now);
+        if (created) result.tagihanCreated++;
+      } catch (err) {
+        log.warn(`Gagal buat tagihan ${cust.id}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 }
 
 /**
- * Background worker: siklus penagihan otomatis.
- * - Generate invoice bulanan (H-N sebelum jatuh tempo pelanggan).
- * - Reminder H-3 sebelum jatuh tempo (sekali per invoice).
- * - Invoice lewat jatuh tempo → overdue + isolasi + notifikasi.
+ * Background worker: siklus tagihan otomatis.
+ * - Buat tagihan periode (D+5 untuk pertama).
+ * - Isolir pelanggan lewat jatuh tempo (tagihan tetap open).
+ * - Reminder H-N sebelum jatuh tempo.
  */
 export async function runBillingCycle(): Promise<BillingCycleResult> {
   const now = new Date();
   billingSendCount = 0;
   const result: BillingCycleResult = {
-    generated: 0,
-    generatedNotified: 0,
-    overdue: 0,
+    tagihanCreated: 0,
+    tunggakan: 0,
     isolated: 0,
     reminded: 0,
     preDueReminded: 0,
   };
 
-  await generateMonthlyInvoices(now, result);
+  await syncTagihanForTenants(now, result);
+  result.isolated = await isolateOverdueUnpaid(undefined, now);
 
   const upcoming = await db
-    .select({ inv: invoices })
-    .from(invoices)
-    .innerJoin(tenants, eq(invoices.tenantId, tenants.id))
+    .select({ t: tagihan, noWa: pelanggan.noWa, pelangganId: pelanggan.id })
+    .from(tagihan)
+    .innerJoin(pelanggan, eq(tagihan.pelangganId, pelanggan.id))
+    .innerJoin(tenants, eq(tagihan.tenantId, tenants.id))
     .where(
       and(
         eq(tenants.status, "active"),
-        eq(invoices.status, "unpaid"),
-        gte(invoices.tglJatuhTempo, now),
-        lte(invoices.tglJatuhTempo, new Date(now.getTime() + REMINDER_DAYS * DAY)),
-        isNull(invoices.preDueRemindedAt)
+        eq(tagihan.status, "open"),
+        gte(tagihan.dueDate, now),
+        lte(tagihan.dueDate, new Date(now.getTime() + REMINDER_DAYS * DAY)),
+        isNull(tagihan.preDueRemindedAt)
       )
     );
 
-  for (const { inv } of upcoming) {
-    const cust = await db.query.pelanggan.findFirst({
-      where: (p, { eq: e }) => e(p.id, inv.pelangganId),
-    });
-    if (!cust || !inv.tglJatuhTempo) continue;
-
-    const msg = await formatInvoiceMessageFromTemplate(inv.tenantId, cust.id, {
-      noInvoice: inv.noInvoice,
-      amount: inv.totalTagihan,
-      dueDate: inv.tglJatuhTempo,
-      kind: "pre_due",
-      payUrl: portalPayLink(inv.tenantId, cust.id),
-    });
-    await notifyPelangganWa(cust.noWa, msg, inv.tenantId);
-
-    await db
-      .update(invoices)
-      .set({ preDueRemindedAt: now })
-      .where(eq(invoices.id, inv.id));
-
-    result.preDueReminded++;
-  }
-
-  const overdueInvoices = await db
-    .select({ inv: invoices })
-    .from(invoices)
-    .innerJoin(tenants, eq(invoices.tenantId, tenants.id))
-    .where(
-      and(
-        eq(tenants.status, "active"),
-        eq(invoices.status, "unpaid"),
-        lt(invoices.tglJatuhTempo, now)
-      )
-    );
-
-  for (const { inv } of overdueInvoices) {
-    await db.update(invoices).set({ status: "overdue" }).where(eq(invoices.id, inv.id));
-    result.overdue++;
-
-    await setIsolasi(inv.tenantId, inv.pelangganId, true);
-    result.isolated++;
-
-    const cust = await db.query.pelanggan.findFirst({
-      where: (p, { eq: e }) => e(p.id, inv.pelangganId),
-    });
-    if (cust && inv.tglJatuhTempo) {
-      const msg = await formatInvoiceMessageFromTemplate(inv.tenantId, cust.id, {
-        noInvoice: inv.noInvoice,
-        amount: inv.totalTagihan,
-        dueDate: inv.tglJatuhTempo,
-        kind: "overdue",
-        payUrl: portalPayLink(inv.tenantId, cust.id),
+  for (const { t, noWa, pelangganId } of upcoming) {
+    try {
+      const msg = await formatInvoiceMessageFromTemplate(t.tenantId, pelangganId, {
+        periode: t.periode,
+        amount: t.amount,
+        dueDate: t.dueDate,
+        kind: "pre_due",
+        payUrl: portalPayLink(t.tenantId, pelangganId),
       });
-      await notifyPelangganWa(cust.noWa, msg, inv.tenantId);
-      result.reminded++;
+      await notifyPelangganWa(noWa, msg, t.tenantId);
+      await db.update(tagihan).set({ preDueRemindedAt: now }).where(eq(tagihan.id, t.id));
+      result.preDueReminded++;
+    } catch (err) {
+      log.warn(`Reminder gagal ${t.id}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
-  log.info("Siklus penagihan selesai", result);
+  const today = startOfDay(now);
+  const overdueOpenRows = await db
+    .select({
+      t: tagihan,
+      noWa: pelanggan.noWa,
+      pelangganId: pelanggan.id,
+      isIsolated: pelanggan.isIsolated,
+    })
+    .from(tagihan)
+    .innerJoin(pelanggan, eq(tagihan.pelangganId, pelanggan.id))
+    .innerJoin(tenants, eq(tagihan.tenantId, tenants.id))
+    .where(
+      and(
+        eq(tenants.status, "active"),
+        eq(tagihan.status, "open"),
+        lt(tagihan.dueDate, today)
+      )
+    );
+
+  const remindedPelanggan = new Set<string>();
+  for (const { t, noWa, pelangganId } of overdueOpenRows) {
+    const key = `${t.tenantId}:${pelangganId}`;
+    if (remindedPelanggan.has(key)) continue;
+    remindedPelanggan.add(key);
+    try {
+      const msg = await formatInvoiceMessageFromTemplate(t.tenantId, pelangganId, {
+        periode: t.periode,
+        amount: t.amount,
+        dueDate: t.dueDate,
+        kind: "overdue",
+        payUrl: portalPayLink(t.tenantId, pelangganId),
+      });
+      await notifyPelangganWa(noWa, msg, t.tenantId);
+      result.reminded++;
+    } catch {
+      /* logged in notifyPelangganWa */
+    }
+  }
+
+  log.info("Siklus tagihan selesai", result);
   return result;
 }

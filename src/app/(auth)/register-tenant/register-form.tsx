@@ -120,6 +120,10 @@ export function RegisterForm({
             <Input id="adminNama" name="adminNama" required placeholder="Nama Anda" />
           </div>
           <div className="space-y-2">
+            <Label htmlFor="adminPhone">No. WhatsApp</Label>
+            <Input id="adminPhone" name="adminPhone" required placeholder="0812xxxxxxx" />
+          </div>
+          <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" required placeholder="admin@acme.net" />
           </div>

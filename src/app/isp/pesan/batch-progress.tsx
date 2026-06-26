@@ -1,30 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { getBatchStatusAction } from "@/features/messages/actions";
 import type { MessageBatch } from "@/lib/db/schema";
 
-export function BatchProgress({ batchId, onDone }: { batchId: string; onDone?: () => void }) {
+const POLL_MS = 2500;
+
+export function BatchProgress({
+  batchId,
+  onDone,
+}: {
+  batchId: string;
+  onDone?: () => void;
+}) {
+  const router = useRouter();
   const [batch, setBatch] = useState<MessageBatch | null>(null);
+  const timerRef = useRef<number | null>(null);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     let active = true;
+
     const poll = async () => {
-      const next = await getBatchStatusAction(batchId);
-      if (!active) return;
-      setBatch(next);
-      if (next && (next.status === "done" || next.status === "failed")) {
-        onDone?.();
-        return;
+      try {
+        const next = await getBatchStatusAction(batchId);
+        if (!active) return;
+        setBatch(next);
+        if (next && (next.status === "done" || next.status === "failed")) {
+          onDoneRef.current?.();
+          router.refresh();
+          return;
+        }
+      } catch {
+        if (!active) return;
       }
-      window.setTimeout(poll, 2500);
+      timerRef.current = window.setTimeout(poll, POLL_MS);
     };
+
     poll();
+
     return () => {
       active = false;
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
     };
-  }, [batchId, onDone]);
+  }, [batchId, router]);
 
   if (!batch) return <p className="text-sm text-muted-foreground">Memuat status batch…</p>;
 
@@ -52,6 +76,9 @@ export function BatchProgress({ batchId, onDone }: { batchId: string; onDone?: (
       <p className="text-sm text-muted-foreground">
         Terkirim: {batch.sent} · Gagal: {batch.failed} · Total: {batch.total}
       </p>
+      {batch.status === "queued" && (
+        <p className="text-xs text-muted-foreground">Menunggu proses background…</p>
+      )}
       {batch.error && <p className="text-sm text-destructive">{batch.error}</p>}
     </div>
   );

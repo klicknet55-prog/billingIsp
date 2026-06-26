@@ -5,7 +5,8 @@ import { formatDate, formatRupiah } from "@/lib/utils";
 const DAY = 24 * 60 * 60 * 1000;
 
 export const REMINDER_DAYS = Number(process.env.BILLING_REMINDER_DAYS ?? 3);
-export const GENERATE_DAYS = Number(process.env.BILLING_GENERATE_DAYS ?? 7);
+export const GENERATE_DAYS = Number(process.env.BILLING_GENERATE_DAYS ?? 5);
+export const FIRST_INVOICE_DAYS = Number(process.env.BILLING_FIRST_INVOICE_DAYS ?? 5);
 
 /** Normalisasi ke tengah malam (timezone server). */
 export function startOfDay(value: Date): Date {

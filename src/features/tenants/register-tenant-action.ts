@@ -18,6 +18,7 @@ export async function registerTenantFormAction(
     namaUsaha: String(formData.get("namaUsaha") ?? ""),
     domain: String(formData.get("domain") ?? ""),
     adminNama: String(formData.get("adminNama") ?? ""),
+    adminPhone: String(formData.get("adminPhone") ?? ""),
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
     packageId: String(formData.get("packageId") ?? ""),

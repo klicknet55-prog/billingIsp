@@ -9,6 +9,7 @@ import { listOdpOptions } from "@/features/odp/service";
 import { listPaket } from "@/features/packages/service";
 import { listRouters } from "@/features/routers/service";
 import { requireUser } from "@/lib/auth";
+import Link from "next/link";
 
 export default async function EditPelangganPage({
   params,
@@ -32,7 +33,15 @@ export default async function EditPelangganPage({
 
   return (
     <>
-      <PageHeader title={`Edit: ${cust.nama}`} description="Perbarui data pelanggan." />
+      <PageHeader
+        title={`Edit: ${cust.nama}`}
+        description="Perbarui data pelanggan."
+        action={
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/isp/tagihan/${cust.id}`}>Kelola Tagihan</Link>
+          </Button>
+        }
+      />
       {error && (
         <Card className="mb-4 border-destructive/30 bg-destructive/5">
           <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
@@ -56,7 +65,12 @@ export default async function EditPelangganPage({
               }))}
               odpOptions={odpOptions}
             />
-            <Button type="submit">Simpan Perubahan</Button>
+            <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+              <Button asChild type="button" variant="ghost">
+                <Link href="/isp/pelanggan">Batal</Link>
+              </Button>
+              <Button type="submit">Simpan Perubahan</Button>
+            </div>
           </form>
         </CardContent>
       </Card>

@@ -1,33 +1,18 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
-import { createInvoice, markInvoicePaid } from "./service";
 
-const ISP_ROLES = ["owner", "admin"] as const;
+const LEGACY_MSG =
+  "Fitur invoice lama sudah diganti. Gunakan pembayaran tagihan di menu Pelanggan atau Kolektor.";
 
-export async function createInvoiceAction(formData: FormData) {
-  const user = await requireUser(ISP_ROLES);
-  const tgl = String(formData.get("tglJatuhTempo") ?? "");
-  await createInvoice(
-    user.tenantId!,
-    {
-      pelangganId: String(formData.get("pelangganId") ?? ""),
-      totalTagihan: Number(formData.get("totalTagihan") ?? 0),
-      tglJatuhTempo: tgl ? new Date(tgl) : null,
-    },
-    user.id
-  );
-  revalidatePath("/isp/invoice");
+/** @deprecated Tagihan dibuat otomatis oleh cron — tidak dipakai lagi. */
+export async function createInvoiceAction(_formData: FormData) {
+  await requireUser(["owner", "admin"]);
+  throw new Error(LEGACY_MSG);
 }
 
-export async function markPaidAction(formData: FormData) {
-  const user = await requireUser(["owner", "admin", "kolektor"]);
-  const id = String(formData.get("id") ?? "");
-  const metode = String(formData.get("metode") ?? "Tunai");
-  await markInvoicePaid(user.tenantId!, id, metode, {
-    kolektorUserId: user.role === "kolektor" ? user.id : undefined,
-  });
-  revalidatePath("/isp/invoice");
-  revalidatePath("/kolektor");
+/** @deprecated Gunakan payTagihanAction — tidak dipakai lagi. */
+export async function markPaidAction(_formData: FormData) {
+  await requireUser(["owner", "admin", "kolektor"]);
+  throw new Error(LEGACY_MSG);
 }

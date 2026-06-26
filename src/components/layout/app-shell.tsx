@@ -53,15 +53,17 @@ const NAV: Record<string, NavItem[]> = {
     { href: SUPERADMIN_PENGATURAN_HREF, label: "Pengaturan", icon: Settings },
     { href: "/superadmin/backup", label: "Backup", icon: HardDrive },
     { href: "/superadmin/deploy", label: "Update App", icon: Rocket },
+    { href: "/superadmin/integrasi", label: "Integrasi", icon: Plug },
     { href: "/superadmin/pesan", label: "Pesan", icon: MessageSquare },
   ],
   isp: [
     { href: "/isp", label: "Dashboard", icon: LayoutDashboard },
     { href: "/isp/pelanggan", label: "Pelanggan", icon: Users },
+    { href: "/isp/tagihan", label: "Tagihan Pelanggan", icon: CreditCard },
     { href: "/isp/peta", label: "Peta", icon: Map },
     { href: "/isp/paket", label: "Paket Internet", icon: Package },
     { href: "/isp/router", label: "Router", icon: RouterIcon },
-    { href: "/isp/invoice", label: "Invoice", icon: FileText },
+    { href: "/isp/invoice", label: "Nota", icon: FileText },
     { href: "/isp/pesan", label: "Pesan", icon: MessageSquare },
     { href: "/isp/tiket", label: "Tiket", icon: Ticket },
     { href: "/isp/laporan", label: "Laporan", icon: BarChart3 },
@@ -128,46 +130,49 @@ export function AppShell({
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 -translate-x-full border-r bg-card transition-transform md:static md:translate-x-0 print:hidden",
+          "fixed inset-y-0 left-0 z-50 w-64 -translate-x-full border-r bg-card transition-transform print:hidden",
+          "md:sticky md:top-0 md:z-30 md:h-screen md:shrink-0 md:translate-x-0",
           open && "translate-x-0"
         )}
       >
-        <div className="flex h-14 items-center justify-between border-b px-4">
-          <Link href={`/${variant}`} className="flex items-center gap-2 font-semibold">
-            {brandLogoUrl ? (
-              <BrandLogo logoUrl={brandLogoUrl} name={brandName} className="h-6 w-6 rounded-sm object-cover" />
-            ) : (
-              <Network className="text-primary" />
-            )}
-            <span className="truncate">{brandName}</span>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setOpen(false)}
-          >
-            <X />
-          </Button>
-        </div>
-        <nav className="space-y-1 p-3" suppressHydrationWarning>
-          {items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                linkActive(item.href)
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        <div className="flex h-full flex-col">
+          <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
+            <Link href={`/${variant}`} className="flex items-center gap-2 font-semibold">
+              {brandLogoUrl ? (
+                <BrandLogo logoUrl={brandLogoUrl} name={brandName} className="h-6 w-6 rounded-sm object-cover" />
+              ) : (
+                <Network className="text-primary" />
               )}
-            >
-              <item.icon className="size-4" />
-              {item.label}
+              <span className="truncate">{brandName}</span>
             </Link>
-          ))}
-        </nav>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setOpen(false)}
+            >
+              <X />
+            </Button>
+          </div>
+          <nav className="flex-1 space-y-1 overflow-y-auto p-3" suppressHydrationWarning>
+            {items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  linkActive(item.href)
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                )}
+              >
+                <item.icon className="size-4" />
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
       </aside>
 
       {open && (
@@ -179,8 +184,8 @@ export function AppShell({
       )}
 
       {/* Main */}
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b px-4 print:hidden">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur print:hidden supports-[backdrop-filter]:bg-background/80">
           <Button
             variant="ghost"
             size="icon"

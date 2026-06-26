@@ -177,13 +177,27 @@ export function PelangganFields({
         <Input id="ipAddress" name="ipAddress" defaultValue={defaults?.ipAddress ?? ""} />
       </div>
       <div className="space-y-2">
+        <Label htmlFor="tglDaftar">Tanggal Pendaftaran</Label>
+        <Input
+          id="tglDaftar"
+          name="tglDaftar"
+          type="date"
+          defaultValue={dateValue(defaults?.tglDaftar ?? defaults?.createdAt ?? new Date())}
+          required
+        />
+      </div>
+      <div className="space-y-2">
         <Label htmlFor="tglJatuhTempo">Jatuh Tempo</Label>
         <Input
           id="tglJatuhTempo"
           name="tglJatuhTempo"
           type="date"
-          defaultValue={dateValue(defaults?.tglJatuhTempo)}
+          defaultValue={dateValue(
+            defaults?.tglJatuhTempo ??
+              (defaults?.tglDaftar ? defaults.tglDaftar : defaults?.createdAt)
+          )}
         />
+        <p className="text-xs text-muted-foreground">Hari tagihan max tgl 28 (otomatis dari tanggal pendaftaran).</p>
       </div>
     </div>
   );

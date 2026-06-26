@@ -3,7 +3,8 @@
  * Dipakai saat deploy production jika `db:push` tidak membaca `.env` yang sama dengan app.
  */
 import Database from "better-sqlite3";
-import { applyColumnPatches, hasDbTable } from "./schema-patches";
+import { applyAppSchemaMigrations } from "./runtime-schema";
+import { hasDbTable } from "./schema-patches";
 
 const DB_PATH = process.env.DATABASE_URL ?? "./netmanage.db";
 
@@ -46,7 +47,7 @@ if (!hasDbTable(db, "odp")) {
   console.log("[ok]   tabel odp dibuat");
 }
 
-applied += applyColumnPatches(db, { log: true });
+applied += applyAppSchemaMigrations(db, { log: true });
 
 if (hasColumn(db, "paket_internet", "tipe") && hasColumn(db, "router", "tipe")) {
   const result = db
