@@ -10,6 +10,95 @@ const STATUS_FILE = path.join(DEPLOY_DIR, "status.json");
 const LOG_FILE = path.join(DEPLOY_DIR, "deploy.log");
 const LOCK_FILE = path.join(DEPLOY_DIR, "deploy.lock");
 const UPDATE_CHECK_FILE = path.join(DEPLOY_DIR, "update-check.json");
+const STALE_DEPLOY_MS = 90_000;
+
+type DeployStateBody = Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck">;
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readLockPid(): Promise<number | null> {
+  try {
+    const raw = await readFile(LOCK_FILE, "utf8");
+    const pid = parseInt(raw.trim(), 10);
+    return Number.isFinite(pid) ? pid : null;
+  } catch {
+    return null;
+  }
+}
+
+async function removeDeployLock(): Promise<void> {
+  await unlink(LOCK_FILE).catch(() => {});
+}
+
+async function writeDeployState(state: DeployStateBody): Promise<void> {
+  await mkdir(DEPLOY_DIR, { recursive: true });
+  await writeFile(STATUS_FILE, JSON.stringify(state, null, 2), "utf8");
+}
+
+/**
+ * Deploy sering stuck di "Restart PM2 / running" karena proses deploy ter-kill
+ * saat PM2 me-recycle app padahal git pull + build sudah sukses.
+ */
+async function recoverStuckDeploy(state: DeployStateBody): Promise<DeployStateBody> {
+  if (state.status !== "running") return state;
+
+  const lockPid = await readLockPid();
+  const lockAlive = lockPid !== null && isProcessAlive(lockPid);
+  const ageMs = state.startedAt ? Date.now() - new Date(state.startedAt).getTime() : Infinity;
+
+  const buildOk = state.steps.find((s) => s.name === "npm_build")?.status === "ok";
+  const pm2Step = state.steps.find((s) => s.name === "pm2_restart");
+  const pm2Incomplete = pm2Step?.status === "running" || pm2Step?.status === "pending";
+
+  const likelySuccessAfterPm2 = buildOk && pm2Incomplete;
+
+  if (lockAlive && ageMs < STALE_DEPLOY_MS) return state;
+
+  if (!lockAlive && likelySuccessAfterPm2) {
+    await removeDeployLock();
+    if (pm2Step) {
+      pm2Step.status = "ok";
+      pm2Step.at = new Date().toISOString();
+      pm2Step.detail = "recovered-after-pm2-restart";
+    }
+    const recovered: DeployStateBody = {
+      ...state,
+      status: "success",
+      finishedAt: state.finishedAt ?? new Date().toISOString(),
+      error: null,
+    };
+    await writeDeployState(recovered);
+    return recovered;
+  }
+
+  if (!lockAlive && ageMs > 30_000) {
+    await removeDeployLock();
+    const runningStep = state.steps.find((s) => s.status === "running");
+    if (runningStep) {
+      runningStep.status = "failed";
+      runningStep.detail = "Proses deploy terputus.";
+    }
+    const recovered: DeployStateBody = {
+      ...state,
+      status: "failed",
+      finishedAt: state.finishedAt ?? new Date().toISOString(),
+      error:
+        state.error ??
+        "Deploy terputus. Jika aplikasi sudah ter-update, hapus log deploy dari dashboard.",
+    };
+    await writeDeployState(recovered);
+    return recovered;
+  }
+
+  return state;
+}
 
 function emptyDeployInfo(): Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck"> {
   return {
@@ -98,8 +187,9 @@ export function isDeployEnabled(): boolean {
 }
 
 export async function getDeployInfo(): Promise<DeployInfo> {
-  const [state, logTail, updateCheck] = await Promise.all([
-    readDeployState(),
+  const rawState = await readDeployState();
+  const state = await recoverStuckDeploy(rawState);
+  const [logTail, updateCheck] = await Promise.all([
     readLogTail(),
     readUpdateCheckCache(),
   ]);
@@ -130,13 +220,15 @@ export async function checkRemoteUpdate(refresh = true): Promise<DeployUpdateChe
 }
 
 export async function isDeployRunning(): Promise<boolean> {
-  try {
-    await readFile(LOCK_FILE, "utf8");
-    const state = await readDeployState();
-    return state.status === "running";
-  } catch {
-    return false;
+  const rawState = await readDeployState();
+  if (rawState.status !== "running") return false;
+
+  const lockPid = await readLockPid();
+  if (lockPid === null || !isProcessAlive(lockPid)) {
+    const recovered = await recoverStuckDeploy(rawState);
+    return recovered.status === "running";
   }
+  return true;
 }
 
 export async function startDeployProcess(triggeredBy: string): Promise<void> {

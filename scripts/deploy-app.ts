@@ -7,7 +7,7 @@
  *   DEPLOY_GIT_BRANCH=netmanage-implementation
  *   DEPLOY_PM2_APP=billingisp
  */
-import { execSync } from "node:child_process";
+import { execSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, unlink, writeFile, appendFile, access } from "node:fs/promises";
 import path from "node:path";
 import { compareWithRemote, resolveDeployBranch } from "../src/features/platform-deploy/git-update";
@@ -17,6 +17,7 @@ const DEPLOY_DIR = path.join(ROOT, "data", "deploy");
 const STATUS_FILE = path.join(DEPLOY_DIR, "status.json");
 const LOG_FILE = path.join(DEPLOY_DIR, "deploy.log");
 const LOCK_FILE = path.join(DEPLOY_DIR, "deploy.lock");
+const UPDATE_CHECK_FILE = path.join(DEPLOY_DIR, "update-check.json");
 
 type StepStatus = "pending" | "running" | "ok" | "failed";
 type DeployStatus = "idle" | "running" | "success" | "failed";
@@ -116,6 +117,36 @@ async function fileExists(p: string) {
   }
 }
 
+async function writeUpdateCheckAvailable(available: boolean, branch: string, local: string, remote: string, message: string | null) {
+  await writeFile(
+    UPDATE_CHECK_FILE,
+    JSON.stringify(
+      {
+        checkedAt: new Date().toISOString(),
+        branch,
+        localCommit: local,
+        remoteCommit: remote,
+        remoteMessage: message,
+        available,
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
+}
+
+/** PM2 restart ditunda agar script deploy sempat menulis status sukses sebelum app di-recycle. */
+function schedulePm2Restart(appName: string) {
+  if (process.platform === "win32") return;
+  const child = spawn("bash", ["-lc", `sleep 2 && pm2 restart ${appName}`], {
+    cwd: ROOT,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
 async function main() {
   if (await fileExists(LOCK_FILE)) {
     console.error("Deploy lock aktif — proses lain mungkin masih berjalan.");
@@ -167,21 +198,12 @@ async function main() {
       state.finishedAt = new Date().toISOString();
       state.error = null;
       await writeState(state);
-      await writeFile(
-        path.join(DEPLOY_DIR, "update-check.json"),
-        JSON.stringify(
-          {
-            checkedAt: new Date().toISOString(),
-            branch: cmp.branch,
-            localCommit: cmp.localShort,
-            remoteCommit: cmp.remoteShort,
-            remoteMessage: cmp.remoteMessage,
-            available: false,
-          },
-          null,
-          2
-        ),
-        "utf8"
+      await writeUpdateCheckAvailable(
+        false,
+        cmp.branch,
+        cmp.localShort,
+        cmp.remoteShort,
+        cmp.remoteMessage
       );
       await log("Deploy sukses (tidak ada perubahan)");
       return;
@@ -215,19 +237,26 @@ async function main() {
 
     await setStep(state, "pm2_restart", "running");
     const pm2App = process.env.DEPLOY_PM2_APP?.trim() || "billingisp";
+
+    // Tulis status sukses sebelum restart PM2 — proses deploy bisa ter-kill saat app di-recycle.
+    state.status = "success";
+    state.finishedAt = new Date().toISOString();
+    state.error = null;
+
     if (process.platform === "win32") {
       await log("Windows: lewati pm2 restart (restart dev server manual jika perlu)");
       await setStep(state, "pm2_restart", "ok", "skipped-windows");
     } else {
-      run(`pm2 restart ${pm2App}`);
-      await setStep(state, "pm2_restart", "ok", pm2App);
-      await log(`pm2 restart ${pm2App} selesai`);
+      await setStep(state, "pm2_restart", "ok", `${pm2App} (scheduled)`);
+      await log(`Menjadwalkan pm2 restart ${pm2App} dalam 2 detik…`);
+      schedulePm2Restart(pm2App);
     }
 
-    state.status = "success";
-    state.finishedAt = new Date().toISOString();
-    state.error = null;
     await writeState(state);
+    const head = state.commitAfter ?? state.commitBefore;
+    if (head && branch) {
+      await writeUpdateCheckAvailable(false, branch, head, head, null);
+    }
     await log("Deploy sukses");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
