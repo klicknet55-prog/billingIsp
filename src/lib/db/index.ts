@@ -62,7 +62,7 @@ function createPostgresDb() {
 const active = isPostgresDriver() ? createPostgresDb() : createSqliteDb();
 
 export const db: AppDb = active.db;
-export const schema = sqliteSchema;
+export const schema = isPostgresDriver() ? pgSchema : sqliteSchema;
 export const sqlite = "sqlite" in active ? active.sqlite : undefined;
 export const pgClient = "pgClient" in active ? active.pgClient : undefined;
 export const databaseDriver = getDatabaseDriver();
