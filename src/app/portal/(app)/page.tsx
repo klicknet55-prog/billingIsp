@@ -33,10 +33,22 @@ export default async function PortalHome() {
         <p className="text-sm text-muted-foreground">Ringkasan langganan Anda.</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Paket" value={paket?.nama ?? "-"} icon={Package} hint={paket?.kecepatan} />
-        <StatCard label="Jatuh Tempo" value={formatDate(cust.tglJatuhTempo)} icon={CalendarClock} />
+      <div className="grid grid-cols-3 gap-1.5 sm:gap-4">
         <StatCard
+          compact
+          label="Paket"
+          value={paket?.nama ?? "-"}
+          icon={Package}
+          hint={paket?.kecepatan}
+        />
+        <StatCard
+          compact
+          label="Jatuh Tempo"
+          value={formatDate(cust.tglJatuhTempo)}
+          icon={CalendarClock}
+        />
+        <StatCard
+          compact
           label="Status"
           value={cust.isIsolated ? "Terisolir" : "Aktif"}
           icon={Wifi}
