@@ -9,13 +9,18 @@ import { db } from "@/lib/db";
 import { invoices, paymentGatewayLogs, subscriptions, tenants, users } from "@/lib/db/schema";
 import { getDuitkuClient } from "@/lib/integrations/duitku";
 import { createLogger } from "@/lib/logger";
+import { getAppOrigin } from "@/lib/site-server";
 
 const log = createLogger("webhook:duitku");
 
 /** Browser Duitku mengirim GET ke returnUrl; arahkan ke halaman sukses jika masih mengarah ke webhook. */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const target = new URL("/bayar/selesai", url.origin);
+  const origin =
+    (await getAppOrigin()) ||
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    url.origin;
+  const target = new URL("/bayar/selesai", `${origin}/`);
   url.searchParams.forEach((v, k) => target.searchParams.set(k, v));
   return Response.redirect(target, 302);
 }
