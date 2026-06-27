@@ -1,8 +1,8 @@
 import "server-only";
-import { execSync, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { compareWithRemote } from "@/features/platform-deploy/git-update";
+import { compareWithRemote, runGit } from "@/features/platform-deploy/git-update";
 import type { DeployInfo, DeployUpdateCheck } from "@/features/platform-deploy/types";
 
 const DEPLOY_DIR = path.join(process.cwd(), "data", "deploy");
@@ -163,19 +163,11 @@ function toUpdateCheck(result: ReturnType<typeof compareWithRemote>): DeployUpda
 }
 
 function readGitInfo(): DeployInfo["git"] {
+  const cwd = process.cwd();
   try {
-    const branch = execSync("git branch --show-current", {
-      encoding: "utf8",
-      cwd: process.cwd(),
-    }).trim();
-    const commit = execSync("git rev-parse --short HEAD", {
-      encoding: "utf8",
-      cwd: process.cwd(),
-    }).trim();
-    const message = execSync("git log -1 --format=%s", {
-      encoding: "utf8",
-      cwd: process.cwd(),
-    }).trim();
+    const branch = runGit("branch --show-current", cwd);
+    const commit = runGit("rev-parse --short HEAD", cwd);
+    const message = runGit("log -1 --format=%s", cwd);
     return { branch: branch || null, commit: commit || null, message: message || null };
   } catch {
     return { branch: null, commit: null, message: null };

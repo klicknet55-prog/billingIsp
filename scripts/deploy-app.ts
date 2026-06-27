@@ -10,7 +10,7 @@
 import { execSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, unlink, writeFile, appendFile, access } from "node:fs/promises";
 import path from "node:path";
-import { compareWithRemote, resolveDeployBranch } from "../src/features/platform-deploy/git-update";
+import { compareWithRemote, resolveDeployBranch, runGit } from "../src/features/platform-deploy/git-update";
 import { isPostgresDeployEnv, runPgDump } from "../src/lib/db/pg-backup";
 
 const ROOT = process.cwd();
@@ -44,8 +44,8 @@ const STEPS = [
   "pm2_restart",
 ] as const;
 
-function git(cmd: string): string {
-  return execSync(cmd, { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+function git(subcommand: string): string {
+  return runGit(subcommand, ROOT);
 }
 
 function run(cmd: string, opts?: { allowFail?: boolean }): string {
@@ -166,7 +166,7 @@ async function main() {
   state.branch = branch;
 
   try {
-    state.commitBefore = git("git rev-parse --short HEAD");
+    state.commitBefore = git("rev-parse --short HEAD");
   } catch {
     state.commitBefore = null;
   }
@@ -224,12 +224,12 @@ async function main() {
       return;
     }
     if (branch) {
-      run(`git checkout ${branch}`);
-      run(`git pull origin ${branch}`);
+      git(`checkout ${branch}`);
+      git(`pull origin ${branch}`);
     } else {
-      run("git pull");
+      git("pull");
     }
-    const afterPull = git("git rev-parse --short HEAD");
+    const afterPull = git("rev-parse --short HEAD");
     state.commitAfter = afterPull;
     await setStep(state, "git_pull", "ok", afterPull);
     await log(`Git pull selesai @ ${afterPull}`);
