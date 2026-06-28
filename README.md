@@ -151,14 +151,80 @@ Router Mikrotik tetap dikonfigurasi di **ISP → Router** per tenant.
 
 ### 4. Jalankan dengan PM2
 
+PM2 harus **disimpan** (`save`) dan **didaftarkan ke systemd** (`startup`) supaya proses naik otomatis setelah reboot VPS.
+
+#### Instal & jalankan pertama kali
+
+Jalankan sebagai **user pemilik folder app** (contoh `tunnelhost-isp`), **bukan root**:
+
 ```bash
 npm install -g pm2
+cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
+
+# Port default 3000 — pastikan PORT=3000 di .env jika perlu
 pm2 start npm --name billingisp -- start
 pm2 save
+```
+
+Server PostgreSQL baru (`billisp`, port **3001**):
+
+```bash
+cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+PORT=3001 pm2 start npm --name billisp2 -- start
+pm2 save
+```
+
+#### Daftarkan auto-start saat reboot (wajib, sekali per user)
+
+Masih sebagai user yang sama yang menjalankan PM2:
+
+```bash
 pm2 startup
 ```
 
-Aplikasi listen di port **3000** (`next start`).
+PM2 akan menampilkan perintah `sudo env PATH=... pm2 startup systemd -u tunnelhost-isp --hp /home/tunnelhost-isp` — **salin dan jalankan persis** (user dan home path sesuaikan).
+
+Lalu simpan daftar proses saat ini:
+
+```bash
+pm2 save
+```
+
+Setiap kali menambah/mengganti/hapus app PM2 (`pm2 start`, `pm2 delete`, ganti nama), ulangi **`pm2 save`**.
+
+#### Verifikasi
+
+```bash
+pm2 list                    # billingisp / billisp2 harus online
+pm2 startup                 # harus sudah terkonfigurasi (bukan error)
+sudo systemctl status pm2-tunnelhost-isp   # nama service bisa sedikit beda; cek output pm2 startup
+```
+
+Simulasi tanpa reboot penuh:
+
+```bash
+pm2 kill
+pm2 resurrect               # harus mengembalikan proses dari dump PM2
+```
+
+Setelah reboot VPS: `pm2 list` — status **online**. Jika **errored**, cek `pm2 logs billingisp --lines 50`.
+
+#### Env timezone & port (disarankan)
+
+Pastikan `.env` berisi `APP_TIMEZONE=Asia/Jakarta`. Di ecosystem PM2 (opsional), tambahkan `TZ=Asia/Jakarta`.
+
+#### Kesalahan umum
+
+| Masalah | Penyebab | Solusi |
+|---------|----------|--------|
+| Setelah reboot app mati | Belum `pm2 startup` + perintah sudo | Jalankan langkah daftar auto-start di atas |
+| `pm2 resurrect` kosong | Belum `pm2 save` setelah `pm2 start` | `pm2 start ...` lalu `pm2 save` |
+| Git/npm EACCES | PM2 jalan sebagai root, repo milik user lain | Hapus proses root; jalankan PM2 sebagai user pemilik repo |
+| Dua PM2 (root + user) | `pm2` per user terpisah | Satu user = satu `pm2 list`; jangan campur root |
+
+Untuk uninstall startup yang salah user: `pm2 unstartup systemd` (lalu ulangi `pm2 startup` dengan user benar).
+
+Aplikasi listen di port **3000** (`next start`) kecuali `PORT=3001` untuk instance billisp.
 
 ### 5. Nginx reverse proxy (contoh)
 
@@ -223,6 +289,7 @@ Ringkas:
 |-------|------------|
 | **Jaringan Mikrotik** | Server production harus bisa menjangkau IP/router (VPN/LAN). |
 | **Database** | SQLite (`netmanage.db`) — backup file secara berkala. |
+| **PM2 reboot** | Wajib `pm2 startup` (sudo) + `pm2 save`; jalankan PM2 sebagai user pemilik repo, bukan root. |
 | **Cron** | Wajib di production — lihat [Pasang Cron (Background Worker)](#pasang-cron-background-worker). |
 | **Duitku** | `DUITKU_CALLBACK_URL` harus URL publik server, bukan localhost. |
 
