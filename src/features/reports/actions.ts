@@ -11,5 +11,5 @@ export async function addPengeluaranAction(formData: FormData) {
     jumlah: Number(formData.get("jumlah") ?? 0),
     catatan: String(formData.get("catatan") ?? "") || null,
   });
-  revalidatePath("/isp/laporan");
+  revalidatePath("/dashboard/laporan");
 }

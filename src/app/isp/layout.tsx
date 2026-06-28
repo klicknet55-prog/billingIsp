@@ -30,7 +30,7 @@ export default async function IspLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      variant="isp"
+      variant="dashboard"
       userName={user.nama}
       userRole={user.role}
       brandName={tenant?.namaUsaha ?? DEFAULT_BRAND_NAME}
@@ -51,7 +51,7 @@ export default async function IspLayout({ children }: { children: React.ReactNod
           <CardContent className="p-3 text-sm text-destructive">
             Langganan platform berakhir {formatDate(subscription!.akhir)}. Akses ISP ditangguhkan
             setelah cron berjalan —{" "}
-            <Link href="/isp/langganan" className="font-medium underline">
+            <Link href="/dashboard/langganan" className="font-medium underline">
               perpanjang langganan
             </Link>
             .
@@ -63,7 +63,7 @@ export default async function IspLayout({ children }: { children: React.ReactNod
           <CardContent className="p-3 text-sm text-amber-900 dark:text-amber-200">
             Langganan platform berakhir {formatDate(subscription!.akhir)}
             {daysLeft <= 0 ? " (hari ini)" : daysLeft === 1 ? " (besok)" : ` (${daysLeft} hari lagi)`}.{" "}
-            <Link href="/isp/langganan" className="font-medium underline">
+            <Link href="/dashboard/langganan" className="font-medium underline">
               Perpanjang sekarang
             </Link>
             .

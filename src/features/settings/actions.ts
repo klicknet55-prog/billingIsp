@@ -50,8 +50,8 @@ export async function saveAdminProfileAction(
   }
 
   await db.update(users).set(patch).where(eq(users.id, user.id));
-  revalidatePath("/isp");
-  revalidatePath("/isp/pengaturan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pengaturan");
   return { ok: true };
 }
 
@@ -101,8 +101,8 @@ export async function saveCompanyProfileAction(
     })
     .where(eq(tenants.id, user.tenantId));
 
-  revalidatePath("/isp");
-  revalidatePath("/isp/pengaturan");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/pengaturan");
   return { ok: true };
 }
 

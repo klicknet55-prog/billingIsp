@@ -16,7 +16,7 @@ export function PesanTabs({ active }: { active: string }) {
       {TABS.map((tab) => (
         <Link
           key={tab.id}
-          href={`/isp/pesan?tab=${tab.id}`}
+          href={`/dashboard/pesan?tab=${tab.id}`}
           className={cn(
             "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
             active === tab.id

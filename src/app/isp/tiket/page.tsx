@@ -88,7 +88,7 @@ export default async function TiketPage({
           <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
             <span className="text-primary">Filter aktif: menampilkan tiket pelanggan terpilih.</span>
             <Button asChild variant="outline" size="sm">
-              <Link href="/isp/tiket">Reset Filter</Link>
+              <Link href="/dashboard/tiket">Reset Filter</Link>
             </Button>
           </CardContent>
         </Card>

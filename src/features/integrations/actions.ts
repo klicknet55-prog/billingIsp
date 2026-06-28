@@ -117,7 +117,7 @@ export async function saveTenantDuitkuConfigAction(
       paymentMethod: parsed.data.paymentMethod,
       isEnabled: parsed.data.isEnabled === "on",
     });
-    revalidatePath("/isp/integrasi");
+    revalidatePath("/dashboard/integrasi");
     return { ok: true };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
@@ -142,7 +142,7 @@ export async function saveTenantWhatsAppConfigAction(
       basicAuthUser: parsed.data.basicAuthUser || undefined,
       isEnabled: parsed.data.isEnabled === "on",
     });
-    revalidatePath("/isp/integrasi");
+    revalidatePath("/dashboard/integrasi");
     return { ok: true };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
@@ -238,7 +238,7 @@ export async function createKlicknetDeviceAction(
       password: auth.password,
       deviceId: resolvedDeviceId,
     });
-    revalidatePath("/isp/integrasi");
+    revalidatePath("/dashboard/integrasi");
     return { ok: true, deviceId: resolvedDeviceId, qrLink: qr.qrLink };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };

@@ -104,5 +104,29 @@ export async function requirePelanggan(): Promise<Pelanggan> {
 export function dashboardPathForRole(role: StaffRole): string {
   if (role === "superadmin") return "/superadmin";
   if (role === "kolektor") return "/kolektor";
-  return "/isp";
+  return "/dashboard";
+}
+
+/** Sudah login staf → dashboard; pelanggan → portal. Dipakai di /login. */
+export async function redirectIfAuthenticatedFromStaffLogin(): Promise<void> {
+  const actor = await getCurrentActor();
+  if (!actor) return;
+  if (actor.type === "pelanggan") {
+    redirect("/portal");
+  }
+  if (actor.user.tenantId) {
+    const tenant = await db.query.tenants.findFirst({
+      where: eq(tenants.id, actor.user.tenantId),
+    });
+    if (tenant?.status === "suspended") return;
+  }
+  redirect(dashboardPathForRole(actor.user.role));
+}
+
+/** Sudah login pelanggan → portal; staf → dashboard. Dipakai di /portal/login. */
+export async function redirectIfAuthenticatedFromPortalLogin(): Promise<void> {
+  const actor = await getCurrentActor();
+  if (!actor) return;
+  if (actor.type === "pelanggan") redirect("/portal");
+  redirect(dashboardPathForRole(actor.user.role));
 }

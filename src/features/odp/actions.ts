@@ -44,23 +44,23 @@ export async function createOdpAction(formData: FormData) {
     await createOdp(user.tenantId!, odpFromForm(formData));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah ODP.";
-    redirect(`/isp/peta?error=${encodeURIComponent(msg)}&tab=odp`);
+    redirect(`/dashboard/peta?error=${encodeURIComponent(msg)}&tab=odp`);
   }
-  revalidatePath("/isp/peta");
+  revalidatePath("/dashboard/peta");
 }
 
 export async function updateOdpAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) redirect(`/isp/peta?error=${encodeURIComponent("ID ODP tidak valid.")}&tab=odp`);
+  if (!id) redirect(`/dashboard/peta?error=${encodeURIComponent("ID ODP tidak valid.")}&tab=odp`);
 
   try {
     await updateOdp(user.tenantId!, id, odpFromForm(formData));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal memperbarui ODP.";
-    redirect(`/isp/peta?error=${encodeURIComponent(msg)}&tab=odp`);
+    redirect(`/dashboard/peta?error=${encodeURIComponent(msg)}&tab=odp`);
   }
-  revalidatePath("/isp/peta");
+  revalidatePath("/dashboard/peta");
 }
 
 export async function deleteOdpAction(formData: FormData) {
@@ -70,7 +70,7 @@ export async function deleteOdpAction(formData: FormData) {
     await deleteOdp(user.tenantId!, id);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menghapus ODP.";
-    redirect(`/isp/peta?error=${encodeURIComponent(msg)}&tab=odp`);
+    redirect(`/dashboard/peta?error=${encodeURIComponent(msg)}&tab=odp`);
   }
-  revalidatePath("/isp/peta");
+  revalidatePath("/dashboard/peta");
 }

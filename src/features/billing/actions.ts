@@ -47,16 +47,16 @@ export async function payTagihanAction(formData: FormData) {
       createdBy: user.id,
       kolektorUserId: user.role === "kolektor" ? user.id : undefined,
     });
-    revalidatePath("/isp/tagihan");
-    revalidatePath("/isp/invoice");
-    revalidatePath("/isp/pelanggan");
+    revalidatePath("/dashboard/tagihan");
+    revalidatePath("/dashboard/invoice");
+    revalidatePath("/dashboard/pelanggan");
     revalidatePath("/kolektor");
     revalidatePath("/portal/tagihan");
-    redirect(`/isp/nota/${result.receiptId}?success=1`);
+    redirect(`/dashboard/nota/${result.receiptId}?success=1`);
   } catch (err) {
     if (isNextRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : "Pembayaran gagal.";
-    redirect(`/isp/tagihan/${pelangganId}?error=${encodeURIComponent(msg)}`);
+    redirect(`/dashboard/tagihan/${pelangganId}?error=${encodeURIComponent(msg)}`);
   }
 }
 
@@ -64,7 +64,7 @@ export async function catatNunggakAction(formData: FormData) {
   const user = await requireUser(["owner", "admin"]);
   const pelangganId = String(formData.get("pelangganId") ?? "");
   if (!pelangganId) {
-    redirect("/isp/tagihan?error=" + encodeURIComponent("Pelanggan tidak valid."));
+    redirect("/dashboard/tagihan?error=" + encodeURIComponent("Pelanggan tidak valid."));
   }
 
   let converted = 0;
@@ -73,18 +73,18 @@ export async function catatNunggakAction(formData: FormData) {
   } catch (err) {
     if (isNextRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : "Gagal mencatat nunggak.";
-    redirect(`/isp/tagihan/${pelangganId}?error=${encodeURIComponent(msg)}`);
+    redirect(`/dashboard/tagihan/${pelangganId}?error=${encodeURIComponent(msg)}`);
   }
 
-  revalidatePath("/isp/tagihan");
-  revalidatePath(`/isp/tagihan/${pelangganId}`);
-  revalidatePath("/isp/pelanggan");
-  revalidatePath("/isp");
+  revalidatePath("/dashboard/tagihan");
+  revalidatePath(`/dashboard/tagihan/${pelangganId}`);
+  revalidatePath("/dashboard/pelanggan");
+  revalidatePath("/dashboard");
   const msg =
     converted > 0
       ? `Nunggak dicatat (${converted} periode). Pelanggan diaktifkan, jatuh tempo diperbarui.`
       : "Pelanggan diaktifkan kembali.";
-  redirect(`/isp/tagihan/${pelangganId}?msg=${encodeURIComponent(msg)}`);
+  redirect(`/dashboard/tagihan/${pelangganId}?msg=${encodeURIComponent(msg)}`);
 }
 
 export async function payTagihanPortalAction(formData: FormData) {

@@ -72,7 +72,7 @@ export default async function TagihanPelangganDetailPage({
         description={`Periode aktif ${formatTagihanPeriode(summary.activePeriode)} · jatuh tempo ${formatDate(summary.activeDueDate)}`}
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href="/isp/tagihan">← Daftar Tagihan</Link>
+            <Link href="/dashboard/tagihan">← Daftar Tagihan</Link>
           </Button>
         }
       />

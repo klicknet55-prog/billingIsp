@@ -37,7 +37,7 @@ export default async function InvoicePage({
           <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
             <span className="text-primary">Filter aktif: nota pelanggan terpilih.</span>
             <Button asChild variant="outline" size="sm">
-              <Link href="/isp/invoice">Reset Filter</Link>
+              <Link href="/dashboard/invoice">Reset Filter</Link>
             </Button>
           </CardContent>
         </Card>
@@ -60,7 +60,7 @@ export default async function InvoicePage({
               {rows.map((i) => (
                 <TableRow key={i.id}>
                   <TableCell className="font-mono text-xs">
-                    <Link href={`/isp/nota/${i.id}`} className="text-primary hover:underline">
+                    <Link href={`/dashboard/nota/${i.id}`} className="text-primary hover:underline">
                       {i.noInvoice}
                     </Link>
                   </TableCell>
@@ -72,7 +72,7 @@ export default async function InvoicePage({
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/isp/nota/${i.id}`}>PDF</Link>
+                      <Link href={`/dashboard/nota/${i.id}`}>PDF</Link>
                     </Button>
                   </TableCell>
                 </TableRow>

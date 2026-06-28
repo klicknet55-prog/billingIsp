@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { redirectIfAuthenticatedFromStaffLogin } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 
 export default async function LoginPage({
@@ -13,6 +14,8 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
+  await redirectIfAuthenticatedFromStaffLogin();
+
   const qs = await searchParams;
   const errorCode = qs.error ?? "";
   const suspended = errorCode === "suspended";

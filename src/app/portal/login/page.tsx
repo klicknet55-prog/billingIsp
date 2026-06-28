@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { redirectIfAuthenticatedFromPortalLogin } from "@/lib/auth";
 import { PortalLoginForm } from "./portal-login-form";
 
 function loginErrorMessage(error?: string): string | null {
@@ -29,6 +30,8 @@ export default async function PortalLoginPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  await redirectIfAuthenticatedFromPortalLogin();
+
   const { error } = await searchParams;
   const errorMessage = loginErrorMessage(error);
 

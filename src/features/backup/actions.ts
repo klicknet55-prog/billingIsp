@@ -122,11 +122,11 @@ export async function restoreTenantBackupAction(
     await assertRestoreRateLimit(user.tenantId);
     const result = await restoreTenantBackup(user.tenantId, payload, mode);
 
-    revalidatePath("/isp");
-    revalidatePath("/isp/pengaturan");
-    revalidatePath("/isp/pengaturan/backup");
-    revalidatePath("/isp/pelanggan");
-    revalidatePath("/isp/invoice");
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/pengaturan");
+    revalidatePath("/dashboard/pengaturan/backup");
+    revalidatePath("/dashboard/pelanggan");
+    revalidatePath("/dashboard/invoice");
 
     return { ok: true, result };
   } catch (err) {

@@ -13,7 +13,7 @@ export async function createTicketAction(formData: FormData) {
     judul: String(formData.get("judul") ?? "").trim(),
     deskripsi: String(formData.get("deskripsi") ?? "") || null,
   });
-  revalidatePath("/isp/tiket");
+  revalidatePath("/dashboard/tiket");
 }
 
 export async function updateTicketStatusAction(formData: FormData) {
@@ -23,13 +23,13 @@ export async function updateTicketStatusAction(formData: FormData) {
     String(formData.get("id") ?? ""),
     String(formData.get("status") ?? "open") as "open" | "in_progress" | "resolved"
   );
-  revalidatePath("/isp/tiket");
+  revalidatePath("/dashboard/tiket");
 }
 
 export async function assignTicketAction(formData: FormData) {
   await requireUser(ISP_ROLES);
   await assignTicket(String(formData.get("ticketId") ?? ""), String(formData.get("userId") ?? ""));
-  revalidatePath("/isp/tiket");
+  revalidatePath("/dashboard/tiket");
 }
 
 export async function updateTeknisiLocationAction(formData: FormData) {

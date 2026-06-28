@@ -35,7 +35,7 @@ export function RouterMapPanel({ rows }: { rows: RouterMapRow[] }) {
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
         Tentukan titik lokasi server/router Mikrotik di peta. Pengaturan koneksi (IP, kredensial) tetap di{" "}
-        <Link href="/isp/router" className="text-primary underline">
+        <Link href="/dashboard/router" className="text-primary underline">
           menu Router
         </Link>
         .

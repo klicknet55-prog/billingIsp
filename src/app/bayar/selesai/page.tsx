@@ -18,7 +18,7 @@ function nextStep(orderId: string) {
       title: "Upgrade paket",
       message:
         "Pembayaran berhasil. Paket berlangganan akan diperbarui dalam beberapa saat.",
-      href: "/isp/langganan?ok=1",
+      href: "/dashboard/langganan?ok=1",
       label: "Lihat langganan",
     };
   }

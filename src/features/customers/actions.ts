@@ -54,14 +54,14 @@ export async function createPelangganAction(formData: FormData) {
     result = await createPelanggan(user.tenantId!, parseInput(formData), user.id);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah pelanggan.";
-    redirect(`/isp/pelanggan?error=${encodeURIComponent(msg)}`);
+    redirect(`/dashboard/pelanggan?error=${encodeURIComponent(msg)}`);
   }
 
-  revalidatePath("/isp/pelanggan");
+  revalidatePath("/dashboard/pelanggan");
   if (result.mikrotikWarning) {
-    redirect(`/isp/pelanggan?warn=${encodeURIComponent(result.mikrotikWarning)}`);
+    redirect(`/dashboard/pelanggan?warn=${encodeURIComponent(result.mikrotikWarning)}`);
   }
-  redirect(`/isp/pelanggan?success=${encodeURIComponent("Pelanggan berhasil ditambahkan.")}`);
+  redirect(`/dashboard/pelanggan?success=${encodeURIComponent("Pelanggan berhasil ditambahkan.")}`);
 }
 
 export async function updatePelangganAction(formData: FormData) {
@@ -71,10 +71,10 @@ export async function updatePelangganAction(formData: FormData) {
     await updatePelanggan(user.tenantId!, id, parseInput(formData));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal memperbarui pelanggan.";
-    redirect(`/isp/pelanggan/${id}?error=${encodeURIComponent(msg)}`);
+    redirect(`/dashboard/pelanggan/${id}?error=${encodeURIComponent(msg)}`);
   }
-  revalidatePath("/isp/pelanggan");
-  redirect("/isp/pelanggan");
+  revalidatePath("/dashboard/pelanggan");
+  redirect("/dashboard/pelanggan");
 }
 
 export async function deletePelangganCompleteAction(id: string): Promise<{
@@ -94,9 +94,9 @@ export async function deletePelangganCompleteAction(id: string): Promise<{
   }
   try {
     const stats = await deletePelangganRecords(tenantId, id);
-    revalidatePath("/isp/pelanggan");
-    revalidatePath("/isp/invoice");
-    revalidatePath("/isp/tiket");
+    revalidatePath("/dashboard/pelanggan");
+    revalidatePath("/dashboard/invoice");
+    revalidatePath("/dashboard/tiket");
     return { mikrotik, records: { ok: true, stats } };
   } catch (err) {
     return {
@@ -122,9 +122,9 @@ export async function deletePelangganRecordsAction(
   const user = await requireUser(ISP_ROLES);
   try {
     const stats = await deletePelangganRecords(user.tenantId!, id);
-    revalidatePath("/isp/pelanggan");
-    revalidatePath("/isp/invoice");
-    revalidatePath("/isp/tiket");
+    revalidatePath("/dashboard/pelanggan");
+    revalidatePath("/dashboard/invoice");
+    revalidatePath("/dashboard/tiket");
     return { ok: true, stats };
   } catch (err) {
     return {
@@ -139,5 +139,5 @@ export async function toggleIsolasiAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const isolated = String(formData.get("isolated") ?? "") === "true";
   await setIsolasi(user.tenantId!, id, isolated);
-  revalidatePath("/isp/pelanggan");
+  revalidatePath("/dashboard/pelanggan");
 }

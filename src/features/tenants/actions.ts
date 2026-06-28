@@ -4,11 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
+import { normalizePhone, verifyOtp } from "@/lib/auth/otp";
 import { createSession } from "@/lib/auth/session";
 import type { ActionState } from "@/features/auth/actions";
 import { getDuitkuClient } from "@/lib/integrations/duitku";
 import { newId } from "@/lib/utils";
 import { parseForm } from "@/lib/validation";
+import {
+  assertTenantRegisterPhoneAvailable,
+  isTenantRegisterPhoneTaken,
+} from "./register-phone";
 import {
   changeTenantSubscriptionPackage,
   calculateSaasPackageAmount,
@@ -43,6 +48,24 @@ export async function registerTenantAction(
     return { error: "Anda harus menyetujui Syarat & Ketentuan untuk mendaftar." };
   }
 
+  const adminPhone = String(formData.get("adminPhone") ?? "");
+  const otpCode = String(formData.get("otpCode") ?? "").trim();
+  if (!otpCode) {
+    return { error: "Verifikasi WhatsApp wajib. Kirim dan masukkan kode OTP." };
+  }
+
+  const phoneError = await assertTenantRegisterPhoneAvailable(adminPhone);
+  if (phoneError) return { error: phoneError };
+
+  const phone = normalizePhone(adminPhone);
+  if (!(await verifyOtp(phone, otpCode))) {
+    return { error: "Kode OTP salah atau kedaluwarsa. Minta kode baru." };
+  }
+
+  if (await isTenantRegisterPhoneTaken(phone)) {
+    return { error: "No. WhatsApp sudah terdaftar untuk tenant lain." };
+  }
+
   const result = await registerTenant({
     namaUsaha: String(formData.get("namaUsaha") ?? ""),
     domain: String(formData.get("domain") ?? ""),
@@ -63,7 +86,7 @@ export async function registerTenantAction(
     subjectId: result.owner.id,
     tenantId: result.tenant.id,
   });
-  redirect("/isp");
+  redirect("/dashboard");
 }
 
 export async function setTenantStatusAction(formData: FormData) {
@@ -110,7 +133,7 @@ export async function changeSubscriptionPackageAction(formData: FormData) {
 
   const packageId = String(formData.get("packageId") ?? "");
   const billingPeriod = String(formData.get("billingPeriod") ?? "monthly") === "yearly" ? "yearly" : "monthly";
-  const returnTo = String(formData.get("returnTo") ?? "/isp/langganan");
+  const returnTo = String(formData.get("returnTo") ?? "/dashboard/langganan");
 
   try {
     const current = await getTenantSubscriptionStatus(tenantId);
@@ -156,8 +179,8 @@ export async function changeSubscriptionPackageAction(formData: FormData) {
       amount: paid.amount,
       paymentMethod: paid.paymentMethod,
     });
-    revalidatePath("/isp");
-    revalidatePath("/isp", "layout");
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard", "layout");
     redirect(`${returnTo}?ok=1`);
   } catch (err) {
     if (isNextRedirectError(err)) throw err;

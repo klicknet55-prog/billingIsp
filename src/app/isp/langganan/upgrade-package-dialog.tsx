@@ -96,7 +96,7 @@ export function UpgradePackageDialog({
       >
         {(close) => (
           <form action={changeSubscriptionPackageAction} className="space-y-4">
-            <input type="hidden" name="returnTo" value="/isp/langganan" />
+            <input type="hidden" name="returnTo" value="/dashboard/langganan" />
             <input type="hidden" name="packageId" value={packageId} />
             <input type="hidden" name="billingPeriod" value={effectiveBillingPeriod} />
             <div className="rounded-md border bg-muted/30 p-3 text-sm">

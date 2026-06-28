@@ -45,7 +45,7 @@ export async function saveStaffAction(
     ? await updateStaff(owner.tenantId!, id, input)
     : await createStaff(owner.tenantId!, input);
   if ("error" in result) return { error: result.error };
-  revalidatePath("/isp/staf");
+  revalidatePath("/dashboard/staf");
   return { ok: true };
 }
 
@@ -56,13 +56,13 @@ export async function setStaffActiveAction(formData: FormData) {
     String(formData.get("id") ?? ""),
     String(formData.get("isActive") ?? "") === "true"
   );
-  revalidatePath("/isp/staf");
+  revalidatePath("/dashboard/staf");
 }
 
 export async function deleteStaffAction(formData: FormData) {
   const owner = await requireUser(["owner"]);
   await deleteStaff(owner.tenantId!, String(formData.get("id") ?? ""));
-  revalidatePath("/isp/staf");
+  revalidatePath("/dashboard/staf");
 }
 
 /** Reset kata sandi staf ke nilai baru (owner only). */
@@ -86,6 +86,6 @@ export async function resetStaffPasswordAction(
     .update(users)
     .set({ passwordHash: hashPassword(password) })
     .where(eq(users.id, id));
-  revalidatePath("/isp/staf");
+  revalidatePath("/dashboard/staf");
   return { ok: true };
 }

@@ -36,28 +36,28 @@ export async function createRouterAction(formData: FormData) {
     id = await createRouter(user.tenantId!, input);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah router.";
-    redirect(`/isp/router?error=${encodeURIComponent(msg)}`);
+    redirect(`/dashboard/router?error=${encodeURIComponent(msg)}`);
   }
 
   let status;
   try {
     status = await refreshRouterStatus(user.tenantId!, id);
   } catch (err) {
-    revalidatePath("/isp/router");
+    revalidatePath("/dashboard/router");
     const detail = err instanceof Error ? err.message : "";
     redirect(
-      `/isp/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi cek status gagal.${detail ? ` ${detail}` : ""}`)}`
+      `/dashboard/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi cek status gagal.${detail ? ` ${detail}` : ""}`)}`
     );
   }
 
-  revalidatePath("/isp/router");
+  revalidatePath("/dashboard/router");
   if (status.online) {
     redirect(
-      `/isp/router?success=${encodeURIComponent(status.message ?? `Router "${nama}" tersimpan dan terhubung.`)}`
+      `/dashboard/router?success=${encodeURIComponent(status.message ?? `Router "${nama}" tersimpan dan terhubung.`)}`
     );
   }
   redirect(
-    `/isp/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi belum terhubung. ${status.error ?? ""}`)}`
+    `/dashboard/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi belum terhubung. ${status.error ?? ""}`)}`
   );
 }
 
@@ -85,7 +85,7 @@ export async function updateRouterAction(
     return { error: err instanceof Error ? err.message : "Gagal memperbarui router." };
   }
 
-  revalidatePath("/isp/router");
+  revalidatePath("/dashboard/router");
   return { ok: true };
 }
 
@@ -96,18 +96,18 @@ export async function deleteRouterAction(formData: FormData) {
     await deleteRouter(user.tenantId!, id);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menghapus router.";
-    redirect(`/isp/router?error=${encodeURIComponent(msg)}&routerId=${encodeURIComponent(id)}`);
+    redirect(`/dashboard/router?error=${encodeURIComponent(msg)}&routerId=${encodeURIComponent(id)}`);
   }
-  revalidatePath("/isp/router");
+  revalidatePath("/dashboard/router");
 }
 
 export async function refreshRouterAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
   const id = String(formData.get("id") ?? "");
   const result = await refreshRouterStatus(user.tenantId!, id);
-  revalidatePath("/isp/router");
+  revalidatePath("/dashboard/router");
   if (result.online) {
-    redirect(`/isp/router?success=${encodeURIComponent(result.message ?? "Router terhubung.")}`);
+    redirect(`/dashboard/router?success=${encodeURIComponent(result.message ?? "Router terhubung.")}`);
   }
-  redirect(`/isp/router?error=${encodeURIComponent(result.error ?? "Router tidak dapat dijangkau.")}`);
+  redirect(`/dashboard/router?error=${encodeURIComponent(result.error ?? "Router tidak dapat dijangkau.")}`);
 }

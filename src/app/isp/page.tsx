@@ -39,7 +39,7 @@ function OutstandingList({
         return (
           <div key={row.id} className="flex items-center justify-between gap-2 text-sm">
             <Link
-              href={`/isp/pelanggan/${row.pelangganId}`}
+              href={`/dashboard/pelanggan/${row.pelangganId}`}
               className="min-w-0 truncate font-medium hover:underline"
             >
               {row.nama}
@@ -51,7 +51,7 @@ function OutstandingList({
               <span className="text-muted-foreground sm:hidden">{formatRupiah(row.amount)}</span>
               {canPay ? (
                 <HintButton asChild size="sm" variant="outline">
-                  <Link href={`/isp/tagihan/${row.pelangganId}`}>Bayar</Link>
+                  <Link href={`/dashboard/tagihan/${row.pelangganId}`}>Bayar</Link>
                 </HintButton>
               ) : (
                 <HintButton

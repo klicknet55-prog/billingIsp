@@ -12,7 +12,7 @@ export function IspPengaturanSubNav() {
     <nav className="mb-6 flex flex-wrap gap-2 border-b pb-3">
       {ISP_PENGATURAN_NAV.map((item) => {
         const active =
-          item.href === "/isp/pengaturan"
+          item.href === "/dashboard/pengaturan"
             ? pathname === item.href
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (

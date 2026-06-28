@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * session lalu mengarahkan pengunjung anonim. Penegakan peran & tenant dilakukan
  * di layout/page (runtime Node, punya akses DB) lewat `requireUser`/`requirePelanggan`.
  */
-const STAFF_PREFIXES = ["/superadmin", "/isp", "/kolektor"];
+const STAFF_PREFIXES = ["/superadmin", "/dashboard", "/kolektor"];
 const COOKIE = "nm_session";
 
 export function proxy(req: NextRequest) {
@@ -32,5 +32,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/superadmin/:path*", "/isp/:path*", "/kolektor/:path*", "/portal/:path*"],
+  matcher: ["/superadmin/:path*", "/dashboard/:path*", "/kolektor/:path*", "/portal/:path*"],
 };

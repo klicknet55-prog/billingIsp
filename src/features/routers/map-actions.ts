@@ -16,7 +16,7 @@ function numOrNull(v: unknown): number | null {
 export async function updateRouterLocationAction(formData: FormData) {
   const user = await requireUser(MAP_ROLES);
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) redirect(`/isp/peta?error=${encodeURIComponent("Router tidak valid.")}&tab=router`);
+  if (!id) redirect(`/dashboard/peta?error=${encodeURIComponent("Router tidak valid.")}&tab=router`);
 
   try {
     await updateRouterLocation(
@@ -27,21 +27,21 @@ export async function updateRouterLocationAction(formData: FormData) {
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menyimpan lokasi router.";
-    redirect(`/isp/peta?error=${encodeURIComponent(msg)}&tab=router`);
+    redirect(`/dashboard/peta?error=${encodeURIComponent(msg)}&tab=router`);
   }
-  revalidatePath("/isp/peta");
+  revalidatePath("/dashboard/peta");
 }
 
 export async function clearRouterLocationAction(formData: FormData) {
   const user = await requireUser(MAP_ROLES);
   const id = String(formData.get("id") ?? "").trim();
-  if (!id) redirect(`/isp/peta?error=${encodeURIComponent("Router tidak valid.")}&tab=router`);
+  if (!id) redirect(`/dashboard/peta?error=${encodeURIComponent("Router tidak valid.")}&tab=router`);
 
   try {
     await clearRouterLocation(user.tenantId!, id);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menghapus lokasi router.";
-    redirect(`/isp/peta?error=${encodeURIComponent(msg)}&tab=router`);
+    redirect(`/dashboard/peta?error=${encodeURIComponent(msg)}&tab=router`);
   }
-  revalidatePath("/isp/peta");
+  revalidatePath("/dashboard/peta");
 }

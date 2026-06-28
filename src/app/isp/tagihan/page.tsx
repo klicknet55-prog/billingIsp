@@ -55,7 +55,7 @@ export default async function TagihanPelangganPage({
   });
 
   const filterLink = (value: string) =>
-    value === "belum-lunas" ? "/isp/tagihan" : `/isp/tagihan?filter=${value}`;
+    value === "belum-lunas" ? "/dashboard/tagihan" : `/dashboard/tagihan?filter=${value}`;
 
   return (
     <>
@@ -135,16 +135,16 @@ export default async function TagihanPelangganPage({
                       <div className="flex flex-wrap justify-end gap-1">
                         {isAdminOwner && r.canCatatNunggak && (
                           <Button asChild size="sm" variant="outline">
-                            <Link href={`/isp/tagihan/${r.pelangganId}`}>Nunggak</Link>
+                            <Link href={`/dashboard/tagihan/${r.pelangganId}`}>Nunggak</Link>
                           </Button>
                         )}
                         {canPay ? (
                           <Button asChild size="sm">
-                            <Link href={`/isp/tagihan/${r.pelangganId}`}>Bayar</Link>
+                            <Link href={`/dashboard/tagihan/${r.pelangganId}`}>Bayar</Link>
                           </Button>
                         ) : (
                           <Button asChild size="sm" variant="ghost">
-                            <Link href={`/isp/tagihan/${r.pelangganId}`}>Detail</Link>
+                            <Link href={`/dashboard/tagihan/${r.pelangganId}`}>Detail</Link>
                           </Button>
                         )}
                       </div>

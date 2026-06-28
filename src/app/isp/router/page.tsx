@@ -72,7 +72,7 @@ export default async function RouterPage({
             <span className="text-destructive">{error}</span>
             {routerId && (
               <Button asChild variant="outline" size="sm">
-                <Link href={`/isp/pelanggan?routerId=${encodeURIComponent(routerId)}`}>
+                <Link href={`/dashboard/pelanggan?routerId=${encodeURIComponent(routerId)}`}>
                   Lihat Pelanggan Terkait
                 </Link>
               </Button>

@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { normalizePhone } from "@/lib/auth/otp";
+import { assertTenantRegisterPhoneAvailable } from "./register-phone";
 import { db } from "@/lib/db";
 import {
   invoices,
@@ -417,7 +418,8 @@ export async function registerTenant(
   if (existsEmail) return { error: "Email sudah terdaftar." };
 
   const adminPhone = normalizePhone(input.adminPhone.trim());
-  if (adminPhone.length < 10) return { error: "No. WhatsApp admin wajib diisi (min. 10 digit)." };
+  const phoneError = await assertTenantRegisterPhoneAvailable(adminPhone);
+  if (phoneError) return { error: phoneError };
 
   const pkg = await db.query.packageTenants.findFirst({
     where: and(eq(packageTenants.id, input.packageId), eq(packageTenants.isActive, true)),

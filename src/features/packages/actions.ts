@@ -48,7 +48,7 @@ export async function fetchMikrotikProfilesAction(routerId: string, type: "pppoe
 export async function createPaketAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
   await createPaket(user.tenantId!, paketFromForm(formData));
-  revalidatePath("/isp/paket");
+  revalidatePath("/dashboard/paket");
 }
 
 export async function updatePaketAction(
@@ -76,12 +76,12 @@ export async function updatePaketAction(
     return { error: err instanceof Error ? err.message : "Gagal memperbarui paket." };
   }
 
-  revalidatePath("/isp/paket");
+  revalidatePath("/dashboard/paket");
   return { ok: true };
 }
 
 export async function deletePaketAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
   await deletePaket(user.tenantId!, String(formData.get("id") ?? ""));
-  revalidatePath("/isp/paket");
+  revalidatePath("/dashboard/paket");
 }

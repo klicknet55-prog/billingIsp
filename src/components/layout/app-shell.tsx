@@ -56,21 +56,21 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/superadmin/integrasi", label: "Integrasi", icon: Plug },
     { href: "/superadmin/pesan", label: "Pesan", icon: MessageSquare },
   ],
-  isp: [
-    { href: "/isp", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/isp/pelanggan", label: "Pelanggan", icon: Users },
-    { href: "/isp/tagihan", label: "Tagihan Pelanggan", icon: CreditCard },
-    { href: "/isp/peta", label: "Peta", icon: Map },
-    { href: "/isp/paket", label: "Paket Internet", icon: Package },
-    { href: "/isp/router", label: "Router", icon: RouterIcon },
-    { href: "/isp/invoice", label: "Nota", icon: FileText },
-    { href: "/isp/pesan", label: "Pesan", icon: MessageSquare },
-    { href: "/isp/tiket", label: "Tiket", icon: Ticket },
-    { href: "/isp/laporan", label: "Laporan", icon: BarChart3 },
-    { href: "/isp/staf", label: "Staf", icon: UserCog },
-    { href: "/isp/kolektor-pelanggan", label: "Area Kolektor", icon: UserCheck },
-    { href: "/isp/integrasi", label: "Integrasi", icon: Plug },
-    { href: "/isp/pengaturan", label: "Pengaturan", icon: Settings },
+  dashboard: [
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/pelanggan", label: "Pelanggan", icon: Users },
+    { href: "/dashboard/tagihan", label: "Tagihan Pelanggan", icon: CreditCard },
+    { href: "/dashboard/peta", label: "Peta", icon: Map },
+    { href: "/dashboard/paket", label: "Paket Internet", icon: Package },
+    { href: "/dashboard/router", label: "Router", icon: RouterIcon },
+    { href: "/dashboard/invoice", label: "Nota", icon: FileText },
+    { href: "/dashboard/pesan", label: "Pesan", icon: MessageSquare },
+    { href: "/dashboard/tiket", label: "Tiket", icon: Ticket },
+    { href: "/dashboard/laporan", label: "Laporan", icon: BarChart3 },
+    { href: "/dashboard/staf", label: "Staf", icon: UserCog },
+    { href: "/dashboard/kolektor-pelanggan", label: "Area Kolektor", icon: UserCheck },
+    { href: "/dashboard/integrasi", label: "Integrasi", icon: Plug },
+    { href: "/dashboard/pengaturan", label: "Pengaturan", icon: Settings },
   ],
   kolektor: [{ href: "/kolektor", label: "Tugas Penagihan", icon: ListChecks }],
 };
@@ -109,11 +109,11 @@ export function AppShell({
   // Menu tertentu dibatasi per role.
   const items = NAV[variant].filter(
     (item) =>
-      (item.href !== "/isp/staf" || userRole === "owner") &&
-      (item.href !== "/isp/kolektor-pelanggan" || userRole === "owner" || userRole === "admin") &&
-      (item.href !== "/isp/integrasi" || userRole === "owner" || userRole === "admin") &&
-      (item.href !== "/isp/pengaturan" || userRole === "owner" || userRole === "admin") &&
-      (item.href !== "/isp/pesan" || userRole === "owner" || userRole === "admin")
+      (item.href !== "/dashboard/staf" || userRole === "owner") &&
+      (item.href !== "/dashboard/kolektor-pelanggan" || userRole === "owner" || userRole === "admin") &&
+      (item.href !== "/dashboard/integrasi" || userRole === "owner" || userRole === "admin") &&
+      (item.href !== "/dashboard/pengaturan" || userRole === "owner" || userRole === "admin") &&
+      (item.href !== "/dashboard/pesan" || userRole === "owner" || userRole === "admin")
   );
 
   const isActive = (href: string) => {
@@ -209,7 +209,7 @@ export function AppShell({
               </button>
               {profileOpen && (
                 <div className="absolute right-0 top-11 z-50 w-72 rounded-md border bg-popover p-3 shadow-md">
-                  {variant === "isp" ? (
+                  {variant === "dashboard" ? (
                     <div className="space-y-3 text-sm">
                       <div>
                         <div className="text-xs uppercase text-muted-foreground">Status Paket SaaS</div>
@@ -229,7 +229,7 @@ export function AppShell({
                       </div>
                       {(userRole === "owner" || userRole === "admin") && (
                         <Link
-                          href="/isp/langganan"
+                          href="/dashboard/langganan"
                           className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                           onClick={() => setProfileOpen(false)}
                         >

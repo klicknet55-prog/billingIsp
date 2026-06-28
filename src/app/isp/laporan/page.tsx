@@ -41,27 +41,27 @@ export default async function LaporanPage() {
         action={
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
-              <a href="/isp/laporan/export?format=csv">
+              <a href="/dashboard/laporan/export?format=csv">
                 <Download /> CSV Invoice
               </a>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <a href="/isp/laporan/export?format=xlsx">
+              <a href="/dashboard/laporan/export?format=xlsx">
                 <Download /> Excel Invoice
               </a>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <a href="/isp/laporan/export?type=pnl&format=xlsx">
+              <a href="/dashboard/laporan/export?type=pnl&format=xlsx">
                 <Download /> Excel P&amp;L
               </a>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <a href="/isp/laporan/print?type=invoice" target="_blank" rel="noopener noreferrer">
+              <a href="/dashboard/laporan/print?type=invoice" target="_blank" rel="noopener noreferrer">
                 <Download /> PDF Invoice
               </a>
             </Button>
             <Button asChild variant="outline" size="sm">
-              <a href="/isp/laporan/print?type=pnl" target="_blank" rel="noopener noreferrer">
+              <a href="/dashboard/laporan/print?type=pnl" target="_blank" rel="noopener noreferrer">
                 <Download /> PDF P&amp;L
               </a>
             </Button>

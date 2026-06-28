@@ -2,12 +2,15 @@
 
 import { Check } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { registerTenantFormAction } from "@/features/tenants/register-tenant-action";
+import {
+  registerTenantFormAction,
+  requestTenantRegisterOtpAction,
+} from "@/features/tenants/register-tenant-action";
 import type { ActionState } from "@/features/auth/actions";
 import { getSaasFeatureInfo } from "@/features/tenants/saas-features";
 import { formatRupiah } from "@/lib/utils";
@@ -32,9 +35,15 @@ export function RegisterForm({
   tcContent: string;
 }) {
   const [state, action, pending] = useActionState(registerTenantFormAction, initial);
+  const [otpState, otpAction, otpPending] = useActionState(requestTenantRegisterOtpAction, initial);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [termsOpen, setTermsOpen] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (otpState.ok) setOtpSent(true);
+  }, [otpState.ok]);
 
   const safePkg: RegisterPkg = {
     id: pkg?.id ?? "",
@@ -121,7 +130,49 @@ export function RegisterForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="adminPhone">No. WhatsApp</Label>
-            <Input id="adminPhone" name="adminPhone" required placeholder="0812xxxxxxx" />
+            <Input
+              id="adminPhone"
+              name="adminPhone"
+              required
+              placeholder="0812xxxxxxx"
+              onChange={() => setOtpSent(false)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Nomor unik per tenant. Verifikasi via OTP sebelum lanjut bayar.
+            </p>
+          </div>
+          <div className="space-y-2 sm:col-span-2">
+            <Label htmlFor="otpCode">Kode verifikasi WhatsApp</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="otpCode"
+                name="otpCode"
+                inputMode="numeric"
+                placeholder="6 digit"
+                disabled={!otpSent}
+                required
+              />
+              <Button
+                type="button"
+                variant="outline"
+                className="shrink-0"
+                disabled={otpPending}
+                onClick={() => {
+                  const phone =
+                    (formRef.current?.elements.namedItem("adminPhone") as HTMLInputElement | null)
+                      ?.value ?? "";
+                  const fd = new FormData();
+                  fd.set("adminPhone", phone);
+                  otpAction(fd);
+                }}
+              >
+                {otpPending ? "Mengirim..." : otpSent ? "Kirim ulang" : "Kirim kode"}
+              </Button>
+            </div>
+            {otpState.error && <p className="text-sm text-destructive">{otpState.error}</p>}
+            {otpSent && !otpState.error && (
+              <p className="text-xs text-primary">Kode OTP dikirim ke WhatsApp. Cek pesan masuk.</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -168,7 +219,7 @@ export function RegisterForm({
         </label>
 
         {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
-        <Button type="submit" className="w-full" disabled={pending || !pkg?.id}>
+        <Button type="submit" className="w-full" disabled={pending || !pkg?.id || !otpSent}>
           {pending ? "Memproses pembayaran..." : "Daftar & Bayar"}
         </Button>
       </form>

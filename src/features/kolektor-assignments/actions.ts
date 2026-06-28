@@ -41,7 +41,7 @@ export async function saveKolektorAssignmentsAction(
     return { error: err instanceof Error ? err.message : "Gagal menyimpan penugasan." };
   }
 
-  revalidatePath("/isp/kolektor-pelanggan");
+  revalidatePath("/dashboard/kolektor-pelanggan");
   revalidatePath("/kolektor");
   return { ok: true };
 }

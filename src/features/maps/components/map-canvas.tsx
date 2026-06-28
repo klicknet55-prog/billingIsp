@@ -60,7 +60,7 @@ function pelangganPopup(p: MapPelangganMarker) {
     <strong>${escapeHtml(p.nama)}</strong><br/>
     Status: ${status}<br/>
     ${odp}<br/>
-    <a href="/isp/pelanggan/${p.id}">Detail pelanggan</a> ·
+    <a href="/dashboard/pelanggan/${p.id}">Detail pelanggan</a> ·
     <a href="${navUrl(p.latitude, p.longitude)}" target="_blank" rel="noreferrer">Navigasi</a>
   </div>`;
 }
@@ -91,7 +91,7 @@ function routerPopup(r: MapRouterMarker) {
     Server / Router · ${status}<br/>
     IP: ${escapeHtml(r.ipAddress)}:${escapeHtml(r.apiPort)}<br/>
     Pelanggan: ${r.pelangganCount}<br/>
-    <a href="/isp/router">Kelola router</a> ·
+    <a href="/dashboard/router">Kelola router</a> ·
     <a href="${navUrl(r.latitude, r.longitude)}" target="_blank" rel="noreferrer">Navigasi</a>
   </div>`;
 }

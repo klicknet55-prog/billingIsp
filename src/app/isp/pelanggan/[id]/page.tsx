@@ -38,7 +38,7 @@ export default async function EditPelangganPage({
         description="Perbarui data pelanggan."
         action={
           <Button asChild variant="outline" size="sm">
-            <Link href={`/isp/tagihan/${cust.id}`}>Kelola Tagihan</Link>
+            <Link href={`/dashboard/tagihan/${cust.id}`}>Kelola Tagihan</Link>
           </Button>
         }
       />
@@ -67,7 +67,7 @@ export default async function EditPelangganPage({
             />
             <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
               <Button asChild type="button" variant="ghost">
-                <Link href="/isp/pelanggan">Batal</Link>
+                <Link href="/dashboard/pelanggan">Batal</Link>
               </Button>
               <Button type="submit">Simpan Perubahan</Button>
             </div>

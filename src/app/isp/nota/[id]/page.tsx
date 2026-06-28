@@ -35,7 +35,7 @@ export default async function NotaPage({
       )}
       <div className="mb-4 flex items-center justify-between print:hidden">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/isp/invoice">
+          <Link href="/dashboard/invoice">
             <ArrowLeft /> Kembali
           </Link>
         </Button>

@@ -84,7 +84,7 @@ export async function sendSinglePelangganAction(
       customBody: customBody || undefined,
       sentBy: user.email,
     });
-    revalidatePath("/isp/pesan");
+    revalidatePath("/dashboard/pesan");
     return { ok: true };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
@@ -127,7 +127,7 @@ export async function startBulkPelangganAction(
       },
       startedBy: user.email,
     });
-    revalidatePath("/isp/pesan");
+    revalidatePath("/dashboard/pesan");
     return { ok: true, batchId };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
@@ -202,7 +202,7 @@ export async function saveTenantTemplatesAction(
   }
 
   await saveTenantTemplates(user.tenantId, templates, user.email);
-  revalidatePath("/isp/pesan");
+  revalidatePath("/dashboard/pesan");
   return { ok: true };
 }
 

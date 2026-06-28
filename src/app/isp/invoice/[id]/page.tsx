@@ -27,7 +27,7 @@ export default async function InvoiceDetailPage({
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 flex items-center justify-between print:hidden">
         <Button asChild variant="ghost" size="sm">
-          <Link href="/isp/invoice">
+          <Link href="/dashboard/invoice">
             <ArrowLeft /> Kembali
           </Link>
         </Button>

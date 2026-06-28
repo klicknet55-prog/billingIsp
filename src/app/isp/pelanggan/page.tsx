@@ -91,7 +91,7 @@ export default async function PelangganPage({
           <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
             <span className="text-primary">Filter aktif: menampilkan pelanggan pada router terpilih.</span>
             <Button asChild variant="outline" size="sm">
-              <Link href="/isp/pelanggan">Reset Filter</Link>
+              <Link href="/dashboard/pelanggan">Reset Filter</Link>
             </Button>
           </CardContent>
         </Card>
@@ -138,7 +138,7 @@ export default async function PelangganPage({
                           </Button>
                         )}
                         <Button asChild variant="ghost" size="icon" title="Edit">
-                          <Link href={`/isp/pelanggan/${p.id}`}>
+                          <Link href={`/dashboard/pelanggan/${p.id}`}>
                             <Pencil />
                           </Link>
                         </Button>
