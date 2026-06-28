@@ -91,6 +91,22 @@ export function applyAppSchemaMigrations(
     if (log) console.log("[ok]   tabel platform_whatsapp_config dibuat");
   }
 
+  if (!hasDbTable(db, "portal_access_code")) {
+    db.exec(`
+      CREATE TABLE portal_access_code (
+        code TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        pelanggan_id TEXT NOT NULL REFERENCES pelanggan(id),
+        redirect TEXT NOT NULL DEFAULT '/portal/tagihan',
+        expires_at INTEGER NOT NULL,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE INDEX IF NOT EXISTS portal_access_code_pelanggan ON portal_access_code(tenant_id, pelanggan_id);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel portal_access_code dibuat");
+  }
+
   if (hasDbTable(db, "pelanggan") && hasColumn(db, "pelanggan", "tgl_daftar")) {
     const backfill = db
       .prepare("UPDATE pelanggan SET tgl_daftar = created_at WHERE tgl_daftar IS NULL")

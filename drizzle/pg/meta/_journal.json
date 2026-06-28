@@ -8,6 +8,13 @@
       "when": 1782492390208,
       "tag": "0000_complete_crusher_hogan",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785116400000,
+      "tag": "0001_portal_access_code",
+      "breakpoints": true
     }
   ]
 }

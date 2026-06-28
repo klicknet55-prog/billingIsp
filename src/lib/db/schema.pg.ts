@@ -375,6 +375,19 @@ export const passwordResets = pgTable("password_reset", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const portalAccessCodes = pgTable("portal_access_code", {
+  code: text("code").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  pelangganId: text("pelanggan_id")
+    .notNull()
+    .references(() => pelanggan.id),
+  redirect: text("redirect").notNull().default("/portal/tagihan"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const PLATFORM_SETTINGS_ID = "platform";
 
 export const platformSettings = pgTable("platform_settings", {
@@ -477,6 +490,7 @@ export const pgSchema = {
   sessions,
   otpCodes,
   passwordResets,
+  portalAccessCodes,
   platformSettings,
   messageTemplates,
   messageSendLogs,

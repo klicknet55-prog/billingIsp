@@ -398,6 +398,20 @@ export const passwordResets = sqliteTable("password_reset", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
+/** Kode pendek magic link portal (link bayar WA) — lookup by code + expiry. */
+export const portalAccessCodes = sqliteTable("portal_access_code", {
+  code: text("code").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  pelangganId: text("pelanggan_id")
+    .notNull()
+    .references(() => pelanggan.id),
+  redirect: text("redirect").notNull().default("/portal/tagihan"),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
 // ---------------------------------------------------------------------------
 // Platform: halaman statis (Tentang, Kontak, Syarat & Ketentuan)
 // ---------------------------------------------------------------------------

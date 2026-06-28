@@ -11,6 +11,7 @@ import { startOfDay } from "@/features/jobs/due-date";
 import { formatInvoiceMessageFromTemplate } from "@/features/messages/invoice-message";
 import { paceAfterSend, waitBeforeSend } from "@/features/messages/throttle";
 import { getWhatsAppClient } from "@/lib/integrations/whatsapp";
+import { cleanupExpiredPortalAccessCodes } from "@/lib/auth/portal-access-code";
 import { createLogger } from "@/lib/logger";
 
 const log = createLogger("jobs");
@@ -75,6 +76,7 @@ async function syncTagihanForTenants(now: Date, result: BillingCycleResult) {
 export async function runBillingCycle(): Promise<BillingCycleResult> {
   const now = new Date();
   billingSendCount = 0;
+  await cleanupExpiredPortalAccessCodes();
   const result: BillingCycleResult = {
     tagihanCreated: 0,
     tunggakan: 0,
@@ -108,7 +110,7 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
         amount: t.amount,
         dueDate: t.dueDate,
         kind: "pre_due",
-        payUrl: portalPayLink(t.tenantId, pelangganId),
+        payUrl: await portalPayLink(t.tenantId, pelangganId),
       });
       await notifyPelangganWa(noWa, msg, t.tenantId);
       await db.update(tagihan).set({ preDueRemindedAt: now }).where(eq(tagihan.id, t.id));
@@ -148,7 +150,7 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
         amount: t.amount,
         dueDate: t.dueDate,
         kind: "overdue",
-        payUrl: portalPayLink(t.tenantId, pelangganId),
+        payUrl: await portalPayLink(t.tenantId, pelangganId),
       });
       await notifyPelangganWa(noWa, msg, t.tenantId);
       result.reminded++;

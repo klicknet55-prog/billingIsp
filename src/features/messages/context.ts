@@ -85,7 +85,7 @@ export async function buildPelangganContext(
     jumlah_tagihan: focus ? formatRupiah(focus.amount) : "-",
     tunggakan: formatTunggakanLabel(summary.tunggakan),
     jatuh_tempo: formatDate(dueDate),
-    link_bayar: portalPayLink(tenantId, pelangganId),
+    link_bayar: await portalPayLink(tenantId, pelangganId),
     nama_usaha: tenant?.namaUsaha ?? "",
     paket: paket?.nama ?? "",
     router: router?.nama ?? "",

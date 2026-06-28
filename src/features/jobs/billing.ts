@@ -1,6 +1,21 @@
 import "server-only";
-import { createPortalMagicLink } from "@/lib/auth/portal-link";
+import { createPortalPayLink } from "@/lib/auth/portal-access-code";
 import { formatDate, formatRupiah } from "@/lib/utils";
+
+/** URL portal tagihan fallback (tanpa auto-login). */
+export function portalTagihanUrl(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+  return base ? `${base}/portal/tagihan` : "/portal/tagihan";
+}
+
+/** Link bayar dengan auto-login portal (kode pendek di database). */
+export async function portalPayLink(tenantId: string, pelangganId: string): Promise<string> {
+  try {
+    return await createPortalPayLink(tenantId, pelangganId, "/portal/tagihan");
+  } catch {
+    return portalTagihanUrl();
+  }
+}
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -50,21 +65,6 @@ export function shouldGenerateInvoice(now: Date, dueDate: Date): boolean {
   const due = startOfDay(dueDate);
   const windowStart = invoiceGenerateWindowStart(due);
   return today >= windowStart && today <= due;
-}
-
-/** URL portal tagihan fallback (tanpa auto-login). */
-export function portalTagihanUrl(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
-  return base ? `${base}/portal/tagihan` : "/portal/tagihan";
-}
-
-/** Link bayar dengan auto-login portal untuk pelanggan. */
-export function portalPayLink(tenantId: string, pelangganId: string): string {
-  try {
-    return createPortalMagicLink(tenantId, pelangganId, "/portal/tagihan");
-  } catch {
-    return portalTagihanUrl();
-  }
 }
 
 export function formatInvoiceMessage(parts: {

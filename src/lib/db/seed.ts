@@ -21,6 +21,7 @@ import {
   paymentGatewayLogs,
   pelanggan,
   pengeluaran,
+  portalAccessCodes,
   routers,
   sessions,
   subscriptions,
@@ -50,6 +51,7 @@ async function reset() {
     await db.delete(ticketAssignments);
     await db.delete(tickets);
     await db.delete(invoices);
+    await db.delete(portalAccessCodes);
     await db.delete(pelanggan);
     await db.delete(odp);
     await db.delete(pengeluaran);

@@ -31,7 +31,7 @@ export const SAMPLE_PELANGGAN_VARS: Record<string, string> = {
   jumlah_tagihan: "Rp150.000",
   tunggakan: "Rp300.000 (Mei 2026, April 2026)",
   jatuh_tempo: "15 Jun 2026",
-  link_bayar: "https://app.example/portal/masuk?t=contoh",
+  link_bayar: "https://app.example/p/x7k2m9n",
   nama_usaha: "RT-RW Net",
   paket: "20 Mbps",
   router: "Router Utama",

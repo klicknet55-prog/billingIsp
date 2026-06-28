@@ -37,6 +37,7 @@ export const platformWhatsAppConfigs =
 export const sessions = active.sessions as typeof sqlite.sessions;
 export const otpCodes = active.otpCodes as typeof sqlite.otpCodes;
 export const passwordResets = active.passwordResets as typeof sqlite.passwordResets;
+export const portalAccessCodes = active.portalAccessCodes as typeof sqlite.portalAccessCodes;
 export const platformSettings = active.platformSettings as typeof sqlite.platformSettings;
 export const messageTemplates = active.messageTemplates as typeof sqlite.messageTemplates;
 export const messageSendLogs = active.messageSendLogs as typeof sqlite.messageSendLogs;
