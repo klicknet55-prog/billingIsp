@@ -3,8 +3,9 @@
 import {
   BarChart3,
   Building2,
-  CreditCard,
   ChevronDown,
+  ChevronRight,
+  CreditCard,
   FileText,
   HardDrive,
   LayoutDashboard,
@@ -20,6 +21,7 @@ import {
   Rocket,
   Router as RouterIcon,
   Settings,
+  Shield,
   Ticket,
   UserCheck,
   UserCog,
@@ -42,6 +44,20 @@ interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  roles?: readonly string[];
+}
+
+interface NavGroup {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  children: NavItem[];
+}
+
+type DashboardNavEntry = NavItem | NavGroup;
+
+function isNavGroup(entry: DashboardNavEntry): entry is NavGroup {
+  return "children" in entry;
 }
 
 const NAV: Record<string, NavItem[]> = {
@@ -56,24 +72,65 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/superadmin/integrasi", label: "Integrasi", icon: Plug },
     { href: "/superadmin/pesan", label: "Pesan", icon: MessageSquare },
   ],
-  dashboard: [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { href: "/dashboard/pelanggan", label: "Pelanggan", icon: Users },
-    { href: "/dashboard/tagihan", label: "Tagihan Pelanggan", icon: CreditCard },
-    { href: "/dashboard/peta", label: "Peta", icon: Map },
-    { href: "/dashboard/paket", label: "Paket Internet", icon: Package },
-    { href: "/dashboard/router", label: "Router", icon: RouterIcon },
-    { href: "/dashboard/invoice", label: "Nota", icon: FileText },
-    { href: "/dashboard/pesan", label: "Pesan", icon: MessageSquare },
-    { href: "/dashboard/tiket", label: "Tiket", icon: Ticket },
-    { href: "/dashboard/laporan", label: "Laporan", icon: BarChart3 },
-    { href: "/dashboard/staf", label: "Staf", icon: UserCog },
-    { href: "/dashboard/kolektor-pelanggan", label: "Area Kolektor", icon: UserCheck },
-    { href: "/dashboard/integrasi", label: "Integrasi", icon: Plug },
-    { href: "/dashboard/pengaturan", label: "Pengaturan", icon: Settings },
-  ],
   kolektor: [{ href: "/kolektor", label: "Tugas Penagihan", icon: ListChecks }],
 };
+
+const DASHBOARD_NAV: DashboardNavEntry[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/pelanggan", label: "Pelanggan", icon: Users },
+  { href: "/dashboard/tagihan", label: "Tagihan Pelanggan", icon: CreditCard },
+  { href: "/dashboard/peta", label: "Peta", icon: Map },
+  { href: "/dashboard/paket", label: "Paket Internet", icon: Package },
+  { href: "/dashboard/router", label: "Router", icon: RouterIcon },
+  { href: "/dashboard/invoice", label: "Nota", icon: FileText },
+  { href: "/dashboard/pesan", label: "Pesan", icon: MessageSquare, roles: ["owner", "admin"] },
+  { href: "/dashboard/laporan", label: "Laporan", icon: BarChart3 },
+  {
+    id: "administrator",
+    label: "Administrator",
+    icon: Shield,
+    children: [
+      { href: "/dashboard/staf", label: "Staf", icon: UserCog, roles: ["owner"] },
+      {
+        href: "/dashboard/kolektor-pelanggan",
+        label: "Area Kolektor",
+        icon: UserCheck,
+        roles: ["owner", "admin"],
+      },
+      { href: "/dashboard/tiket", label: "Tiket", icon: Ticket },
+    ],
+  },
+  {
+    href: "/dashboard/integrasi",
+    label: "Integrasi",
+    icon: Plug,
+    roles: ["owner", "admin"],
+  },
+  {
+    href: "/dashboard/pengaturan",
+    label: "Pengaturan",
+    icon: Settings,
+    roles: ["owner", "admin"],
+  },
+];
+
+function canSeeNavItem(item: NavItem, userRole: string): boolean {
+  if (!item.roles) return true;
+  return item.roles.includes(userRole);
+}
+
+function filterDashboardNav(entries: DashboardNavEntry[], userRole: string): DashboardNavEntry[] {
+  return entries
+    .map((entry) => {
+      if (!isNavGroup(entry)) {
+        return canSeeNavItem(entry, userRole) ? entry : null;
+      }
+      const children = entry.children.filter((child) => canSeeNavItem(child, userRole));
+      if (children.length === 0) return null;
+      return { ...entry, children };
+    })
+    .filter((entry): entry is DashboardNavEntry => entry !== null);
+}
 
 export function AppShell({
   variant,
@@ -85,7 +142,7 @@ export function AppShell({
   subscriptionInfo,
   children,
 }: {
-  variant: keyof typeof NAV;
+  variant: "superadmin" | "dashboard" | "kolektor";
   userName: string;
   userRole: string;
   brandName?: string;
@@ -102,28 +159,54 @@ export function AppShell({
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [navReady, setNavReady] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setNavReady(true);
   }, []);
-  // Menu tertentu dibatasi per role.
-  const items = NAV[variant].filter(
-    (item) =>
-      (item.href !== "/dashboard/staf" || userRole === "owner") &&
-      (item.href !== "/dashboard/kolektor-pelanggan" || userRole === "owner" || userRole === "admin") &&
-      (item.href !== "/dashboard/integrasi" || userRole === "owner" || userRole === "admin") &&
-      (item.href !== "/dashboard/pengaturan" || userRole === "owner" || userRole === "admin") &&
-      (item.href !== "/dashboard/pesan" || userRole === "owner" || userRole === "admin")
-  );
 
-  const isActive = (href: string) => {
+  const dashboardEntries =
+    variant === "dashboard" ? filterDashboardNav(DASHBOARD_NAV, userRole) : [];
+  const flatItems = variant !== "dashboard" ? NAV[variant] : [];
+
+  const isActivePath = (href: string) => {
     if (href === SUPERADMIN_PENGATURAN_HREF) {
       return pathname === href || pathname.startsWith(`${href}/`);
     }
     return href === `/${variant}` ? pathname === href : pathname.startsWith(href);
   };
 
-  const linkActive = (href: string) => navReady && isActive(href);
+  useEffect(() => {
+    if (variant !== "dashboard") return;
+    for (const entry of filterDashboardNav(DASHBOARD_NAV, userRole)) {
+      if (!isNavGroup(entry)) continue;
+      const childActive = entry.children.some((child) => {
+        const href = child.href;
+        return href === `/${variant}` ? pathname === href : pathname.startsWith(href);
+      });
+      if (childActive) {
+        setExpandedGroups((prev) => ({ ...prev, [entry.id]: true }));
+      }
+    }
+  }, [pathname, variant, userRole]);
+
+  const linkActive = (href: string) => navReady && isActivePath(href);
+
+  const navLinkClass = (href: string, nested = false) =>
+    cn(
+      "flex items-center gap-3 rounded-md py-2 text-sm font-medium transition-colors",
+      nested ? "px-3 pl-9" : "px-3",
+      linkActive(href)
+        ? "bg-primary text-primary-foreground"
+        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+    );
+
+  const toggleGroup = (id: string) => {
+    setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const groupChildActive = (group: NavGroup) =>
+    group.children.some((child) => isActivePath(child.href));
 
   return (
     <div className="flex min-h-screen">
@@ -155,22 +238,72 @@ export function AppShell({
             </Button>
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto p-3" suppressHydrationWarning>
-            {items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  linkActive(item.href)
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                <item.icon className="size-4" />
-                {item.label}
-              </Link>
-            ))}
+            {variant === "dashboard"
+              ? dashboardEntries.map((entry) => {
+                  if (!isNavGroup(entry)) {
+                    return (
+                      <Link
+                        key={entry.href}
+                        href={entry.href}
+                        onClick={() => setOpen(false)}
+                        className={navLinkClass(entry.href)}
+                      >
+                        <entry.icon className="size-4 shrink-0" />
+                        {entry.label}
+                      </Link>
+                    );
+                  }
+
+                  const expanded = expandedGroups[entry.id] ?? groupChildActive(entry);
+                  return (
+                    <div key={entry.id} className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(entry.id)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                          groupChildActive(entry)
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        )}
+                      >
+                        <entry.icon className="size-4 shrink-0" />
+                        <span className="flex-1 text-left">{entry.label}</span>
+                        {expanded ? (
+                          <ChevronDown className="size-4 shrink-0 opacity-70" />
+                        ) : (
+                          <ChevronRight className="size-4 shrink-0 opacity-70" />
+                        )}
+                      </button>
+                      {expanded && (
+                        <div className="space-y-0.5">
+                          {entry.children.map((child) => (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              onClick={() => setOpen(false)}
+                              className={navLinkClass(child.href, true)}
+                            >
+                              <child.icon className="size-4 shrink-0" />
+                              {child.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              : flatItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className={navLinkClass(item.href)}
+                  >
+                    <item.icon className="size-4 shrink-0" />
+                    {item.label}
+                  </Link>
+                ))}
           </nav>
         </div>
       </aside>

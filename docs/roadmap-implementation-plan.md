@@ -36,7 +36,7 @@ flowchart LR
 | 3 | Langganan SaaS otomatis | 1 hari | Tenant expired tetap aktif |
 | 4 | Gap PRD operasional | 4–5 hari | Kolektor offline, tiket tanpa foto |
 | 5 | Migrasi PostgreSQL | 1–2 hari | SQLite lock di skala besar |
-| 6 | API & skala lanjutan | 3+ hari | Integrasi pihak ketiga terbatas |
+| 6 | API & skala lanjutan | 2–3 minggu | Integrasi pihak ketiga terbatas |
 
 ---
 
@@ -440,15 +440,430 @@ Env: `WA_SEND_DELAY_MIN_MS`, `WA_SEND_DELAY_MAX_MS`, `WA_SEND_BATCH_SIZE`, `WA_S
 
 ## Fase 6 — Skala & integrasi lanjutan
 
-**Tujuan:** Platform SaaS matang untuk banyak tenant & integrasi eksternal.
+**Tujuan:** Platform SaaS matang untuk banyak tenant, integrasi pihak ketiga, dan beban operasional tinggi tanpa membebani cron single-process.
 
-- [ ] REST API (read-only dulu): pelanggan, invoice, status router
-- [ ] Webhook keluar: invoice paid, pelanggan isolir
-- [ ] Job queue (Inngest/BullMQ): WhatsApp retry, Mikrotik sync batch
-- [ ] Redis cache status Mikrotik (kurangi hit router)
-- [ ] Bulk import pelanggan CSV
-- [ ] Partial payment & dunning multi-step
-- [ ] Approval paket custom (superadmin workflow)
+**Status:** Belum dimulai — rencana detail di bawah.
+
+**Prasyarat (wajib sebelum mulai):**
+
+| # | Prasyarat | Alasan |
+|---|-----------|--------|
+| 1 | Fase 0 smoke test production | Baseline stabil sebelum API publik |
+| 2 | Fase 1 backup tenant + full DB | Rollback jika import/API salah |
+| 3 | Fase 2 audit log (minimal) | Jejak akses API key & webhook |
+| 4 | Fase 5 cutover Postgres di server baru (disarankan) | Skala multi-tenant + concurrent API |
+| 5 | `APP_TIMEZONE` + PM2 auto-start | Billing & webhook timestamp konsisten |
+
+**Branch disarankan:** pecah per sub-fase — `feat/api-v1`, `feat/webhook-outbound`, `feat/job-queue`, dst.
+
+```mermaid
+flowchart LR
+  A[6a REST API] --> B[6b Webhook keluar]
+  B --> C[6c Job queue]
+  C --> D[6d Redis cache]
+  D --> E[6e CSV import]
+  E --> F[6f Partial payment]
+  F --> G[6g Paket custom]
+```
+
+| Sub-fase | Fokus | Estimasi | Deliverable |
+|----------|--------|----------|-------------|
+| **6a** | REST API read-only | 2–3 hari | API key + `/api/v1/*` |
+| **6b** | Webhook keluar | 1–2 hari | Event invoice paid / isolir |
+| **6c** | Job queue | 2–3 hari | Retry WA & batch Mikrotik |
+| **6d** | Redis cache Mikrotik | 1 hari | Ganti in-memory `modem-status.ts` |
+| **6e** | Bulk import CSV | 1–2 hari | Upload pelanggan massal |
+| **6f** | Partial payment & dunning | 3–4 hari | Cicilan + urutan penagihan |
+| **6g** | Approval paket custom | 1–2 hari | Workflow superadmin |
+
+---
+
+### 6a — REST API (read-only dulu)
+
+**Tujuan:** Tenant ISP bisa integrasi dengan script, mobile app, atau ERP tanpa scrape dashboard.
+
+#### Autentikasi
+
+| Mekanisme | Detail |
+|-----------|--------|
+| Header | `Authorization: Bearer <api_key>` |
+| Scope | Per tenant — key hanya baca data `tenantId` pemilik key |
+| Penyimpanan | Tabel `tenant_api_key`: hash key (SHA-256), prefix 8 char untuk identifikasi, `label`, `createdAt`, `lastUsedAt`, `revokedAt` |
+| UI | `/dashboard/integrasi` → tab **API Key** (owner/admin) — generate, revoke, copy sekali |
+| Rate limit | 60 req/menit/key (env `API_RATE_LIMIT_PER_MIN`) |
+
+#### Endpoint v1 (read-only)
+
+Base path: `/api/v1`
+
+| Method | Path | Query | Response |
+|--------|------|-------|----------|
+| GET | `/pelanggan` | `page`, `limit`, `status`, `q` | `{ data: Pelanggan[], meta: { page, total } }` |
+| GET | `/pelanggan/:id` | — | `{ data: PelangganDetail }` |
+| GET | `/tagihan` | `page`, `status`, `pelangganId`, `periode` | `{ data: Tagihan[] }` |
+| GET | `/tagihan/:id` | — | `{ data: TagihanDetail }` |
+| GET | `/invoice` | `page`, `status`, `pelangganId` | `{ data: Invoice[] }` (nota legacy) |
+| GET | `/router` | — | `{ data: Router[] }` (tanpa password) |
+| GET | `/router/:id/status` | — | `{ data: { online, lastCheck, activeSessions } }` |
+| GET | `/health` | — | `{ ok: true, tenantId, appVersion }` |
+
+Contoh response pelanggan (ringkas):
+
+```json
+{
+  "data": {
+    "id": "pel_xxx",
+    "nama": "Budi",
+    "noWa": "62812...",
+    "status": "active",
+    "paket": "20 Mbps",
+    "tglJatuhTempo": "2026-06-15",
+    "routerId": "rtr_xxx"
+  }
+}
+```
+
+#### File & modul
+
+| Path | Fungsi |
+|------|--------|
+| `src/lib/db/schema.*.ts` | Tabel `tenant_api_key` |
+| `src/features/api-keys/service.ts` | Generate, hash, verify, revoke |
+| `src/features/api-keys/actions.ts` | Server actions UI integrasi |
+| `src/lib/api/auth.ts` | Middleware auth Bearer → `tenantId` |
+| `src/lib/api/response.ts` | Envelope JSON + error codes |
+| `src/app/api/v1/pelanggan/route.ts` | List pelanggan |
+| `src/app/api/v1/pelanggan/[id]/route.ts` | Detail |
+| `src/app/api/v1/tagihan/route.ts` | List tagihan |
+| `src/app/api/v1/router/[id]/status/route.ts` | Status router (reuse Mikrotik client) |
+| `src/app/dashboard/integrasi/` | Tab API Key + dokumentasi endpoint |
+
+#### Checklist 6a
+
+- [ ] Schema `tenant_api_key` + migrasi SQLite/PG
+- [ ] UI generate/revoke API key di Integrasi
+- [ ] Middleware auth + rate limit
+- [ ] GET pelanggan, tagihan, invoice (read-only)
+- [ ] GET router status (mask credential)
+- [ ] Audit log: `api_key.created`, `api_key.used` (butuh Fase 2)
+- [ ] README: contoh `curl` + OpenAPI stub (`docs/api-v1.openapi.yaml`)
+
+#### Selesai jika
+
+Owner generate key → `curl` list pelanggan → data match dashboard; key tenant A tidak bisa baca tenant B.
+
+---
+
+### 6b — Webhook keluar (outbound)
+
+**Tujuan:** Sistem tenant (ERP, bot Telegram, n8n) menerima notifikasi real-time saat event billing.
+
+#### Event yang didukung (fase awal)
+
+| Event | Trigger | Payload inti |
+|-------|---------|--------------|
+| `tagihan.paid` | Tagihan lunas (manual/kolektor/Duitku) | `tagihanId`, `pelangganId`, `amount`, `paidAt`, `metode` |
+| `pelanggan.isolated` | Cron isolir tunggakan | `pelangganId`, `reason`, `tunggakanTotal` |
+| `pelanggan.activated` | Bayar lunas → aktifkan kembali | `pelangganId` |
+
+#### Konfigurasi per tenant
+
+Tabel `tenant_webhook`:
+
+| Kolom | Keterangan |
+|-------|------------|
+| `url` | HTTPS endpoint tenant |
+| `secret` | HMAC signing (encrypted) |
+| `events` | JSON array event subscribed |
+| `isEnabled` | boolean |
+| `lastDeliveryAt` | timestamp |
+| `failureCount` | untuk circuit breaker |
+
+Signature header: `X-NetManage-Signature: sha256=<hmac(body, secret)>`
+
+#### Delivery & retry
+
+```mermaid
+sequenceDiagram
+  participant App as Billing App
+  participant Q as Job Queue
+  participant WH as Tenant Webhook URL
+
+  App->>Q: enqueue webhook delivery
+  Q->>WH: POST JSON + signature
+  alt 2xx
+    WH-->>Q: OK
+  else fail
+    Q->>Q: retry 1m, 5m, 30m (max 3)
+  end
+```
+
+- Fase awal: inline POST + log ke `webhook_delivery_log` (tanpa queue)
+- Fase 6c: pindah ke queue dengan retry
+
+#### Hook points (kode existing)
+
+| Event | File hook |
+|-------|-----------|
+| `tagihan.paid` | `src/features/billing/tagihan-service.ts` — setelah mark paid |
+| `pelanggan.isolated` | `src/features/billing/tagihan-service.ts` — `isolateOverdueUnpaid` |
+| `pelanggan.activated` | `src/features/customers/service.ts` — sync Mikrotik aktif |
+
+#### Checklist 6b
+
+- [ ] Schema `tenant_webhook` + `webhook_delivery_log`
+- [ ] UI Integrasi → tab Webhook (URL, secret, pilih event)
+- [ ] Dispatcher `features/webhooks/dispatch.ts`
+- [ ] HMAC signature + verifikasi docs untuk tenant
+- [ ] Test endpoint di UI ("Kirim event uji")
+- [ ] Log delivery + status di superadmin (opsional)
+
+#### Selesai jika
+
+Tenant set URL webhook → bayar tagihan → endpoint tenant menerima POST `tagihan.paid` dengan signature valid.
+
+---
+
+### 6c — Job queue (Inngest / BullMQ)
+
+**Tujuan:** Cron & operasi berat tidak blocking request; retry otomatis untuk WA dan Mikrotik.
+
+#### Kandidat job
+
+| Job | Trigger | Hari ini | Target |
+|-----|---------|----------|--------|
+| `billing.cycle` | Cron `/api/cron` | Sync inline | Queue worker |
+| `messages.batch` | Mass WA | Script `send-message-batch.ts` | Queue |
+| `webhook.deliver` | Event 6b | Inline POST | Queue + retry |
+| `mikrotik.syncBatch` | Manual / cron | Per-request | Batch per router |
+| `wa.retry` | Send gagal | Log only | Exponential backoff |
+
+#### Rekomendasi teknologi
+
+| Opsi | Pro | Kontra |
+|------|-----|--------|
+| **BullMQ + Redis** | Matang, retry, dashboard | Butuh Redis server |
+| **Inngest** | Serverless-friendly | Vendor / self-host |
+| **pg-boss** | Tanpa Redis (Postgres) | Cocok jika sudah PG |
+
+**Keputusan sementara:** BullMQ + Redis jika 6d Redis sudah dipasang; alternatif **pg-boss** di server Postgres-only.
+
+#### File & modul
+
+| Path | Fungsi |
+|------|--------|
+| `src/lib/queue/index.ts` | Factory queue + connection |
+| `src/lib/queue/workers/` | Worker per job type |
+| `src/features/jobs/enqueue.ts` | Helper enqueue dari cron/actions |
+| `scripts/queue-worker.ts` | `npm run queue:worker` — proses PM2 terpisah |
+
+Env: `REDIS_URL`, `QUEUE_CONCURRENCY`, `QUEUE_MAX_RETRIES`
+
+#### Checklist 6c
+
+- [ ] Pilih & pasang driver queue
+- [ ] Worker process PM2 (`billingisp-worker`)
+- [ ] Pindahkan mass WA batch ke queue
+- [ ] Pindahkan webhook delivery ke queue
+- [ ] Monitoring: failed jobs + dead letter
+- [ ] Cron tetap trigger enqueue (bukan run inline panjang)
+
+#### Selesai jika
+
+Kirim WA massal 500 nomor tidak block HTTP; job gagal retry otomatis; worker restart aman.
+
+---
+
+### 6d — Redis cache status Mikrotik
+
+**Tujuan:** Kurangi hit RouterOS API saat banyak user buka `/dashboard/peta` bersamaan.
+
+#### Kondisi sekarang
+
+- Cache **in-memory** per proses Node: `src/features/maps/modem-status.ts`
+- TTL: `MAP_MODEM_CACHE_SECONDS` (default 180 detik)
+- **Masalah multi-instance:** PM2 cluster / 2 server → cache tidak shared
+
+#### Target
+
+| Aspek | Implementasi |
+|-------|--------------|
+| Store | Redis key `modem:{tenantId}:{routerId}` |
+| TTL | Sama — env `MAP_MODEM_CACHE_SECONDS` |
+| Fallback | Jika Redis down → in-memory lokal (graceful) |
+| Invalidation | Clear saat isolir/aktifkan pelanggan |
+
+#### Checklist 6d
+
+- [ ] Client Redis (`ioredis`) + env `REDIS_URL`
+- [ ] Refactor `modem-status.ts` → adapter memory/redis
+- [ ] Load test peta 10 user concurrent
+- [ ] Dokumentasi: Redis optional di dev, wajib di production skala besar
+
+#### Selesai jika
+
+Dua instance PM2 share cache; hit Mikrotik turun drastis saat refresh peta berulang.
+
+---
+
+### 6e — Bulk import pelanggan CSV
+
+**Tujuan:** ISP onboarding ratusan pelanggan tanpa input manual satu per satu.
+
+#### Format CSV
+
+Kolom wajib: `nama`, `noWa`  
+Kolom opsional: `alamat`, `paket`, `router`, `odp`, `tglDaftar`, `billingDay`, `connectionType`, `username`, `password`
+
+```csv
+nama,noWa,alamat,paket,billingDay
+Budi Santoso,081234567890,Jl. Merdeka 1,20 Mbps,15
+```
+
+#### Alur UI
+
+1. Upload CSV di `/dashboard/pelanggan` → **Import CSV**
+2. Preview + validasi (duplikat noWa, paket tidak ada)
+3. Pilih mode: **skip error** / **stop on error**
+4. Background job import (queue 6c) + progress bar
+5. Laporan: N sukses, M gagal + alasan per baris
+
+#### Checklist 6e
+
+- [ ] Parser CSV + validator `features/customers/csv-import.ts`
+- [ ] UI upload + preview
+- [ ] Integrasi `createPelanggan` (reuse service)
+- [ ] Optional: sync Mikrotik batch via queue
+- [ ] Export template CSV unduh
+
+#### Selesai jika
+
+Upload 100 baris valid → 100 pelanggan muncul di daftar; baris invalid dilaporkan tanpa corrupt DB.
+
+---
+
+### 6f — Partial payment & dunning multi-step
+
+**Tujuan:** Tagihan bisa dibayar sebagian; penagihan otomatis bertahap (dunning).
+
+#### Partial payment
+
+| Aspek | Keputusan |
+|-------|-----------|
+| Model | Tagihan punya `amountDue`, `amountPaid`, `status`: open / partial / paid |
+| Receipt | Satu nota bisa link ke banyak tagihan (sudah ada `receipt_tagihan_link`) |
+| Portal | Tampilkan sisa tagihan; Duitku amount = sisa |
+| Mikrotik | Isolir hanya jika tunggakan penuh melewati grace (existing logic diperluas) |
+
+#### Dunning multi-step
+
+| Hari relatif jatuh tempo | Aksi |
+|--------------------------|------|
+| H-3 | WA reminder (sudah ada `preDueRemindedAt`) |
+| H+0 | Tagihan overdue → status tunggakan |
+| H+3 | WA dunning step 2 (template baru) |
+| H+7 | Isolir + WA final (existing cron) |
+
+Tabel opsional: `dunning_step_log` — jejak step per tagihan.
+
+#### Checklist 6f
+
+- [ ] Schema: kolom partial payment di `tagihan` jika belum ada
+- [ ] Service bayar sebagian (portal, kolektor, admin)
+- [ ] Template WA dunning step 2 & 3
+- [ ] Cron: evaluasi step dunning
+- [ ] UI: riwayat pembayaran per tagihan
+- [ ] Webhook `tagihan.partial_paid` (6b)
+
+#### Selesai jika
+
+Pelanggan bayar 50% → status partial → sisa muncul di portal; dunning step 2 terkirim otomatis.
+
+---
+
+### 6g — Approval paket custom (superadmin)
+
+**Tujuan:** Tenant minta paket SaaS di luar katalog → superadmin approve → tenant bayar.
+
+#### Alur
+
+```mermaid
+sequenceDiagram
+  participant T as Tenant Owner
+  participant SA as Superadmin
+  participant D as Duitku
+
+  T->>SA: Ajukan paket custom (form / WA)
+  SA->>SA: Buat package_tenant isCustom + harga
+  SA->>T: Notif + link upgrade
+  T->>D: Bayar langganan
+  D->>App: Webhook success → subscription aktif
+```
+
+#### Schema (opsional)
+
+Tabel `package_custom_request`: `tenantId`, `deskripsi`, `limitasi`, `harga`, `status` (pending/approved/rejected), `reviewedBy`.
+
+#### Checklist 6g
+
+- [ ] Form tenant: "Ajukan paket khusus" di `/dashboard/langganan`
+- [ ] Superadmin inbox: daftar request + approve/reject
+- [ ] Generate `package_tenant` dari request approved
+- [ ] Notif WA/email ke owner
+- [ ] Audit log approve/reject
+
+#### Selesai jika
+
+Tenant ajukan → superadmin approve → owner upgrade & bayar → limitasi paket baru aktif.
+
+---
+
+### Keamanan Fase 6 (lintas sub-fase)
+
+| Area | Aturan |
+|------|--------|
+| API key | Hash di DB; tampilkan plain hanya sekali saat generate |
+| Webhook | HTTPS only; HMAC wajib; timeout 10s |
+| CSV import | Max 5 MB / 5000 baris; sanitize formula injection |
+| Queue | Job payload tanpa password plaintext |
+| Redis | AUTH + bind localhost / private network |
+| Rate limit | Global + per tenant + per API key |
+
+### Env baru (ringkas)
+
+```env
+# API
+API_RATE_LIMIT_PER_MIN=60
+
+# Redis (6c + 6d)
+REDIS_URL=redis://127.0.0.1:6379
+
+# Queue
+QUEUE_CONCURRENCY=5
+QUEUE_MAX_RETRIES=3
+
+# Webhook outbound
+WEBHOOK_DELIVERY_TIMEOUT_MS=10000
+WEBHOOK_MAX_RETRIES=3
+```
+
+### Urutan implementasi disarankan
+
+1. **6a** REST API — fondasi integrasi
+2. **6b** Webhook keluar — manfaat langsung tenant
+3. **6d** Redis — infrastruktur untuk 6c
+4. **6c** Job queue — stabilkan WA & webhook
+5. **6e** CSV import — operasional ISP
+6. **6f** Partial payment — kompleksitas billing
+7. **6g** Paket custom — workflow bisnis SaaS
+
+### Selesai Fase 6 (keseluruhan) jika
+
+- Tenant punya API key + webhook aktif
+- Worker queue jalan terpisah dari web PM2
+- Import CSV 500 pelanggan sukses
+- Partial payment & dunning teruji end-to-end
+- Minimal satu paket custom approved via superadmin
 
 ---
 
@@ -462,6 +877,7 @@ Env: `WA_SEND_DELAY_MIN_MS`, `WA_SEND_DELAY_MAX_MS`, `WA_SEND_BATCH_SIZE`, `WA_S
 | **3** | Fase 3 + 4a | SaaS expire cron + offline kolektor + foto tiket |
 | **4** | Fase 4b | Health dashboard + export PDF |
 | **5+** | Fase 5 | PostgreSQL cutover |
+| **6+** | Fase 6 | REST API + webhook + queue + skala |
 
 ---
 
@@ -479,7 +895,7 @@ Env: `WA_SEND_DELAY_MIN_MS`, `WA_SEND_DELAY_MAX_MS`, `WA_SEND_BATCH_SIZE`, `WA_S
 
 ## Langkah Anda berikutnya
 
-1. **Deploy Pre-Fase 0:** `npm run db:ensure-schema` → build → restart PM2.
-2. Login superadmin → **Pengaturan** → sesuaikan Tentang, Kontak (nomor WA), T&C.
-3. **Fase 0:** smoke test production.
-4. **Fase 1:** branch `feat/backup-restore` — export download dulu, lalu import.
+1. **Selesaikan Fase 0–5** yang masih terbuka (smoke test, cutover Postgres server baru).
+2. **Fase 6a:** branch `feat/api-v1` — schema `tenant_api_key` + GET pelanggan/tagihan.
+3. **Fase 6b:** webhook keluar setelah API stabil.
+4. Lihat checklist per sub-fase di [Fase 6](#fase-6--skala--integrasi-lanjutan) di atas.
