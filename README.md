@@ -133,6 +133,8 @@ NEXT_PUBLIC_APP_URL=https://isp.tunnelhost.my.id
 DATABASE_URL=./netmanage.db
 AUTH_SECRET=...random-panjang...
 CRON_SECRET=...
+APP_TIMEZONE=Asia/Jakarta
+NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta
 BILLING_GENERATE_DAYS=7
 BILLING_REMINDER_DAYS=3
 PORTAL_MAGIC_LINK_DAYS=14
@@ -348,6 +350,15 @@ Tambahkan baris berikut — **ganti URL dan secret** dengan nilai production And
 | Setiap jam | `0 * * * *` | Isolasi lebih cepat setelah lewat jatuh tempo |
 
 Pastikan timezone server benar (`timedatectl` di Ubuntu/Debian). Cron memakai timezone sistem VPS.
+
+Set juga di `.env` aplikasi (wajib konsisten dengan WIB):
+
+```env
+APP_TIMEZONE=Asia/Jakarta
+NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta
+```
+
+Di PM2 ecosystem, tambahkan `TZ=Asia/Jakarta` sebagai cadangan infrastruktur. Logika billing (jatuh tempo, cron, isolir) memakai `APP_TIMEZONE`, bukan timezone browser.
 
 **Panggil via localhost** (jika `curl` dijalankan di server yang sama dengan PM2):
 

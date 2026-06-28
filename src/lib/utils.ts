@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { getAppTimeZone } from "@/lib/app-timezone";
 
 /** Gabungkan className Tailwind dengan aman (menghindari konflik utility). */
 export function cn(...inputs: ClassValue[]) {
@@ -21,7 +22,7 @@ export function formatRupiah(value: number): string {
   }).format(value ?? 0);
 }
 
-/** Format tanggal singkat (id-ID). */
+/** Format tanggal singkat (id-ID) di zona waktu app. */
 export function formatDate(value: Date | number | string | null | undefined): string {
   if (!value) return "-";
   const d = value instanceof Date ? value : new Date(value);
@@ -30,6 +31,7 @@ export function formatDate(value: Date | number | string | null | undefined): st
     day: "2-digit",
     month: "short",
     year: "numeric",
+    timeZone: getAppTimeZone(),
   }).format(d);
 }
 
@@ -41,5 +43,6 @@ export function formatBillingPeriod(value: Date | number | string | null | undef
   return new Intl.DateTimeFormat("id-ID", {
     month: "long",
     year: "numeric",
+    timeZone: getAppTimeZone(),
   }).format(d);
 }

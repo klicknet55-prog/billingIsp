@@ -1,6 +1,14 @@
 import "server-only";
 import { createPortalPayLink } from "@/lib/auth/portal-access-code";
+import {
+  addMonths,
+  nextDueDateFromBillingDay,
+  sameBillingPeriod,
+  startOfDay,
+} from "@/features/jobs/due-date";
 import { formatDate, formatRupiah } from "@/lib/utils";
+
+export { addMonths, sameBillingPeriod, startOfDay };
 
 /** URL portal tagihan fallback (tanpa auto-login). */
 export function portalTagihanUrl(): string {
@@ -23,35 +31,9 @@ export const REMINDER_DAYS = Number(process.env.BILLING_REMINDER_DAYS ?? 3);
 export const GENERATE_DAYS = Number(process.env.BILLING_GENERATE_DAYS ?? 5);
 export const FIRST_INVOICE_DAYS = Number(process.env.BILLING_FIRST_INVOICE_DAYS ?? 5);
 
-/** Normalisasi ke tengah malam (timezone server). */
-export function startOfDay(value: Date): Date {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
-}
-
-/** Tambah bulan dengan aman (clamp hari jika bulan target lebih pendek). */
-export function addMonths(value: Date, months: number): Date {
-  const d = new Date(value);
-  const day = d.getDate();
-  d.setDate(1);
-  d.setMonth(d.getMonth() + months);
-  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  d.setDate(Math.min(day, lastDay));
-  return d;
-}
-
-/** Tanggal jatuh tempo berikutnya dari hari-tanggal (1–31) relatif ke `now`. */
+/** @deprecated Pakai `nextDueDateFromBillingDay`. */
 export function nextDueDateFromDay(dueDay: number, now: Date): Date {
-  const today = startOfDay(now);
-  let due = new Date(today.getFullYear(), today.getMonth(), dueDay);
-  if (due < today) {
-    due = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
-  }
-  return due;
-}
-
-/** Apakah dua tanggal jatuh tempo di periode tagihan yang sama (bulan + tahun). */
-export function sameBillingPeriod(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+  return nextDueDateFromBillingDay(dueDay, now);
 }
 
 /** Mulai jendela generate invoice (H-N sebelum jatuh tempo). */

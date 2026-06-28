@@ -54,7 +54,7 @@ async function renderInvoiceHtml(tenantId: string) {
 function wrapHtml(title: string, body: string) {
   return `<!DOCTYPE html><html lang="id"><head><meta charset="utf-8"/><title>${esc(title)}</title>
 <style>body{font-family:system-ui,sans-serif;padding:24px;color:#111}h1{font-size:1.25rem}table{width:100%;border-collapse:collapse;margin-top:16px;font-size:12px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f5f5f5}@media print{body{padding:0}}</style></head>
-<body><h1>${esc(title)}</h1><p>Dicetak: ${esc(new Date().toLocaleString("id-ID"))}</p>${body}
+<body><h1>${esc(title)}</h1><p>Dicetak: ${esc(formatDate(new Date()))}</p>${body}
 <script>window.onload=function(){window.print()}</script></body></html>`;
 }
 

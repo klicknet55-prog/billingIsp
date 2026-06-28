@@ -1,22 +1,24 @@
 import "server-only";
 
+import {
+  daysInCalendarMonth,
+  getAppTimeZone,
+  getZonedParts,
+  parseDateOnlyInAppTz,
+  startOfDayInAppTz,
+  zonedDateTimeToUtc,
+} from "@/lib/app-timezone";
+
 const MAX_BILLING_DAY = 28;
 
-/** Normalisasi ke tengah malam (timezone server). */
+/** Normalisasi ke tengah malam di zona waktu app (`APP_TIMEZONE`). */
 export function startOfDay(value: Date): Date {
-  return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  return startOfDayInAppTz(value);
 }
 
-/** Parse input date HTML (YYYY-MM-DD) sebagai tanggal lokal, bukan UTC midnight. */
+/** Parse input date HTML (YYYY-MM-DD) di zona waktu app, bukan UTC midnight. */
 export function parseLocalDate(value: string): Date | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
-  if (match) {
-    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  }
-  const d = new Date(trimmed);
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseDateOnlyInAppTz(value);
 }
 
 export function isPastDue(dueDate: Date, now: Date = new Date()): boolean {
@@ -25,36 +27,58 @@ export function isPastDue(dueDate: Date, now: Date = new Date()): boolean {
 
 /** Hari tagihan bulanan (clamp 28 agar aman di Februari). */
 export function billingDayOfMonth(date: Date): number {
-  return Math.min(date.getDate(), MAX_BILLING_DAY);
+  return Math.min(getZonedParts(date).day, MAX_BILLING_DAY);
 }
 
 /** Tanggal jatuh tempo pertama dari tanggal pendaftaran. */
 export function computeInitialDueDate(tglDaftar: Date): Date {
+  const tz = getAppTimeZone();
   const day = billingDayOfMonth(tglDaftar);
+  const reg = getZonedParts(tglDaftar, tz);
   const today = startOfDay(new Date());
-  let due = new Date(tglDaftar.getFullYear(), tglDaftar.getMonth(), day);
+  let due = zonedDateTimeToUtc(reg.year, reg.month, day, 0, 0, 0, tz);
   if (startOfDay(due) < today) {
-    due = new Date(tglDaftar.getFullYear(), tglDaftar.getMonth() + 1, day);
+    let month = reg.month + 1;
+    let year = reg.year;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    due = zonedDateTimeToUtc(year, month, day, 0, 0, 0, tz);
   }
   return due;
 }
 
-/** Periode tagihan YYYY-MM dari tanggal jatuh tempo. */
+/** Periode tagihan YYYY-MM dari tanggal jatuh tempo (zona app). */
 export function periodKeyFromDate(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  const { year, month } = getZonedParts(date);
+  return `${year}-${String(month).padStart(2, "0")}`;
 }
 
 /** Tanggal jatuh tempo berikutnya dari hari tagihan relatif ke `from`. */
 export function nextDueDateFromBillingDay(billingDay: number, from: Date): Date {
+  const tz = getAppTimeZone();
   const day = Math.min(billingDay, MAX_BILLING_DAY);
   const today = startOfDay(from);
-  let due = new Date(today.getFullYear(), today.getMonth(), day);
+  const parts = getZonedParts(today, tz);
+  let due = zonedDateTimeToUtc(parts.year, parts.month, day, 0, 0, 0, tz);
   if (due < today) {
-    due = new Date(today.getFullYear(), today.getMonth() + 1, day);
+    let month = parts.month + 1;
+    let year = parts.year;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    }
+    due = zonedDateTimeToUtc(year, month, day, 0, 0, 0, tz);
   }
   return due;
+}
+
+/** Apakah dua tanggal jatuh tempo di periode tagihan yang sama (bulan + tahun, zona app). */
+export function sameBillingPeriod(a: Date, b: Date): boolean {
+  const pa = getZonedParts(a);
+  const pb = getZonedParts(b);
+  return pa.year === pb.year && pa.month === pb.month;
 }
 
 /** Resolve anchor billing day dari pelanggan. */
@@ -91,13 +115,15 @@ export function resolveActiveBillingPeriod(
   };
 }
 
-/** Tambah bulan dengan clamp hari. */
+/** Tambah bulan dengan clamp hari (zona app). */
 export function addMonths(value: Date, months: number): Date {
-  const d = new Date(value);
-  const day = Math.min(d.getDate(), MAX_BILLING_DAY);
-  d.setDate(1);
-  d.setMonth(d.getMonth() + months);
-  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-  d.setDate(Math.min(day, lastDay));
-  return d;
+  const tz = getAppTimeZone();
+  const p = getZonedParts(value, tz);
+  const day = Math.min(p.day, MAX_BILLING_DAY);
+  const total = p.year * 12 + (p.month - 1) + months;
+  const year = Math.floor(total / 12);
+  const month = (total % 12) + 1;
+  const lastDay = daysInCalendarMonth(year, month);
+  const clampedDay = Math.min(day, lastDay);
+  return zonedDateTimeToUtc(year, month, clampedDay, 0, 0, 0, tz);
 }
