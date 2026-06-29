@@ -8,6 +8,16 @@ import { createSession, destroySession, getSession } from "./session";
 
 export type StaffRole = User["role"];
 
+function isNextRedirectError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    typeof (err as { digest?: unknown }).digest === "string" &&
+    (err as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
 export interface StaffActor {
   type: "user";
   user: User;
@@ -109,24 +119,32 @@ export function dashboardPathForRole(role: StaffRole): string {
 
 /** Sudah login staf → dashboard; pelanggan → portal. Dipakai di /login. */
 export async function redirectIfAuthenticatedFromStaffLogin(): Promise<void> {
-  const actor = await getCurrentActor();
-  if (!actor) return;
-  if (actor.type === "pelanggan") {
-    redirect("/portal");
+  try {
+    const actor = await getCurrentActor();
+    if (!actor) return;
+    if (actor.type === "pelanggan") {
+      redirect("/portal");
+    }
+    if (actor.user.tenantId) {
+      const tenant = await db.query.tenants.findFirst({
+        where: eq(tenants.id, actor.user.tenantId),
+      });
+      if (tenant?.status === "suspended") return;
+    }
+    redirect(dashboardPathForRole(actor.user.role));
+  } catch (err) {
+    if (isNextRedirectError(err)) throw err;
   }
-  if (actor.user.tenantId) {
-    const tenant = await db.query.tenants.findFirst({
-      where: eq(tenants.id, actor.user.tenantId),
-    });
-    if (tenant?.status === "suspended") return;
-  }
-  redirect(dashboardPathForRole(actor.user.role));
 }
 
 /** Sudah login pelanggan → portal; staf → dashboard. Dipakai di /portal/login. */
 export async function redirectIfAuthenticatedFromPortalLogin(): Promise<void> {
-  const actor = await getCurrentActor();
-  if (!actor) return;
-  if (actor.type === "pelanggan") redirect("/portal");
-  redirect(dashboardPathForRole(actor.user.role));
+  try {
+    const actor = await getCurrentActor();
+    if (!actor) return;
+    if (actor.type === "pelanggan") redirect("/portal");
+    redirect(dashboardPathForRole(actor.user.role));
+  } catch (err) {
+    if (isNextRedirectError(err)) throw err;
+  }
 }

@@ -3,6 +3,8 @@ import { SiteFooter } from "@/components/layout/site-footer";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { getPlatformBrand } from "@/features/platform-settings/service";
 
+export const dynamic = "force-dynamic";
+
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   const brand = await getPlatformBrand();
 

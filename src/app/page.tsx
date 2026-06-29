@@ -19,6 +19,8 @@ import { getPlatformBrand } from "@/features/platform-settings/service";
 import { isAppInstalled } from "@/features/install/state";
 import { readEnvFile, getDatabaseUrlFromEnv } from "@/features/install/env-writer";
 
+export const dynamic = "force-dynamic";
+
 const features = [
   { icon: Users, title: "Manajemen Pelanggan", desc: "Data, koordinat, paket, dan jatuh tempo dalam satu tempat." },
   { icon: Router, title: "Kontrol Mikrotik", desc: "Isolasi & aktivasi otomatis via API RouterOS." },
@@ -37,9 +39,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const env = await readEnvFile();
-  const dbUrl = getDatabaseUrlFromEnv(env);
-  if (!(await isAppInstalled(dbUrl ?? undefined))) {
+  try {
+    const env = await readEnvFile();
+    const dbUrl = getDatabaseUrlFromEnv(env);
+    if (!(await isAppInstalled(dbUrl ?? undefined))) {
+      redirect("/install");
+    }
+  } catch {
     redirect("/install");
   }
 

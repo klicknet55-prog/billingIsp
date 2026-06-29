@@ -9,35 +9,62 @@ import {
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { DEFAULT_PLATFORM_SETTINGS } from "./defaults";
 
+function defaultPlatformBrand(): PlatformBrand {
+  return {
+    name: DEFAULT_PLATFORM_SETTINGS.brandName?.trim() || DEFAULT_BRAND_NAME,
+    tagline:
+      DEFAULT_PLATFORM_SETTINGS.brandTagline?.trim() ||
+      "Kelola pelanggan, billing, Mikrotik, dan portal pelanggan dalam satu platform.",
+    logoUrl: DEFAULT_PLATFORM_SETTINGS.logoUrl,
+    ownerName: DEFAULT_PLATFORM_SETTINGS.ownerName,
+    ownerPhone: DEFAULT_PLATFORM_SETTINGS.ownerPhone,
+    ownerEmail: DEFAULT_PLATFORM_SETTINGS.ownerEmail,
+    address: DEFAULT_PLATFORM_SETTINGS.address,
+    telegramGroupUrl: DEFAULT_PLATFORM_SETTINGS.telegramGroupUrl,
+  };
+}
+
+function defaultPlatformSettingsRow(): PlatformSettings {
+  return {
+    ...DEFAULT_PLATFORM_SETTINGS,
+    updatedAt: new Date(),
+  } as PlatformSettings;
+}
+
 export async function getPlatformSettings(): Promise<PlatformSettings> {
-  const row = await db.query.platformSettings.findFirst({
-    where: eq(platformSettings.id, PLATFORM_SETTINGS_ID),
-  });
-  if (row) return row;
+  try {
+    const row = await db.query.platformSettings.findFirst({
+      where: eq(platformSettings.id, PLATFORM_SETTINGS_ID),
+    });
+    if (row) return row;
 
-  const [inserted] = await db
-    .insert(platformSettings)
-    .values({
-      id: PLATFORM_SETTINGS_ID,
-      brandName: DEFAULT_PLATFORM_SETTINGS.brandName,
-      brandTagline: DEFAULT_PLATFORM_SETTINGS.brandTagline,
-      logoUrl: DEFAULT_PLATFORM_SETTINGS.logoUrl,
-      ownerName: DEFAULT_PLATFORM_SETTINGS.ownerName,
-      ownerPhone: DEFAULT_PLATFORM_SETTINGS.ownerPhone,
-      ownerEmail: DEFAULT_PLATFORM_SETTINGS.ownerEmail,
-      address: DEFAULT_PLATFORM_SETTINGS.address,
-      telegramGroupUrl: DEFAULT_PLATFORM_SETTINGS.telegramGroupUrl,
-      tentangTitle: DEFAULT_PLATFORM_SETTINGS.tentangTitle,
-      tentangContent: DEFAULT_PLATFORM_SETTINGS.tentangContent,
-      kontakTitle: DEFAULT_PLATFORM_SETTINGS.kontakTitle,
-      kontakContent: DEFAULT_PLATFORM_SETTINGS.kontakContent,
-      kontakWhatsapp: DEFAULT_PLATFORM_SETTINGS.kontakWhatsapp,
-      tcTitle: DEFAULT_PLATFORM_SETTINGS.tcTitle,
-      tcContent: DEFAULT_PLATFORM_SETTINGS.tcContent,
-    })
-    .returning();
+    const [inserted] = await db
+      .insert(platformSettings)
+      .values({
+        id: PLATFORM_SETTINGS_ID,
+        brandName: DEFAULT_PLATFORM_SETTINGS.brandName,
+        brandTagline: DEFAULT_PLATFORM_SETTINGS.brandTagline,
+        logoUrl: DEFAULT_PLATFORM_SETTINGS.logoUrl,
+        ownerName: DEFAULT_PLATFORM_SETTINGS.ownerName,
+        ownerPhone: DEFAULT_PLATFORM_SETTINGS.ownerPhone,
+        ownerEmail: DEFAULT_PLATFORM_SETTINGS.ownerEmail,
+        address: DEFAULT_PLATFORM_SETTINGS.address,
+        telegramGroupUrl: DEFAULT_PLATFORM_SETTINGS.telegramGroupUrl,
+        tentangTitle: DEFAULT_PLATFORM_SETTINGS.tentangTitle,
+        tentangContent: DEFAULT_PLATFORM_SETTINGS.tentangContent,
+        kontakTitle: DEFAULT_PLATFORM_SETTINGS.kontakTitle,
+        kontakContent: DEFAULT_PLATFORM_SETTINGS.kontakContent,
+        kontakWhatsapp: DEFAULT_PLATFORM_SETTINGS.kontakWhatsapp,
+        tcTitle: DEFAULT_PLATFORM_SETTINGS.tcTitle,
+        tcContent: DEFAULT_PLATFORM_SETTINGS.tcContent,
+      })
+      .returning();
 
-  return inserted;
+    return inserted;
+  } catch {
+    /* Build / installer: DB belum siap — fallback default tanpa crash */
+    return defaultPlatformSettingsRow();
+  }
 }
 
 export type PlatformBrand = {
@@ -52,19 +79,23 @@ export type PlatformBrand = {
 };
 
 export async function getPlatformBrand(): Promise<PlatformBrand> {
-  const settings = await getPlatformSettings();
-  return {
-    name: settings.brandName?.trim() || DEFAULT_BRAND_NAME,
-    tagline:
-      settings.brandTagline?.trim() ||
-      "Kelola pelanggan, billing, Mikrotik, dan portal pelanggan dalam satu platform.",
-    logoUrl: settings.logoUrl,
-    ownerName: settings.ownerName,
-    ownerPhone: settings.ownerPhone,
-    ownerEmail: settings.ownerEmail,
-    address: settings.address,
-    telegramGroupUrl: settings.telegramGroupUrl,
-  };
+  try {
+    const settings = await getPlatformSettings();
+    return {
+      name: settings.brandName?.trim() || DEFAULT_BRAND_NAME,
+      tagline:
+        settings.brandTagline?.trim() ||
+        "Kelola pelanggan, billing, Mikrotik, dan portal pelanggan dalam satu platform.",
+      logoUrl: settings.logoUrl,
+      ownerName: settings.ownerName,
+      ownerPhone: settings.ownerPhone,
+      ownerEmail: settings.ownerEmail,
+      address: settings.address,
+      telegramGroupUrl: settings.telegramGroupUrl,
+    };
+  } catch {
+    return defaultPlatformBrand();
+  }
 }
 
 export type PlatformSettingsPatch = Partial<{
