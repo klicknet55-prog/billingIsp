@@ -15,6 +15,34 @@
       "when": 1785116400000,
       "tag": "0001_portal_access_code",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785202800000,
+      "tag": "0002_tenant_api_key",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1785289200000,
+      "tag": "0003_tenant_webhook",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785375600000,
+      "tag": "0004_pelanggan_import_batch",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1785462000000,
+      "tag": "0005_tagihan_partial_dunning",
+      "breakpoints": true
     }
   ]
 }

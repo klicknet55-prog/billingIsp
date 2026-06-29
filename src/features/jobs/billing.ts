@@ -30,6 +30,10 @@ const DAY = 24 * 60 * 60 * 1000;
 export const REMINDER_DAYS = Number(process.env.BILLING_REMINDER_DAYS ?? 3);
 export const GENERATE_DAYS = Number(process.env.BILLING_GENERATE_DAYS ?? 5);
 export const FIRST_INVOICE_DAYS = Number(process.env.BILLING_FIRST_INVOICE_DAYS ?? 5);
+/** Grace sebelum isolir Mikrotik (H+N setelah jatuh tempo). */
+export const ISOLATION_DAYS = Number(process.env.BILLING_ISOLATION_DAYS ?? 7);
+/** Dunning step 2 — pengingat setelah lewat jatuh tempo. */
+export const DUNNING_STEP2_DAYS = Number(process.env.BILLING_DUNNING_STEP2_DAYS ?? 3);
 
 /** @deprecated Pakai `nextDueDateFromBillingDay`. */
 export function nextDueDateFromDay(dueDay: number, now: Date): Date {

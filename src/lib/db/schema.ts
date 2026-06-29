@@ -32,6 +32,12 @@ export const tenantDuitkuConfigs =
   active.tenantDuitkuConfigs as typeof sqlite.tenantDuitkuConfigs;
 export const tenantWhatsAppConfigs =
   active.tenantWhatsAppConfigs as typeof sqlite.tenantWhatsAppConfigs;
+export const tenantApiKeys = active.tenantApiKeys as typeof sqlite.tenantApiKeys;
+export const tenantWebhooks = active.tenantWebhooks as typeof sqlite.tenantWebhooks;
+export const webhookDeliveryLogs =
+  active.webhookDeliveryLogs as typeof sqlite.webhookDeliveryLogs;
+export const pelangganImportBatches =
+  active.pelangganImportBatches as typeof sqlite.pelangganImportBatches;
 export const platformWhatsAppConfigs =
   active.platformWhatsAppConfigs as typeof sqlite.platformWhatsAppConfigs;
 export const sessions = active.sessions as typeof sqlite.sessions;
@@ -60,6 +66,13 @@ export type KategoriPengeluaran = typeof sqlite.kategoriPengeluaran.$inferSelect
 export type PaymentGatewayLog = typeof sqlite.paymentGatewayLogs.$inferSelect;
 export type TenantDuitkuConfig = typeof sqlite.tenantDuitkuConfigs.$inferSelect;
 export type TenantWhatsAppConfig = typeof sqlite.tenantWhatsAppConfigs.$inferSelect;
+export type TenantApiKey = typeof sqlite.tenantApiKeys.$inferSelect;
+export type TenantWebhook = typeof sqlite.tenantWebhooks.$inferSelect;
+export type WebhookDeliveryLog = typeof sqlite.webhookDeliveryLogs.$inferSelect;
+export type PelangganImportRowResult = sqlite.PelangganImportRowResult;
+export type PelangganImportBatch = typeof sqlite.pelangganImportBatches.$inferSelect;
+export type WebhookEvent = sqlite.WebhookEvent;
+export { WEBHOOK_EVENTS } from "./schema.sqlite";
 export type Session = typeof sqlite.sessions.$inferSelect;
 export type PlatformSettings = typeof sqlite.platformSettings.$inferSelect;
 export type MessageTemplate = typeof sqlite.messageTemplates.$inferSelect;

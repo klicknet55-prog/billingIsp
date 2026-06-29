@@ -1,10 +1,8 @@
 import "server-only";
-import { spawn } from "node:child_process";
-import path from "node:path";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { messageBatches, type MessageBatchPayload } from "@/lib/db/schema";
-import { runBatchSend } from "@/features/messages/send";
+import { enqueueMessageBatch } from "@/features/jobs/enqueue";
 import { newId } from "@/lib/utils";
 
 const MAX_BATCH_SIZE = 100;
@@ -55,32 +53,11 @@ export async function createMessageBatch(input: {
     createdAt: new Date(),
   });
 
-  spawnBatchProcess(id);
+  void enqueueMessageBatch(id);
   return id;
 }
 
-function spawnBatchProcess(batchId: string) {
-  const runInline =
-    process.env.NODE_ENV === "development" || process.env.MESSAGE_BATCH_INLINE === "1";
-
-  if (runInline) {
-    void runBatchSend(batchId).catch((err) => {
-      console.error(`[message-batch] ${batchId}:`, err);
-    });
-    return;
-  }
-
-  const script = path.join(process.cwd(), "scripts", "send-message-batch.ts");
-  const child = spawn(process.execPath, ["--import", "tsx", script, batchId], {
-    cwd: process.cwd(),
-    detached: true,
-    stdio: "ignore",
-    env: { ...process.env, MESSAGE_BATCH_ID: batchId },
-  });
-  child.unref();
-}
-
-/** Tandai batch queued yang tidak pernah jalan (spawn gagal / dev timeout). */
+/** Tandai batch queued yang tidak pernah jalan (worker/inline gagal). */
 export async function recoverStaleBatch(batchId: string) {
   const batch = await db.query.messageBatches.findFirst({
     where: eq(messageBatches.id, batchId),
@@ -95,7 +72,7 @@ export async function recoverStaleBatch(batchId: string) {
     .set({
       status: "failed",
       error:
-        "Batch tidak dimulai (proses background gagal). Di development batch sekarang dijalankan inline — coba kirim ulang.",
+        "Batch tidak dimulai (worker queue tidak jalan?). Pastikan `npm run queue:worker` aktif jika REDIS_URL diset, atau coba kirim ulang.",
       finishedAt: new Date(),
     })
     .where(eq(messageBatches.id, batchId));

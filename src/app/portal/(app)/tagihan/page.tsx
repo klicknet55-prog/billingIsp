@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { PortalPayPanel } from "@/features/billing/portal-pay-panel";
 import { getTagihanSummary } from "@/features/billing/tagihan-service";
+import { tagihanBalance } from "@/features/billing/tagihan-balance";
 import { listReceipts } from "@/features/invoices/service";
 import { requirePelanggan } from "@/lib/auth";
 import { formatDate, formatRupiah } from "@/lib/utils";
@@ -36,11 +37,34 @@ export default async function TagihanPage({
       )}
 
       <PortalPayPanel
-        bulanIniAmount={summary.bulanIni?.amount ?? 0}
+        bulanIniAmount={summary.bulanIni ? tagihanBalance(summary.bulanIni) : 0}
         tunggakanTotal={summary.totalTunggakan}
         hasBulanIni={summary.hasBulanIni}
         hasTunggakan={summary.tunggakan.length > 0}
       />
+
+      {(summary.hasBulanIni || summary.tunggakan.length > 0) && (
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            {summary.bulanIni && tagihanBalance(summary.bulanIni) > 0 && (
+              <p>
+                Tagihan bulan ini: total {formatRupiah(summary.bulanIni.amount)}, sisa{" "}
+                <span className="font-semibold text-foreground">
+                  {formatRupiah(tagihanBalance(summary.bulanIni))}
+                </span>
+              </p>
+            )}
+            {summary.tunggakan.length > 0 && (
+              <p className="mt-1">
+                Total tunggakan (sisa):{" "}
+                <span className="font-semibold text-foreground">
+                  {formatRupiah(summary.totalTunggakan)}
+                </span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {receipts.length > 0 && (
         <div className="space-y-2">

@@ -7,10 +7,11 @@ import type { ConnectionSnapshot, ModemMapStatus } from "@/lib/integrations/mikr
 import { routerToCredentials } from "@/features/routers/service";
 import {
   cacheKey,
+  clearModemStatusCache,
   getCachedSnapshots,
-  resolveModemStatus,
   setCachedSnapshots,
-} from "./modem-status";
+} from "./modem-cache";
+import { resolveModemStatus } from "./modem-labels";
 
 export interface MapPelangganMarker {
   id: string;
@@ -69,7 +70,7 @@ async function loadSnapshots(
 ): Promise<{ snapshots: ConnectionSnapshot[]; reachable: boolean }> {
   const key = cacheKey(tenantId, routerId, type);
   if (!bustCache) {
-    const cached = getCachedSnapshots(key);
+    const cached = await getCachedSnapshots(key);
     if (cached) return { snapshots: cached, reachable: true };
   }
 
@@ -89,7 +90,7 @@ async function loadSnapshots(
     if (!status.online) return { snapshots: [], reachable: false };
 
     const snapshots = await mk.snapshotConnections(routerToCredentials(router), type);
-    setCachedSnapshots(key, snapshots);
+    await setCachedSnapshots(key, snapshots);
     return { snapshots, reachable: true };
   } catch {
     return { snapshots: [], reachable: false };

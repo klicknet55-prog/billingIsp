@@ -6,7 +6,11 @@ export const DEFAULT_TENANT_TEMPLATES: Record<TenantTemplateKey, string> = {
   invoice_pre_due:
     "Pengingat [[nama_pelanggan]]: tagihan [[tagihan]] [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Bayar: [[link_bayar]]",
   invoice_overdue:
-    "[[nama_pelanggan]], tagihan [[tagihan]] ([[jumlah_tagihan]]) telah jatuh tempo. Total tunggakan: [[tunggakan]]. Layanan dinonaktifkan sementara. Bayar: [[link_bayar]]",
+    "[[nama_pelanggan]], tagihan [[tagihan]] ([[jumlah_tagihan]]) telah jatuh tempo. Sisa: [[sisa_tagihan]]. Total tunggakan: [[tunggakan]]. Bayar: [[link_bayar]]",
+  invoice_dunning_2:
+    "[[nama_pelanggan]], pengingat ke-2: tagihan [[tagihan]] ([[jumlah_tagihan]]) sudah lewat [[sisa_hari]] hari. Sisa bayar [[sisa_tagihan]]. Bayar: [[link_bayar]]",
+  invoice_dunning_final:
+    "[[nama_pelanggan]], PERINGATAN AKHIR: layanan akan dinonaktifkan jika tagihan [[tagihan]] (sisa [[sisa_tagihan]]) belum dibayar. Bayar segera: [[link_bayar]]",
   manual_invoice:
     "Halo [[nama_pelanggan]], tagihan [[tagihan]] sebesar [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Tunggakan: [[tunggakan]]. Bayar di: [[link_bayar]]",
   manual_custom:
@@ -29,6 +33,8 @@ export const SAMPLE_PELANGGAN_VARS: Record<string, string> = {
   tagihan: "Juni 2026",
   no_invoice: "2026-06",
   jumlah_tagihan: "Rp150.000",
+  sisa_tagihan: "Rp75.000",
+  sisa_hari: "3",
   tunggakan: "Rp300.000 (Mei 2026, April 2026)",
   jatuh_tempo: "15 Jun 2026",
   link_bayar: "https://app.example/p/x7k2m9n",

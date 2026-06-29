@@ -1,14 +1,20 @@
 import "server-only";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { paketInternet, pelanggan, tagihan } from "@/lib/db/schema";
+import { invoices, paketInternet, pelanggan, receiptTagihanLinks, tagihan } from "@/lib/db/schema";
 import {
   addMonths,
   isPastDue,
   resolveActiveBillingPeriod,
   startOfDay,
 } from "@/features/jobs/due-date";
+import { ISOLATION_DAYS } from "@/features/jobs/billing";
+import {
+  OUTSTANDING_TAGIHAN_STATUSES,
+  tagihanBalance,
+} from "@/features/billing/tagihan-balance";
 import { setIsolasi } from "@/features/customers/service";
+import { emitWebhookEvent } from "@/features/webhooks/dispatch";
 import { FIRST_INVOICE_DAYS, shouldGenerateInvoice } from "@/features/jobs/billing";
 import { newId } from "@/lib/utils";
 
@@ -79,19 +85,28 @@ export async function getTagihanSummary(
     where: and(
       eq(tagihan.tenantId, tenantId),
       eq(tagihan.pelangganId, pelangganId),
-      inArray(tagihan.status, ["open", "tunggakan"])
+      inArray(tagihan.status, [...OUTSTANDING_TAGIHAN_STATUSES])
     ),
     orderBy: [desc(tagihan.periode)],
   });
 
+  const today = startOfDay(new Date());
+  const tunggakan = rows
+    .filter(
+      (r) =>
+        r.status === "tunggakan" ||
+        (r.status === "partial" && startOfDay(r.dueDate) < today)
+    )
+    .sort((a, b) => a.periode.localeCompare(b.periode));
   const bulanIni =
     rows
-      .filter((r) => r.status === "open")
+      .filter(
+        (r) =>
+          r.status === "open" ||
+          (r.status === "partial" && startOfDay(r.dueDate) >= today)
+      )
       .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0] ?? null;
-  const tunggakan = rows
-    .filter((r) => r.status === "tunggakan")
-    .sort((a, b) => a.periode.localeCompare(b.periode));
-  const totalTunggakan = tunggakan.reduce((s, r) => s + r.amount, 0);
+  const totalTunggakan = tunggakan.reduce((s, r) => s + tagihanBalance(r), 0);
 
   return {
     bulanIni,
@@ -107,15 +122,21 @@ export function resolvePayableTagihan(
   summary: TagihanSummary,
   selection: PaymentSelection
 ): (typeof tagihan.$inferSelect)[] {
+  const withBalance = (items: (typeof tagihan.$inferSelect)[]) =>
+    items.filter((t) => tagihanBalance(t) > 0);
+
   switch (selection) {
     case "bulan_ini":
-      return summary.bulanIni ? [summary.bulanIni] : [];
+      return summary.bulanIni && tagihanBalance(summary.bulanIni) > 0 ? [summary.bulanIni] : [];
     case "tunggakan":
-      return summary.tunggakan;
+      return withBalance(summary.tunggakan);
     case "keduanya": {
       const ids = new Set<string>();
       const items: (typeof tagihan.$inferSelect)[] = [];
-      for (const t of [...(summary.bulanIni ? [summary.bulanIni] : []), ...summary.tunggakan]) {
+      for (const t of withBalance([
+        ...(summary.bulanIni ? [summary.bulanIni] : []),
+        ...summary.tunggakan,
+      ])) {
         if (!ids.has(t.id)) {
           ids.add(t.id);
           items.push(t);
@@ -124,6 +145,10 @@ export function resolvePayableTagihan(
       return items;
     }
   }
+}
+
+export function resolvePayableBalance(items: (typeof tagihan.$inferSelect)[]) {
+  return items.reduce((s, t) => s + tagihanBalance(t), 0);
 }
 
 export async function hasAnyOutstanding(tenantId: string, pelangganId: string) {
@@ -215,31 +240,44 @@ export async function markOverdueTagihan(now: Date = new Date()) {
   return count;
 }
 
+async function notifyPelangganIsolated(tenantId: string, pelangganId: string, reason: string) {
+  const summary = await getTagihanSummary(tenantId, pelangganId);
+  const tunggakanTotal = summary.tunggakan.reduce((s, t) => s + t.amount, 0);
+  emitWebhookEvent(tenantId, "pelanggan.isolated", {
+    pelangganId,
+    reason,
+    tunggakanTotal,
+  });
+}
+
 /**
- * Isolir pelanggan yang lewat jatuh tempo dan belum lunas.
- * Termasuk jika baris tagihan belum sempat dibuat (akan dibuat saat sync).
+ * Isolir pelanggan yang lewat jatuh tempo + grace period dan masih punya sisa tagihan.
  */
 export async function isolateOverdueUnpaid(
   tenantId?: string,
   now: Date = new Date()
 ): Promise<number> {
   const today = startOfDay(now);
+  const isolationCutoff = new Date(today.getTime() - ISOLATION_DAYS * 24 * 60 * 60 * 1000);
   let count = 0;
 
   const openRows = await db.query.tagihan.findMany({
     where: tenantId
-      ? and(eq(tagihan.tenantId, tenantId), eq(tagihan.status, "open"))
-      : eq(tagihan.status, "open"),
+      ? and(
+          eq(tagihan.tenantId, tenantId),
+          inArray(tagihan.status, [...OUTSTANDING_TAGIHAN_STATUSES])
+        )
+      : inArray(tagihan.status, [...OUTSTANDING_TAGIHAN_STATUSES]),
   });
 
   const fromTagihan = new Map<string, { tenantId: string; pelangganId: string }>();
   for (const row of openRows) {
-    if (startOfDay(row.dueDate) < today) {
-      fromTagihan.set(`${row.tenantId}:${row.pelangganId}`, {
-        tenantId: row.tenantId,
-        pelangganId: row.pelangganId,
-      });
-    }
+    if (tagihanBalance(row) <= 0) continue;
+    if (startOfDay(row.dueDate) > isolationCutoff) continue;
+    fromTagihan.set(`${row.tenantId}:${row.pelangganId}`, {
+      tenantId: row.tenantId,
+      pelangganId: row.pelangganId,
+    });
   }
 
   for (const { tenantId: tid, pelangganId } of fromTagihan.values()) {
@@ -248,6 +286,7 @@ export async function isolateOverdueUnpaid(
     });
     if (cust && !cust.isIsolated) {
       await setIsolasi(tid, pelangganId, true);
+      await notifyPelangganIsolated(tid, pelangganId, "overdue_unpaid");
       count++;
     }
   }
@@ -258,7 +297,7 @@ export async function isolateOverdueUnpaid(
 
   for (const cust of customers) {
     if (!cust.tglJatuhTempo || cust.isIsolated) continue;
-    if (startOfDay(cust.tglJatuhTempo) >= today) continue;
+    if (startOfDay(cust.tglJatuhTempo) > isolationCutoff) continue;
 
     const tglDaftar = cust.tglDaftar ?? cust.createdAt;
     const { periode } = resolveActiveBillingPeriod(tglDaftar, cust.tglJatuhTempo, now);
@@ -271,8 +310,19 @@ export async function isolateOverdueUnpaid(
       ),
     });
     if (!paid) {
-      await setIsolasi(cust.tenantId, cust.id, true);
-      count++;
+      const hasBalance = await db.query.tagihan.findFirst({
+        where: and(
+          eq(tagihan.tenantId, cust.tenantId),
+          eq(tagihan.pelangganId, cust.id),
+          eq(tagihan.periode, periode),
+          inArray(tagihan.status, [...OUTSTANDING_TAGIHAN_STATUSES])
+        ),
+      });
+      if (hasBalance && tagihanBalance(hasBalance) > 0) {
+        await setIsolasi(cust.tenantId, cust.id, true);
+        await notifyPelangganIsolated(cust.tenantId, cust.id, "overdue_unpaid");
+        count++;
+      }
     }
   }
 
@@ -380,7 +430,7 @@ export async function listOutstandingForKolektor(tenantId: string, kolektorId: s
       and(
         eq(tagihan.tenantId, tenantId),
         eq(pelanggan.kolektorId, kolektorId),
-        inArray(tagihan.status, ["open", "tunggakan"])
+        inArray(tagihan.status, [...OUTSTANDING_TAGIHAN_STATUSES])
       )
     )
     .orderBy(desc(tagihan.periode));
@@ -471,7 +521,7 @@ export async function listTagihanPelanggan(
     db.query.tagihan.findMany({
       where: and(
         eq(tagihan.tenantId, tenantId),
-        inArray(tagihan.status, ["open", "tunggakan"])
+        inArray(tagihan.status, [...OUTSTANDING_TAGIHAN_STATUSES])
       ),
     }),
   ]);
@@ -491,14 +541,22 @@ export async function listTagihanPelanggan(
       c.tglJatuhTempo,
       now
     );
+    const tunggakan = rows
+      .filter(
+        (r) =>
+          r.status === "tunggakan" ||
+          (r.status === "partial" && startOfDay(r.dueDate) < startOfDay(now))
+      )
+      .sort((a, b) => a.periode.localeCompare(b.periode));
+    const tunggakanTotal = tunggakan.reduce((s, r) => s + tagihanBalance(r), 0);
     const bulanIni =
       rows
-        .filter((r) => r.status === "open")
+        .filter(
+          (r) =>
+            r.status === "open" ||
+            (r.status === "partial" && startOfDay(r.dueDate) >= startOfDay(now))
+        )
         .sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())[0] ?? null;
-    const tunggakan = rows
-      .filter((r) => r.status === "tunggakan")
-      .sort((a, b) => a.periode.localeCompare(b.periode));
-    const tunggakanTotal = tunggakan.reduce((s, r) => s + r.amount, 0);
     const summary = {
       hasBulanIni: !!bulanIni,
       tunggakan,
@@ -525,4 +583,26 @@ export async function listTagihanPelanggan(
   }
 
   return result;
+}
+
+/** Riwayat pembayaran per tagihan (via receipt_tagihan_link). */
+export async function getTagihanPaymentHistory(tenantId: string, pelangganId: string) {
+  const rows = await db
+    .select({
+      linkId: receiptTagihanLinks.id,
+      tagihanId: receiptTagihanLinks.tagihanId,
+      amount: receiptTagihanLinks.amount,
+      periode: tagihan.periode,
+      receiptId: invoices.id,
+      noNota: invoices.noInvoice,
+      metode: invoices.metodeBayar,
+      paidAt: invoices.tglLunas,
+    })
+    .from(receiptTagihanLinks)
+    .innerJoin(tagihan, eq(receiptTagihanLinks.tagihanId, tagihan.id))
+    .innerJoin(invoices, eq(receiptTagihanLinks.receiptId, invoices.id))
+    .where(and(eq(tagihan.tenantId, tenantId), eq(tagihan.pelangganId, pelangganId)))
+    .orderBy(desc(invoices.tglLunas));
+
+  return rows;
 }

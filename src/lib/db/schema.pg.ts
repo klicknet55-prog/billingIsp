@@ -196,11 +196,14 @@ export const tagihan = pgTable(
     amount: integer("amount").notNull(),
     dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
     kind: text("kind", { enum: ["first", "recurring"] }).notNull(),
-    status: text("status", { enum: ["open", "tunggakan", "processing", "paid"] })
+    status: text("status", { enum: ["open", "tunggakan", "processing", "paid", "partial"] })
       .notNull()
       .default("open"),
+    amountPaid: integer("amount_paid").notNull().default(0),
     receiptId: text("receipt_id").references(() => invoices.id),
     preDueRemindedAt: timestamp("pre_due_reminded_at", { withTimezone: true }),
+    dunningStep2At: timestamp("dunning_step2_at", { withTimezone: true }),
+    dunningFinalAt: timestamp("dunning_final_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     metodeBayar: text("metode_bayar"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -334,6 +337,75 @@ export const tenantWhatsAppConfigs = pgTable("tenant_whatsapp_config", {
   isEnabled: boolean("is_enabled").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tenantApiKeys = pgTable("tenant_api_key", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  label: text("label").notNull().default("Default"),
+  keyPrefix: text("key_prefix").notNull(),
+  keyHash: text("key_hash").notNull(),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tenantWebhooks = pgTable("tenant_webhook", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .unique()
+    .references(() => tenants.id),
+  url: text("url").notNull(),
+  secretEncrypted: text("secret_encrypted").notNull(),
+  events: jsonb("events").$type<import("./schema.sqlite").WebhookEvent[]>().notNull().default([]),
+  isEnabled: boolean("is_enabled").notNull().default(false),
+  lastDeliveryAt: timestamp("last_delivery_at", { withTimezone: true }),
+  failureCount: integer("failure_count").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const webhookDeliveryLogs = pgTable("webhook_delivery_log", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  webhookId: text("webhook_id")
+    .notNull()
+    .references(() => tenantWebhooks.id),
+  event: text("event").notNull(),
+  requestUrl: text("request_url").notNull(),
+  requestBody: text("request_body").notNull(),
+  statusCode: integer("status_code"),
+  responseBody: text("response_body"),
+  success: boolean("success").notNull().default(false),
+  error: text("error"),
+  durationMs: integer("duration_ms"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const pelangganImportBatches = pgTable("pelanggan_import_batch", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  status: text("status", { enum: ["queued", "running", "completed", "failed"] })
+    .notNull()
+    .default("queued"),
+  mode: text("mode", { enum: ["skip", "stop"] }).notNull().default("skip"),
+  total: integer("total").notNull().default(0),
+  success: integer("success").notNull().default(0),
+  failed: integer("failed").notNull().default(0),
+  csvPayload: text("csv_payload").notNull(),
+  rowResults: jsonb("row_results").$type<import("./schema.sqlite").PelangganImportRowResult[]>(),
+  error: text("error"),
+  createdBy: text("created_by").references(() => users.id),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const platformWhatsAppConfigs = pgTable("platform_whatsapp_config", {
@@ -486,6 +558,10 @@ export const pgSchema = {
   paymentGatewayLogs,
   tenantDuitkuConfigs,
   tenantWhatsAppConfigs,
+  tenantApiKeys,
+  tenantWebhooks,
+  webhookDeliveryLogs,
+  pelangganImportBatches,
   platformWhatsAppConfigs,
   sessions,
   otpCodes,

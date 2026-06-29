@@ -6,7 +6,16 @@ import {
   getTenantDuitkuConfigRow,
   getTenantWhatsAppConfigRow,
 } from "@/features/integrations/service";
+import { listTenantApiKeys } from "@/features/api-keys/service";
+import {
+  getTenantWebhookRow,
+  isWebhookCircuitOpen,
+  listRecentWebhookDeliveries,
+  WEBHOOK_CIRCUIT_BREAKER_MAX,
+} from "@/features/webhooks/service";
 import { DuitkuConfigForm, WhatsAppConfigForm } from "./integration-forms";
+import { ApiKeysPanel } from "./api-keys-panel";
+import { WebhookConfigPanel } from "./webhook-config-panel";
 import { getGowaEnvDefaults, getKlicknetDevicePrefix } from "@/lib/integrations/whatsapp/config";
 import { getCurrentTenant } from "@/lib/tenant";
 
@@ -20,9 +29,13 @@ export default async function IntegrasiPage() {
     tenantId,
     tenantDomain: tenant?.domain,
   });
-  const [duitku, wa] = await Promise.all([
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "http://localhost:3000";
+  const [duitku, wa, apiKeys, webhook, deliveries] = await Promise.all([
     getTenantDuitkuConfigRow(tenantId),
     getTenantWhatsAppConfigRow(tenantId),
+    listTenantApiKeys(tenantId),
+    getTenantWebhookRow(tenantId),
+    listRecentWebhookDeliveries(tenantId, 10),
   ]);
 
   return (
@@ -80,6 +93,43 @@ export default async function IntegrasiPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>REST API Key</CardTitle>
+          <CardDescription>
+            Akses read-only ke data tenant via Bearer token. Rate limit{" "}
+            {process.env.API_RATE_LIMIT_PER_MIN ?? 60} req/menit per key.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ApiKeysPanel keys={apiKeys} appUrl={appUrl} />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>Webhook Keluar</CardTitle>
+          <CardDescription>
+            Terima notifikasi real-time saat tagihan lunas atau pelanggan diisolir. Circuit breaker
+            setelah {WEBHOOK_CIRCUIT_BREAKER_MAX} kegagalan berturut-turut.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WebhookConfigPanel
+            defaults={{
+              url: webhook?.url,
+              events: webhook?.events ?? [],
+              isEnabled: webhook?.isEnabled ?? false,
+              hasSecret: !!webhook?.secretEncrypted,
+              failureCount: webhook?.failureCount ?? 0,
+              lastDeliveryAt: webhook?.lastDeliveryAt ?? null,
+            }}
+            deliveries={deliveries}
+            circuitOpen={webhook ? isWebhookCircuitOpen(webhook.failureCount) : false}
+          />
+        </CardContent>
+      </Card>
     </>
   );
 }

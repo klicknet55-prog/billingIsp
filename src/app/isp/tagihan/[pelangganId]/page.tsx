@@ -13,14 +13,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CatatNunggakButton } from "@/features/billing/catat-nunggak-button";
+import { PartialPayPanel } from "@/features/billing/partial-pay-panel";
 import { PayTagihanPanel } from "@/features/billing/pay-tagihan-panel";
 import {
   canCatatNunggak,
   getTagihanForPelanggan,
+  getTagihanPaymentHistory,
   getTagihanSummary,
   getPaketHarga,
   syncTagihanForPelanggan,
 } from "@/features/billing/tagihan-service";
+import { tagihanBalance } from "@/features/billing/tagihan-balance";
 import { getPelanggan } from "@/features/customers/service";
 import { formatTagihanPeriode } from "@/features/messages/context";
 import { requireUser } from "@/lib/auth";
@@ -30,6 +33,7 @@ import { formatDate, formatRupiah } from "@/lib/utils";
 const TAGIHAN_STATUS_LABEL: Record<string, string> = {
   open: "Open (belum lunas)",
   tunggakan: "Tunggakan",
+  partial: "Lunas sebagian",
   processing: "Diproses",
   paid: "Lunas",
 };
@@ -52,10 +56,11 @@ export default async function TagihanPelangganDetailPage({
 
   await syncTagihanForPelanggan(tenantId, pelangganId, now);
 
-  const [cust, summary, history, showCatatNunggak, hargaPaket] = await Promise.all([
+  const [cust, summary, history, paymentHistory, showCatatNunggak, hargaPaket] = await Promise.all([
     getPelanggan(tenantId, pelangganId),
     getTagihanSummary(tenantId, pelangganId),
     getTagihanForPelanggan(tenantId, pelangganId),
+    getTagihanPaymentHistory(tenantId, pelangganId),
     isAdminOwner ? canCatatNunggak(tenantId, pelangganId, now) : Promise.resolve(false),
     getPaketHarga(tenantId, pelangganId),
   ]);
@@ -63,7 +68,25 @@ export default async function TagihanPelangganDetailPage({
 
   const isOverdueOpen =
     summary.bulanIni && isPastDue(summary.bulanIni.dueDate, now);
-  const pastDueUnpaid = isPastDue(summary.activeDueDate, now) && !summary.hasBulanIni && summary.tunggakan.length === 0;
+  const pastDueUnpaid =
+    isPastDue(summary.activeDueDate, now) && !summary.hasBulanIni && summary.tunggakan.length === 0;
+
+  const partialOptions = [
+    ...(summary.bulanIni
+      ? [
+          {
+            id: summary.bulanIni.id,
+            periode: summary.bulanIni.periode,
+            balance: tagihanBalance(summary.bulanIni),
+          },
+        ]
+      : []),
+    ...summary.tunggakan.map((t) => ({
+      id: t.id,
+      periode: t.periode,
+      balance: tagihanBalance(t),
+    })),
+  ];
 
   return (
     <>
@@ -134,11 +157,16 @@ export default async function TagihanPelangganDetailPage({
           <PayTagihanPanel
             pelangganId={cust.id}
             pelangganNama={cust.nama}
-            bulanIniAmount={summary.bulanIni?.amount ?? 0}
+            bulanIniAmount={summary.bulanIni ? tagihanBalance(summary.bulanIni) : 0}
             tunggakanTotal={summary.totalTunggakan}
             hasBulanIni={summary.hasBulanIni}
             hasTunggakan={summary.tunggakan.length > 0}
           />
+          {isAdminOwner && (
+            <div className="mt-4 border-t pt-4">
+              <PartialPayPanel pelangganId={cust.id} options={partialOptions} />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -151,7 +179,9 @@ export default async function TagihanPelangganDetailPage({
             <TableHeader>
               <TableRow>
                 <TableHead>Periode</TableHead>
-                <TableHead>Jumlah</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Dibayar</TableHead>
+                <TableHead>Sisa</TableHead>
                 <TableHead>Jatuh tempo</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -161,6 +191,8 @@ export default async function TagihanPelangganDetailPage({
                 <TableRow key={t.id}>
                   <TableCell>{formatTagihanPeriode(t.periode)}</TableCell>
                   <TableCell>{formatRupiah(t.amount)}</TableCell>
+                  <TableCell>{formatRupiah(t.amountPaid ?? 0)}</TableCell>
+                  <TableCell>{formatRupiah(tagihanBalance(t))}</TableCell>
                   <TableCell>{formatDate(t.dueDate)}</TableCell>
                   <TableCell>
                     <Badge
@@ -169,9 +201,11 @@ export default async function TagihanPelangganDetailPage({
                           ? "success"
                           : t.status === "tunggakan"
                             ? "destructive"
-                            : t.status === "open"
+                            : t.status === "partial"
                               ? "warning"
-                              : "secondary"
+                              : t.status === "open"
+                                ? "warning"
+                                : "secondary"
                       }
                     >
                       {TAGIHAN_STATUS_LABEL[t.status] ?? t.status}
@@ -181,7 +215,7 @@ export default async function TagihanPelangganDetailPage({
               ))}
               {history.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                     Belum ada riwayat tagihan.
                   </TableCell>
                 </TableRow>
@@ -190,6 +224,38 @@ export default async function TagihanPelangganDetailPage({
           </Table>
         </CardContent>
       </Card>
+
+      {paymentHistory.length > 0 && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Riwayat Pembayaran</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Nota</TableHead>
+                  <TableHead>Periode</TableHead>
+                  <TableHead>Nominal</TableHead>
+                  <TableHead>Metode</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paymentHistory.map((p) => (
+                  <TableRow key={p.linkId}>
+                    <TableCell>{p.paidAt ? formatDate(p.paidAt) : "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{p.noNota}</TableCell>
+                    <TableCell>{formatTagihanPeriode(p.periode)}</TableCell>
+                    <TableCell>{formatRupiah(p.amount)}</TableCell>
+                    <TableCell>{p.metode ?? "-"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
     </>
   );
 }

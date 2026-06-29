@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet.markercluster";
 import { useEffect, useRef } from "react";
 import type { MapOdpMarker, MapPelangganMarker, MapRouterMarker } from "@/features/maps/service";
-import { MODEM_STATUS_COLOR, MODEM_STATUS_LABEL } from "@/features/maps/modem-status";
+import { MODEM_STATUS_COLOR, MODEM_STATUS_LABEL } from "@/features/maps/modem-labels";
 import type { ModemMapStatus } from "@/lib/integrations/mikrotik/types";
 import { DEFAULT_MAP_CENTER, getMapTileUrl } from "@/lib/maps/tile-url";
 import { fixLeafletDefaultIcons } from "@/lib/maps/leaflet-icons";

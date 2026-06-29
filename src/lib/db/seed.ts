@@ -27,6 +27,10 @@ import {
   subscriptions,
   tenantDuitkuConfigs,
   tenantWhatsAppConfigs,
+  tenantApiKeys,
+  tenantWebhooks,
+  webhookDeliveryLogs,
+  pelangganImportBatches,
   tenants,
   ticketAssignments,
   tickets,
@@ -60,6 +64,10 @@ async function reset() {
     await db.delete(routers);
     await db.delete(paymentGatewayLogs);
     await db.delete(tenantWhatsAppConfigs);
+    await db.delete(tenantApiKeys);
+    await db.delete(webhookDeliveryLogs);
+    await db.delete(tenantWebhooks);
+    await db.delete(pelangganImportBatches);
     await db.delete(tenantDuitkuConfigs);
     await db.delete(subscriptions);
     await db.delete(sessions);

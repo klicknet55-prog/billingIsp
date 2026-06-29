@@ -206,11 +206,14 @@ export const tagihan = sqliteTable("tagihan", {
   amount: integer("amount").notNull(),
   dueDate: integer("due_date", { mode: "timestamp" }).notNull(),
   kind: text("kind", { enum: ["first", "recurring"] }).notNull(),
-  status: text("status", { enum: ["open", "tunggakan", "processing", "paid"] })
+  status: text("status", { enum: ["open", "tunggakan", "processing", "paid", "partial"] })
     .notNull()
     .default("open"),
+  amountPaid: integer("amount_paid").notNull().default(0),
   receiptId: text("receipt_id").references(() => invoices.id),
   preDueRemindedAt: integer("pre_due_reminded_at", { mode: "timestamp" }),
+  dunningStep2At: integer("dunning_step2_at", { mode: "timestamp" }),
+  dunningFinalAt: integer("dunning_final_at", { mode: "timestamp" }),
   paidAt: integer("paid_at", { mode: "timestamp" }),
   metodeBayar: text("metode_bayar"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
@@ -353,6 +356,100 @@ export const tenantWhatsAppConfigs = sqliteTable("tenant_whatsapp_config", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
 });
+
+/** API key tenant untuk REST API v1 (hash only, plain key shown once at create). */
+export const tenantApiKeys = sqliteTable("tenant_api_key", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  label: text("label").notNull().default("Default"),
+  keyPrefix: text("key_prefix").notNull(),
+  keyHash: text("key_hash").notNull(),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+  revokedAt: integer("revoked_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const tenantWebhooks = sqliteTable("tenant_webhook", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .unique()
+    .references(() => tenants.id),
+  url: text("url").notNull(),
+  secretEncrypted: text("secret_encrypted").notNull(),
+  events: text("events", { mode: "json" }).$type<WebhookEvent[]>().notNull().default([]),
+  isEnabled: integer("is_enabled", { mode: "boolean" }).notNull().default(false),
+  lastDeliveryAt: integer("last_delivery_at", { mode: "timestamp" }),
+  failureCount: integer("failure_count").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const webhookDeliveryLogs = sqliteTable("webhook_delivery_log", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  webhookId: text("webhook_id")
+    .notNull()
+    .references(() => tenantWebhooks.id),
+  event: text("event").notNull(),
+  requestUrl: text("request_url").notNull(),
+  requestBody: text("request_body").notNull(),
+  statusCode: integer("status_code"),
+  responseBody: text("response_body"),
+  success: integer("success", { mode: "boolean" }).notNull().default(false),
+  error: text("error"),
+  durationMs: integer("duration_ms"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export type PelangganImportRowResult = {
+  line: number;
+  nama: string;
+  noWa: string;
+  ok: boolean;
+  error?: string;
+  warning?: string;
+  pelangganId?: string;
+};
+
+export const pelangganImportBatches = sqliteTable("pelanggan_import_batch", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  status: text("status", { enum: ["queued", "running", "completed", "failed"] })
+    .notNull()
+    .default("queued"),
+  mode: text("mode", { enum: ["skip", "stop"] }).notNull().default("skip"),
+  total: integer("total").notNull().default(0),
+  success: integer("success").notNull().default(0),
+  failed: integer("failed").notNull().default(0),
+  csvPayload: text("csv_payload").notNull(),
+  rowResults: text("row_results", { mode: "json" }).$type<PelangganImportRowResult[]>(),
+  error: text("error"),
+  createdBy: text("created_by").references(() => users.id),
+  startedAt: integer("started_at", { mode: "timestamp" }),
+  finishedAt: integer("finished_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export type WebhookEvent =
+  | "tagihan.paid"
+  | "tagihan.partial_paid"
+  | "pelanggan.isolated"
+  | "pelanggan.activated"
+  | "webhook.test";
+
+export const WEBHOOK_EVENTS: WebhookEvent[] = [
+  "tagihan.paid",
+  "tagihan.partial_paid",
+  "pelanggan.isolated",
+  "pelanggan.activated",
+];
 
 export const platformWhatsAppConfigs = sqliteTable("platform_whatsapp_config", {
   id: text("id").primaryKey(),

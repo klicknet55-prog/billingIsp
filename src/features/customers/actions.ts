@@ -94,9 +94,6 @@ export async function deletePelangganCompleteAction(id: string): Promise<{
   }
   try {
     const stats = await deletePelangganRecords(tenantId, id);
-    revalidatePath("/dashboard/pelanggan");
-    revalidatePath("/dashboard/invoice");
-    revalidatePath("/dashboard/tiket");
     return { mikrotik, records: { ok: true, stats } };
   } catch (err) {
     return {

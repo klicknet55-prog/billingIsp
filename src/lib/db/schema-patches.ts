@@ -108,6 +108,21 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     column: "basic_auth_user",
     sql: "ALTER TABLE tenant_whatsapp_config ADD COLUMN basic_auth_user TEXT",
   },
+  {
+    table: "tagihan",
+    column: "amount_paid",
+    sql: "ALTER TABLE tagihan ADD COLUMN amount_paid INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "tagihan",
+    column: "dunning_step2_at",
+    sql: "ALTER TABLE tagihan ADD COLUMN dunning_step2_at INTEGER",
+  },
+  {
+    table: "tagihan",
+    column: "dunning_final_at",
+    sql: "ALTER TABLE tagihan ADD COLUMN dunning_final_at INTEGER",
+  },
 ];
 
 function hasColumn(db: Database.Database, table: string, column: string) {

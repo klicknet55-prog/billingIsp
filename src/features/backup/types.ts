@@ -12,6 +12,8 @@ export interface TenantBackupCounts {
   odp: number;
   pelanggan: number;
   invoices: number;
+  tagihan: number;
+  receiptTagihanLinks: number;
   tickets: number;
   ticketAssignments: number;
   kategoriPengeluaran: number;
@@ -37,6 +39,9 @@ export interface TenantBackupData {
   odp: Record<string, unknown>[];
   pelanggan: Record<string, unknown>[];
   invoices: Record<string, unknown>[];
+  /** Opsional pada backup lama (sebelum tagihan terpisah). */
+  tagihan?: Record<string, unknown>[];
+  receiptTagihanLinks?: Record<string, unknown>[];
   tickets: Record<string, unknown>[];
   ticketAssignments: Record<string, unknown>[];
   kategoriPengeluaran: Record<string, unknown>[];

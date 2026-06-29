@@ -136,13 +136,16 @@ export function PelangganDeleteDialog({
       }
 
       setShouldRefresh(true);
-      const { invoiceCount, ticketCount } = records.stats;
+      const { invoiceCount, ticketCount, tagihanCount } = records.stats;
 
       patchStep("invoices", { status: "loading" });
       await sleep(STEP_DELAY_MS);
       patchStep("invoices", {
         status: "done",
-        detail: invoiceCount > 0 ? `${invoiceCount} invoice dihapus` : "Tidak ada invoice",
+        detail:
+          invoiceCount > 0 || tagihanCount > 0
+            ? `${invoiceCount} nota, ${tagihanCount} tagihan dihapus`
+            : "Tidak ada data billing",
       });
       await sleep(STEP_DELAY_MS);
 
@@ -187,7 +190,7 @@ export function PelangganDeleteDialog({
       title="Hapus Pelanggan"
       description="Konfirmasi penghapusan pelanggan dan sinkronisasi Mikrotik."
       className="max-w-md"
-      dismissible={!busy}
+      dismissible={phase === "confirm"}
     >
       {(closeDialog) => (
         <div className="space-y-4">
@@ -199,7 +202,9 @@ export function PelangganDeleteDialog({
           )}
 
           {phase === "done" && (
-            <p className="text-sm text-emerald-700">Penghapusan selesai.</p>
+            <p className="text-sm text-emerald-700">
+              Penghapusan selesai. Klik <strong>Tutup</strong> untuk kembali ke daftar pelanggan.
+            </p>
           )}
 
           {fatalError && phase === "error" && (

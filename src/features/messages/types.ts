@@ -4,6 +4,8 @@ export type TenantTemplateKey =
   | "invoice_new"
   | "invoice_pre_due"
   | "invoice_overdue"
+  | "invoice_dunning_2"
+  | "invoice_dunning_final"
   | "manual_invoice"
   | "manual_custom";
 
@@ -17,6 +19,8 @@ export const TENANT_TEMPLATE_KEYS: TenantTemplateKey[] = [
   "invoice_new",
   "invoice_pre_due",
   "invoice_overdue",
+  "invoice_dunning_2",
+  "invoice_dunning_final",
   "manual_invoice",
   "manual_custom",
 ];
@@ -30,7 +34,9 @@ export const PLATFORM_TEMPLATE_KEYS: PlatformTemplateKey[] = [
 export const TEMPLATE_LABELS: Record<string, string> = {
   invoice_new: "Tagihan baru (cron)",
   invoice_pre_due: "Pengingat H-3 (cron)",
-  invoice_overdue: "Tagihan jatuh tempo (cron)",
+  invoice_overdue: "Tagihan jatuh tempo H+0 (cron)",
+  invoice_dunning_2: "Dunning step 2 — H+3 (cron)",
+  invoice_dunning_final: "Dunning final + isolir H+7 (cron)",
   manual_invoice: "Kirim manual — tagihan / link bayar",
   manual_custom: "Kirim manual — pesan custom",
   saas_reminder_7d: "Reminder langganan H-7",

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { refreshMapStatusAction } from "@/features/maps/actions";
-import { MODEM_STATUS_COLOR, MODEM_STATUS_LABEL } from "@/features/maps/modem-status";
+import { MODEM_STATUS_COLOR, MODEM_STATUS_LABEL } from "@/features/maps/modem-labels";
 import type { MapPageData } from "@/features/maps/service";
 import type { ModemMapStatus } from "@/lib/integrations/mikrotik/types";
 import type { OdpRow } from "@/features/odp/service";

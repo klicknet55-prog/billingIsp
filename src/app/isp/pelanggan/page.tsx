@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { toggleIsolasiAction } from "@/features/customers/actions";
 import { PelangganCreateDialog } from "@/features/customers/components/pelanggan-create-dialog";
+import { PelangganImportDialog } from "@/features/customers/components/pelanggan-import-dialog";
 import { PelangganDeleteDialog } from "@/features/customers/components/pelanggan-delete-dialog";
 import { listPelanggan } from "@/features/customers/service";
 import { listOdpOptions } from "@/features/odp/service";
@@ -55,19 +56,22 @@ export default async function PelangganPage({
           quota ? ` (Paket ${quota.paketNama})` : ""
         }`}
         action={
-          <PelangganCreateDialog
-            paketOptions={paket.map((p) => ({
-              id: p.id,
-              label: `${p.nama} (${p.kecepatan})`,
-              routerId: p.routerId,
-              tipe: p.tipe,
-            }))}
-            routerOptions={routers.map((r) => ({
-              id: r.id,
-              label: r.nama,
-            }))}
-            odpOptions={odpOptions}
-          />
+          <div className="flex flex-wrap gap-2">
+            <PelangganImportDialog />
+            <PelangganCreateDialog
+              paketOptions={paket.map((p) => ({
+                id: p.id,
+                label: `${p.nama} (${p.kecepatan})`,
+                routerId: p.routerId,
+                tipe: p.tipe,
+              }))}
+              routerOptions={routers.map((r) => ({
+                id: r.id,
+                label: r.nama,
+              }))}
+              odpOptions={odpOptions}
+            />
+          </div>
         }
       />
 

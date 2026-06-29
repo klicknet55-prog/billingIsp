@@ -107,6 +107,88 @@ export function applyAppSchemaMigrations(
     if (log) console.log("[ok]   tabel portal_access_code dibuat");
   }
 
+  if (!hasDbTable(db, "tenant_api_key")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS tenant_api_key (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        label TEXT NOT NULL DEFAULT 'Default',
+        key_prefix TEXT NOT NULL,
+        key_hash TEXT NOT NULL,
+        last_used_at INTEGER,
+        revoked_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS tenant_api_key_hash ON tenant_api_key(key_hash);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel tenant_api_key dibuat");
+  }
+
+  if (!hasDbTable(db, "tenant_webhook")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS tenant_webhook (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL UNIQUE REFERENCES tenant(id),
+        url TEXT NOT NULL,
+        secret_encrypted TEXT NOT NULL,
+        events TEXT NOT NULL DEFAULT '[]',
+        is_enabled INTEGER NOT NULL DEFAULT 0,
+        last_delivery_at INTEGER,
+        failure_count INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel tenant_webhook dibuat");
+  }
+
+  if (!hasDbTable(db, "webhook_delivery_log")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS webhook_delivery_log (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        webhook_id TEXT NOT NULL REFERENCES tenant_webhook(id),
+        event TEXT NOT NULL,
+        request_url TEXT NOT NULL,
+        request_body TEXT NOT NULL,
+        status_code INTEGER,
+        response_body TEXT,
+        success INTEGER NOT NULL DEFAULT 0,
+        error TEXT,
+        duration_ms INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE INDEX IF NOT EXISTS webhook_delivery_log_tenant ON webhook_delivery_log(tenant_id, created_at);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel webhook_delivery_log dibuat");
+  }
+
+  if (!hasDbTable(db, "pelanggan_import_batch")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS pelanggan_import_batch (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        status TEXT NOT NULL DEFAULT 'queued',
+        mode TEXT NOT NULL DEFAULT 'skip',
+        total INTEGER NOT NULL DEFAULT 0,
+        success INTEGER NOT NULL DEFAULT 0,
+        failed INTEGER NOT NULL DEFAULT 0,
+        csv_payload TEXT NOT NULL,
+        row_results TEXT,
+        error TEXT,
+        created_by TEXT REFERENCES user(id),
+        started_at INTEGER,
+        finished_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel pelanggan_import_batch dibuat");
+  }
+
   if (hasDbTable(db, "pelanggan") && hasColumn(db, "pelanggan", "tgl_daftar")) {
     const backfill = db
       .prepare("UPDATE pelanggan SET tgl_daftar = created_at WHERE tgl_daftar IS NULL")

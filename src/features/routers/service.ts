@@ -184,6 +184,32 @@ export async function refreshRouterStatus(
   });
   if (!router) return { error: "Router tidak ditemukan." };
 
+  const snapshot = await getRouterStatusSnapshot(tenantId, id);
+  if (!snapshot) return { error: "Router tidak ditemukan." };
+
+  if (snapshot.online) {
+    const parts = [`Router "${router.nama}" terhubung`];
+    if (snapshot.uptime) parts.push(`uptime ${snapshot.uptime}`);
+    if (typeof snapshot.activeSessions === "number") {
+      parts.push(`${snapshot.activeSessions} sesi PPPoE aktif`);
+    }
+    return { online: true, message: parts.join(" · ") };
+  }
+
+  const detail =
+    snapshot.error?.trim() || "Periksa IP, port, username, password, dan koneksi VPN/LAN.";
+  return {
+    online: false,
+    error: `Tidak dapat terhubung ke Mikrotik (${router.ipAddress}): ${detail}`,
+  };
+}
+
+export async function getRouterStatusSnapshot(tenantId: string, id: string) {
+  const router = await db.query.routers.findFirst({
+    where: and(eq(routers.tenantId, tenantId), eq(routers.id, id)),
+  });
+  if (!router) return null;
+
   const status = await getMikrotikClient().getStatus({
     connectionMode: router.connectionMode,
     ipAddress: router.ipAddress,
@@ -194,18 +220,11 @@ export async function refreshRouterStatus(
 
   await db.update(routers).set({ isOnline: status.online }).where(eq(routers.id, id));
 
-  if (status.online) {
-    const parts = [`Router "${router.nama}" terhubung`];
-    if (status.uptime) parts.push(`uptime ${status.uptime}`);
-    if (typeof status.activeUsers === "number") {
-      parts.push(`${status.activeUsers} sesi PPPoE aktif`);
-    }
-    return { online: true, message: parts.join(" · ") };
-  }
-
-  const detail = status.error?.trim() || "Periksa IP, port, username, password, dan koneksi VPN/LAN.";
   return {
-    online: false,
-    error: `Tidak dapat terhubung ke Mikrotik (${router.ipAddress}): ${detail}`,
+    online: status.online,
+    lastCheck: new Date().toISOString(),
+    activeSessions: typeof status.activeUsers === "number" ? status.activeUsers : null,
+    uptime: status.uptime ?? null,
+    error: status.error,
   };
 }

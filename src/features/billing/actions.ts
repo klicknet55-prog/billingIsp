@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { payTagihan } from "@/features/billing/payment-service";
+import { payTagihan, payPartialTagihan } from "@/features/billing/payment-service";
 import {
   catatNunggakPelanggan,
   getTagihanSummary,
   resolvePayableTagihan,
+  resolvePayableBalance,
   type PaymentSelection,
 } from "@/features/billing/tagihan-service";
+import { tagihanBalance } from "@/features/billing/tagihan-balance";
 import { requireUser, requirePelanggan } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { paymentGatewayLogs } from "@/lib/db/schema";
@@ -60,6 +62,37 @@ export async function payTagihanAction(formData: FormData) {
   }
 }
 
+export async function payPartialTagihanAction(formData: FormData) {
+  const user = await requireUser(["owner", "admin", "kolektor"]);
+  const pelangganId = String(formData.get("pelangganId") ?? "");
+  const tagihanId = String(formData.get("tagihanId") ?? "");
+  const amount = Number(formData.get("amount"));
+  const metode = String(formData.get("metode") ?? "Tunai");
+  const idempotencyKey = String(formData.get("idempotencyKey") ?? "").trim();
+
+  try {
+    const result = await payPartialTagihan({
+      tenantId: user.tenantId!,
+      pelangganId,
+      tagihanId,
+      amount,
+      metode,
+      idempotencyKey: idempotencyKey || crypto.randomUUID(),
+      createdBy: user.id,
+      kolektorUserId: user.role === "kolektor" ? user.id : undefined,
+    });
+    revalidatePath("/dashboard/tagihan");
+    revalidatePath(`/dashboard/tagihan/${pelangganId}`);
+    revalidatePath("/dashboard/invoice");
+    revalidatePath("/portal/tagihan");
+    redirect(`/dashboard/nota/${result.receiptId}?success=1`);
+  } catch (err) {
+    if (isNextRedirectError(err)) throw err;
+    const msg = err instanceof Error ? err.message : "Pembayaran gagal.";
+    redirect(`/dashboard/tagihan/${pelangganId}?error=${encodeURIComponent(msg)}`);
+  }
+}
+
 export async function catatNunggakAction(formData: FormData) {
   const user = await requireUser(["owner", "admin"]);
   const pelangganId = String(formData.get("pelangganId") ?? "");
@@ -98,7 +131,7 @@ export async function payTagihanPortalAction(formData: FormData) {
   if (payable.length === 0) {
     redirect(`/portal/tagihan?error=${encodeURIComponent("Tidak ada tagihan yang dapat dibayar.")}`);
   }
-  const total = payable.reduce((s, t) => s + t.amount, 0);
+  const total = resolvePayableBalance(payable);
 
   if (process.env.DUITKU_DRIVER === "real") {
     const logId = newId("pgl");

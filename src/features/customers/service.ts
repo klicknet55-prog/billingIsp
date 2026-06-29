@@ -5,17 +5,22 @@ import {
   invoices,
   packageTenants,
   paketInternet,
+  paymentAttempts,
   paymentGatewayLogs,
   pelanggan,
+  portalAccessCodes,
+  receiptTagihanLinks,
   routers,
   sessions,
   subscriptions,
+  tagihan,
   tenants,
   ticketAssignments,
   tickets,
   type Pelanggan,
 } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
+import { clearModemStatusCache } from "@/features/maps/modem-cache";
 import { isMikrotikEmptyReplyError, isMikrotikTimeoutError } from "@/lib/integrations/mikrotik/errors";
 import { createLogger } from "@/lib/logger";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
@@ -308,6 +313,7 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
 export interface DeletePelangganStats {
   invoiceCount: number;
   ticketCount: number;
+  tagihanCount: number;
 }
 
 export interface DeletePelangganStepResult {
@@ -372,17 +378,39 @@ export async function deletePelangganRecords(
   });
   if (!existing) throw new Error("Pelanggan tidak ditemukan.");
 
-  const customerInvoices = await db.query.invoices.findMany({
-    where: and(eq(invoices.tenantId, tenantId), eq(invoices.pelangganId, id)),
-    columns: { id: true },
-  });
-  const invoiceIds = customerInvoices.map((row) => row.id);
+  const [customerInvoices, customerTagihan, customerTickets] = await Promise.all([
+    db.query.invoices.findMany({
+      where: and(eq(invoices.tenantId, tenantId), eq(invoices.pelangganId, id)),
+      columns: { id: true },
+    }),
+    db.query.tagihan.findMany({
+      where: and(eq(tagihan.tenantId, tenantId), eq(tagihan.pelangganId, id)),
+      columns: { id: true },
+    }),
+    db.query.tickets.findMany({
+      where: and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, id)),
+      columns: { id: true },
+    }),
+  ]);
 
-  const customerTickets = await db.query.tickets.findMany({
-    where: and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, id)),
-    columns: { id: true },
-  });
+  const invoiceIds = customerInvoices.map((row) => row.id);
+  const tagihanIds = customerTagihan.map((row) => row.id);
   const ticketIds = customerTickets.map((row) => row.id);
+
+  if (tagihanIds.length > 0) {
+    await db
+      .delete(receiptTagihanLinks)
+      .where(inArray(receiptTagihanLinks.tagihanId, tagihanIds));
+  }
+  if (invoiceIds.length > 0) {
+    await db
+      .delete(receiptTagihanLinks)
+      .where(inArray(receiptTagihanLinks.receiptId, invoiceIds));
+  }
+
+  await db
+    .delete(paymentAttempts)
+    .where(and(eq(paymentAttempts.tenantId, tenantId), eq(paymentAttempts.pelangganId, id)));
 
   if (invoiceIds.length > 0) {
     await db
@@ -393,6 +421,15 @@ export async function deletePelangganRecords(
           inArray(paymentGatewayLogs.referenceId, invoiceIds)
         )
       );
+  }
+
+  if (tagihanIds.length > 0) {
+    await db
+      .delete(tagihan)
+      .where(and(eq(tagihan.tenantId, tenantId), eq(tagihan.pelangganId, id)));
+  }
+
+  if (invoiceIds.length > 0) {
     await db
       .delete(invoices)
       .where(and(eq(invoices.tenantId, tenantId), eq(invoices.pelangganId, id)));
@@ -404,6 +441,10 @@ export async function deletePelangganRecords(
       .delete(tickets)
       .where(and(eq(tickets.tenantId, tenantId), eq(tickets.pelangganId, id)));
   }
+
+  await db
+    .delete(portalAccessCodes)
+    .where(and(eq(portalAccessCodes.tenantId, tenantId), eq(portalAccessCodes.pelangganId, id)));
 
   await db
     .delete(sessions)
@@ -419,8 +460,14 @@ export async function deletePelangganRecords(
     throw new Error("Gagal menghapus data pelanggan dari database.");
   }
 
-  log.info(`Pelanggan dihapus ${id} (${invoiceIds.length} invoice, ${ticketIds.length} tiket)`);
-  return { invoiceCount: invoiceIds.length, ticketCount: ticketIds.length };
+  log.info(
+    `Pelanggan dihapus ${id} (${invoiceIds.length} invoice, ${tagihanIds.length} tagihan, ${ticketIds.length} tiket)`
+  );
+  return {
+    invoiceCount: invoiceIds.length,
+    ticketCount: ticketIds.length,
+    tagihanCount: tagihanIds.length,
+  };
 }
 
 /** Set isolasi pelanggan: putus sesi aktif + disable user di Mikrotik. */
@@ -448,4 +495,6 @@ export async function setIsolasi(tenantId: string, id: string, isolated: boolean
     .update(pelanggan)
     .set({ isIsolated: isolated })
     .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, id)));
+
+  void clearModemStatusCache(tenantId).catch(() => undefined);
 }

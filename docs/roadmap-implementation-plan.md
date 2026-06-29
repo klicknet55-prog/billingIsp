@@ -540,13 +540,13 @@ Contoh response pelanggan (ringkas):
 
 #### Checklist 6a
 
-- [ ] Schema `tenant_api_key` + migrasi SQLite/PG
-- [ ] UI generate/revoke API key di Integrasi
-- [ ] Middleware auth + rate limit
-- [ ] GET pelanggan, tagihan, invoice (read-only)
-- [ ] GET router status (mask credential)
+- [x] Schema `tenant_api_key` + migrasi SQLite/PG
+- [x] UI generate/revoke API key di Integrasi
+- [x] Middleware auth + rate limit
+- [x] GET pelanggan, tagihan, invoice (read-only)
+- [x] GET router status (mask credential)
 - [ ] Audit log: `api_key.created`, `api_key.used` (butuh Fase 2)
-- [ ] README: contoh `curl` + OpenAPI stub (`docs/api-v1.openapi.yaml`)
+- [x] README: contoh `curl` + OpenAPI stub (`docs/api-v1.openapi.yaml`)
 
 #### Selesai jika
 
@@ -611,11 +611,11 @@ sequenceDiagram
 
 #### Checklist 6b
 
-- [ ] Schema `tenant_webhook` + `webhook_delivery_log`
-- [ ] UI Integrasi → tab Webhook (URL, secret, pilih event)
-- [ ] Dispatcher `features/webhooks/dispatch.ts`
-- [ ] HMAC signature + verifikasi docs untuk tenant
-- [ ] Test endpoint di UI ("Kirim event uji")
+- [x] Schema `tenant_webhook` + `webhook_delivery_log`
+- [x] UI Integrasi → tab Webhook (URL, secret, pilih event)
+- [x] Dispatcher `features/webhooks/dispatch.ts`
+- [x] HMAC signature + verifikasi docs untuk tenant
+- [x] Test endpoint di UI ("Kirim event uji")
 - [ ] Log delivery + status di superadmin (opsional)
 
 #### Selesai jika
@@ -661,12 +661,12 @@ Env: `REDIS_URL`, `QUEUE_CONCURRENCY`, `QUEUE_MAX_RETRIES`
 
 #### Checklist 6c
 
-- [ ] Pilih & pasang driver queue
-- [ ] Worker process PM2 (`billingisp-worker`)
-- [ ] Pindahkan mass WA batch ke queue
-- [ ] Pindahkan webhook delivery ke queue
-- [ ] Monitoring: failed jobs + dead letter
-- [ ] Cron tetap trigger enqueue (bukan run inline panjang)
+- [x] Pilih & pasang driver queue
+- [x] Worker process PM2 (`billingisp-worker` via `npm run queue:worker`)
+- [x] Pindahkan mass WA batch ke queue
+- [x] Pindahkan webhook delivery ke queue
+- [x] Monitoring: failed jobs + dead letter (`npm run queue:failed`)
+- [x] Cron tetap trigger enqueue (bukan run inline panjang)
 
 #### Selesai jika
 
@@ -695,10 +695,10 @@ Kirim WA massal 500 nomor tidak block HTTP; job gagal retry otomatis; worker res
 
 #### Checklist 6d
 
-- [ ] Client Redis (`ioredis`) + env `REDIS_URL`
-- [ ] Refactor `modem-status.ts` → adapter memory/redis
-- [ ] Load test peta 10 user concurrent
-- [ ] Dokumentasi: Redis optional di dev, wajib di production skala besar
+- [x] Client Redis (`ioredis`) + env `REDIS_URL`
+- [x] Refactor `modem-status.ts` → adapter memory/redis
+- [x] Load test peta 10 user concurrent (`npm run map:cache-test`)
+- [x] Dokumentasi: Redis optional di dev, wajib di production skala besar
 
 #### Selesai jika
 
@@ -717,7 +717,7 @@ Kolom opsional: `alamat`, `paket`, `router`, `odp`, `tglDaftar`, `billingDay`, `
 
 ```csv
 nama,noWa,alamat,paket,billingDay
-Budi Santoso,081234567890,Jl. Merdeka 1,20 Mbps,15
+Budi Santoso,081234567890,Jl. Merdeka 1,Home 20,15
 ```
 
 #### Alur UI
@@ -730,11 +730,11 @@ Budi Santoso,081234567890,Jl. Merdeka 1,20 Mbps,15
 
 #### Checklist 6e
 
-- [ ] Parser CSV + validator `features/customers/csv-import.ts`
-- [ ] UI upload + preview
-- [ ] Integrasi `createPelanggan` (reuse service)
-- [ ] Optional: sync Mikrotik batch via queue
-- [ ] Export template CSV unduh
+- [x] Parser CSV + validator `features/customers/csv-import.ts`
+- [x] UI upload + preview (`PelangganImportDialog`)
+- [x] Integrasi `createPelanggan` (reuse service via `import-service.ts`)
+- [x] Background job `pelanggan.import` (queue 6c, inline fallback)
+- [x] Export template CSV unduh (`/dashboard/pelanggan/import/template`)
 
 #### Selesai jika
 
@@ -768,12 +768,12 @@ Tabel opsional: `dunning_step_log` — jejak step per tagihan.
 
 #### Checklist 6f
 
-- [ ] Schema: kolom partial payment di `tagihan` jika belum ada
-- [ ] Service bayar sebagian (portal, kolektor, admin)
-- [ ] Template WA dunning step 2 & 3
-- [ ] Cron: evaluasi step dunning
-- [ ] UI: riwayat pembayaran per tagihan
-- [ ] Webhook `tagihan.partial_paid` (6b)
+- [x] Schema: `amountPaid`, status `partial`, kolom dunning di `tagihan`
+- [x] Service bayar sebagian (admin/kolektor + portal amount = sisa)
+- [x] Template WA dunning step 2 & final (`invoice_dunning_2`, `invoice_dunning_final`)
+- [x] Cron: H+0 tunggakan, H+3 dunning 2, H+7 final + isolir (grace `BILLING_ISOLATION_DAYS`)
+- [x] UI: riwayat pembayaran + bayar sebagian di detail tagihan
+- [x] Webhook `tagihan.partial_paid` (6b)
 
 #### Selesai jika
 

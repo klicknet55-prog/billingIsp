@@ -8,7 +8,9 @@ import {
   paketInternet,
   pelanggan,
   pengeluaran,
+  receiptTagihanLinks,
   routers,
+  tagihan,
   tenantDuitkuConfigs,
   tenantWhatsAppConfigs,
   tenants,
@@ -53,7 +55,12 @@ export function backupToPreview(backup: TenantBackupPayload): BackupPreview {
     tenantId: backup.tenantId,
     tenantDomain: backup.tenantDomain,
     appVersion: backup.appVersion,
-    counts: backup.counts,
+    counts: {
+      ...backup.counts,
+      tagihan: backup.counts.tagihan ?? backup.data.tagihan?.length ?? 0,
+      receiptTagihanLinks:
+        backup.counts.receiptTagihanLinks ?? backup.data.receiptTagihanLinks?.length ?? 0,
+    },
     namaUsaha: String(tenant.namaUsaha ?? backup.tenantDomain),
   };
 }
@@ -166,6 +173,25 @@ async function insertAll(client: DbClient, backup: TenantBackupPayload, merge: b
       await client.insert(invoices).values(row as typeof invoices.$inferInsert).onConflictDoNothing();
     } else {
       await client.insert(invoices).values(row as typeof invoices.$inferInsert);
+    }
+  });
+
+  await insertRows("tagihan", d.tagihan ?? [], async (row) => {
+    if (merge) {
+      await client.insert(tagihan).values(row as typeof tagihan.$inferInsert).onConflictDoNothing();
+    } else {
+      await client.insert(tagihan).values(row as typeof tagihan.$inferInsert);
+    }
+  });
+
+  await insertRows("receiptTagihanLinks", d.receiptTagihanLinks ?? [], async (row) => {
+    if (merge) {
+      await client
+        .insert(receiptTagihanLinks)
+        .values(row as typeof receiptTagihanLinks.$inferInsert)
+        .onConflictDoNothing();
+    } else {
+      await client.insert(receiptTagihanLinks).values(row as typeof receiptTagihanLinks.$inferInsert);
     }
   });
 
