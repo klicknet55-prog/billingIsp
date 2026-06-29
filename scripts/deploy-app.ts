@@ -44,6 +44,23 @@ const STEPS = [
   "pm2_restart",
 ] as const;
 
+/** File yang Next.js/build ubah di server — restore sebelum pull agar deploy tidak gagal. */
+const GIT_GENERATED_PATHS = ["next-env.d.ts"] as const;
+
+function restoreGeneratedGitFiles() {
+  for (const file of GIT_GENERATED_PATHS) {
+    try {
+      git(`restore --source=HEAD --staged --worktree ${file}`);
+    } catch {
+      try {
+        git(`checkout -- ${file}`);
+      } catch {
+        /* belum pernah ada di working tree */
+      }
+    }
+  }
+}
+
 function git(subcommand: string): string {
   return runGit(subcommand, ROOT);
 }
@@ -224,9 +241,11 @@ async function main() {
       return;
     }
     if (branch) {
+      restoreGeneratedGitFiles();
       git(`checkout ${branch}`);
       git(`pull origin ${branch}`);
     } else {
+      restoreGeneratedGitFiles();
       git("pull");
     }
     const afterPull = git("rev-parse --short HEAD");
