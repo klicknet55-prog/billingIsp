@@ -33,12 +33,14 @@ function defaultPlatformSettingsRow(): PlatformSettings {
 
 export async function getPlatformSettings(): Promise<PlatformSettings> {
   try {
-    const row = await db.query.platformSettings.findFirst({
-      where: eq(platformSettings.id, PLATFORM_SETTINGS_ID),
-    });
-    if (row) return row;
+    const [existing] = await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.id, PLATFORM_SETTINGS_ID))
+      .limit(1);
+    if (existing) return existing;
 
-    const [inserted] = await db
+    await db
       .insert(platformSettings)
       .values({
         id: PLATFORM_SETTINGS_ID,
@@ -58,9 +60,16 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
         tcTitle: DEFAULT_PLATFORM_SETTINGS.tcTitle,
         tcContent: DEFAULT_PLATFORM_SETTINGS.tcContent,
       })
-      .returning();
+      .onConflictDoNothing({ target: platformSettings.id });
 
-    return inserted;
+    const [row] = await db
+      .select()
+      .from(platformSettings)
+      .where(eq(platformSettings.id, PLATFORM_SETTINGS_ID))
+      .limit(1);
+
+    if (row) return row;
+    return defaultPlatformSettingsRow();
   } catch {
     /* Build / installer: DB belum siap — fallback default tanpa crash */
     return defaultPlatformSettingsRow();

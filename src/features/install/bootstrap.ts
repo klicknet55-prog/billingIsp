@@ -66,24 +66,27 @@ export async function seedFreshPlatformData(databaseUrl: string): Promise<void> 
       .limit(1);
 
     if (existingSettings.length === 0) {
-      await db.insert(platformSettings).values({
-        id: PLATFORM_SETTINGS_ID,
-        brandName: DEFAULT_PLATFORM_SETTINGS.brandName,
-        brandTagline: DEFAULT_PLATFORM_SETTINGS.brandTagline,
-        logoUrl: DEFAULT_PLATFORM_SETTINGS.logoUrl,
-        ownerName: DEFAULT_PLATFORM_SETTINGS.ownerName,
-        ownerPhone: DEFAULT_PLATFORM_SETTINGS.ownerPhone,
-        ownerEmail: DEFAULT_PLATFORM_SETTINGS.ownerEmail,
-        address: DEFAULT_PLATFORM_SETTINGS.address,
-        telegramGroupUrl: DEFAULT_PLATFORM_SETTINGS.telegramGroupUrl,
-        tentangTitle: DEFAULT_PLATFORM_SETTINGS.tentangTitle,
-        tentangContent: DEFAULT_PLATFORM_SETTINGS.tentangContent,
-        kontakTitle: DEFAULT_PLATFORM_SETTINGS.kontakTitle,
-        kontakContent: DEFAULT_PLATFORM_SETTINGS.kontakContent,
-        kontakWhatsapp: DEFAULT_PLATFORM_SETTINGS.kontakWhatsapp,
-        tcTitle: DEFAULT_PLATFORM_SETTINGS.tcTitle,
-        tcContent: DEFAULT_PLATFORM_SETTINGS.tcContent,
-      });
+      await db
+        .insert(platformSettings)
+        .values({
+          id: PLATFORM_SETTINGS_ID,
+          brandName: DEFAULT_PLATFORM_SETTINGS.brandName,
+          brandTagline: DEFAULT_PLATFORM_SETTINGS.brandTagline,
+          logoUrl: DEFAULT_PLATFORM_SETTINGS.logoUrl,
+          ownerName: DEFAULT_PLATFORM_SETTINGS.ownerName,
+          ownerPhone: DEFAULT_PLATFORM_SETTINGS.ownerPhone,
+          ownerEmail: DEFAULT_PLATFORM_SETTINGS.ownerEmail,
+          address: DEFAULT_PLATFORM_SETTINGS.address,
+          telegramGroupUrl: DEFAULT_PLATFORM_SETTINGS.telegramGroupUrl,
+          tentangTitle: DEFAULT_PLATFORM_SETTINGS.tentangTitle,
+          tentangContent: DEFAULT_PLATFORM_SETTINGS.tentangContent,
+          kontakTitle: DEFAULT_PLATFORM_SETTINGS.kontakTitle,
+          kontakContent: DEFAULT_PLATFORM_SETTINGS.kontakContent,
+          kontakWhatsapp: DEFAULT_PLATFORM_SETTINGS.kontakWhatsapp,
+          tcTitle: DEFAULT_PLATFORM_SETTINGS.tcTitle,
+          tcContent: DEFAULT_PLATFORM_SETTINGS.tcContent,
+        })
+        .onConflictDoNothing({ target: platformSettings.id });
     }
   });
 }
