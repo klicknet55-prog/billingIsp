@@ -27,7 +27,12 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   // Tenant menentukan tema default (lintas device); localStorage menimpa per-perangkat.
-  const tenant = await getCurrentTenant();
+  let tenant = null;
+  try {
+    tenant = await getCurrentTenant();
+  } catch {
+    /* DB belum siap — mode installer / env belum dikonfigurasi */
+  }
 
   return (
     <html lang="id" suppressHydrationWarning>

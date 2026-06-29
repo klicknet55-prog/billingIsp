@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   CreditCard,
@@ -15,6 +16,8 @@ import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getPlatformBrand } from "@/features/platform-settings/service";
+import { isAppInstalled } from "@/features/install/state";
+import { readEnvFile, getDatabaseUrlFromEnv } from "@/features/install/env-writer";
 
 const features = [
   { icon: Users, title: "Manajemen Pelanggan", desc: "Data, koordinat, paket, dan jatuh tempo dalam satu tempat." },
@@ -34,6 +37,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
+  const env = await readEnvFile();
+  const dbUrl = getDatabaseUrlFromEnv(env);
+  if (!(await isAppInstalled(dbUrl ?? undefined))) {
+    redirect("/install");
+  }
+
   const brand = await getPlatformBrand();
 
   return (

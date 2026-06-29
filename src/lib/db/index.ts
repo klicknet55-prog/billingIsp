@@ -1,12 +1,15 @@
-import Database from "better-sqlite3";
+import type Database from "better-sqlite3";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { drizzle as drizzleSqlite } from "drizzle-orm/better-sqlite3";
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
+import { createRequire } from "node:module";
 import postgres from "postgres";
 import { applyAppSchemaMigrations } from "./runtime-schema";
 import * as sqliteSchema from "./schema.sqlite";
 import { pgSchema } from "./schema.pg";
 import { getDatabaseDriver, isPostgresDriver } from "./driver";
+
+const require = createRequire(import.meta.url);
 
 const DB_PATH = process.env.DATABASE_URL ?? "./netmanage.db";
 
@@ -18,11 +21,16 @@ const globalForDb = globalThis as unknown as {
 /** Tipe DB aplikasi — mengacu skema SQLite; API query Drizzle kompatibel dengan Postgres. */
 export type AppDb = BetterSQLite3Database<typeof sqliteSchema>;
 
+function loadBetterSqlite3(): typeof Database {
+  return require("better-sqlite3") as typeof Database;
+}
+
 function createSqliteDb() {
+  const BetterSqlite = loadBetterSqlite3();
   const sqlite =
     globalForDb.sqlite ??
     (() => {
-      const conn = new Database(DB_PATH);
+      const conn = new BetterSqlite(DB_PATH);
       conn.pragma("journal_mode = WAL");
       conn.pragma("foreign_keys = ON");
       applyAppSchemaMigrations(conn);

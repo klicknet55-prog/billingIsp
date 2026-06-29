@@ -17,4 +17,6 @@ data/backups/**
 !data/backups/.gitkeep
 data/deploy/**
 !data/deploy/.gitkeep
+data/install/**
+!data/install/.gitkeep
 *.db.bak
