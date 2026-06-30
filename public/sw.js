@@ -1,6 +1,6 @@
 // Service worker NetManage: cache app shell + network-first untuk halaman.
 // Mendukung kebutuhan offline dasar kolektor (lihat daftar tugas terakhir).
-const CACHE = "netmanage-v1";
+const CACHE = "netmanage-v2";
 const SHELL = ["/", "/kolektor", "/offline"];
 
 self.addEventListener("install", (event) => {
@@ -20,6 +20,22 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+
+  // Network-first untuk chunk Next.js — hindari JS lama di cache (tab/filter tidak responsif).
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
 
   // Network-first untuk navigasi; fallback ke cache lalu halaman offline.
   if (request.mode === "navigate") {

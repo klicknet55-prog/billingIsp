@@ -49,23 +49,6 @@ function buildTabUrl(
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
-function syncUrl(
-  basePath: string,
-  paramKey: string,
-  tabId: string,
-  defaultTabId: string | undefined
-) {
-  if (typeof window === "undefined") return;
-  const url = buildTabUrl(
-    basePath,
-    paramKey,
-    tabId,
-    defaultTabId,
-    window.location.search
-  );
-  window.history.replaceState(window.history.state, "", url);
-}
-
 export function QueryTabNav({
   tabs,
   active,
@@ -78,7 +61,12 @@ export function QueryTabNav({
 }: QueryTabNavProps) {
   const router = useRouter();
   const [optimistic, setOptimistic] = useState(active);
+  const [localActive, setLocalActive] = useState(active);
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setLocalActive(active);
+  }, [active]);
 
   useEffect(() => {
     if (mode === "client") return;
@@ -87,14 +75,16 @@ export function QueryTabNav({
     }
   }, [active, pending, mode]);
 
-  const displayActive = mode === "client" ? active : optimistic;
+  const displayActive = mode === "client" ? localActive : optimistic;
 
   function selectTab(tabId: string) {
     if (tabId === displayActive && !pending) return;
 
     if (mode === "client") {
+      // State lokal dulu agar highlight tab langsung; hindari replaceState yang
+      // memicu sinkronisasi router Next.js di production (race → klik terasa 2x).
+      setLocalActive(tabId);
       onTabChange?.(tabId);
-      syncUrl(basePath, paramKey, tabId, defaultTabId);
       return;
     }
 
@@ -115,6 +105,7 @@ export function QueryTabNav({
 
   return (
     <nav
+      role="tablist"
       className={cn("relative z-10 flex flex-wrap gap-2 border-b pb-2", className)}
       aria-label="Navigasi tab"
     >
@@ -124,6 +115,8 @@ export function QueryTabNav({
           <button
             key={tab.id}
             type="button"
+            role="tab"
+            aria-selected={selected}
             aria-current={selected ? "page" : undefined}
             onClick={() => selectTab(tab.id)}
             className={cn(
@@ -131,7 +124,7 @@ export function QueryTabNav({
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
               selected
                 ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted active:bg-muted/80",
+                : "text-muted-foreground active:bg-muted/80 [@media(hover:hover)]:hover:bg-muted",
               pending && selected && mode === "navigate" && "opacity-80"
             )}
           >
