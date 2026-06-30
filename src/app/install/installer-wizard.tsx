@@ -464,13 +464,20 @@ export function InstallerWizard({ initialDatabaseUrl }: { initialDatabaseUrl: st
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="nama">Nama</Label>
-              <Input id="nama" value={adminNama} onChange={(e) => setAdminNama(e.target.value)} />
+              <Input
+                id="nama"
+                name="adminNama"
+                value={adminNama}
+                onChange={(e) => setAdminNama(e.target.value)}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="adminEmail"
                 type="email"
+                autoComplete="email"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
               />
@@ -479,7 +486,9 @@ export function InstallerWizard({ initialDatabaseUrl }: { initialDatabaseUrl: st
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="adminPassword"
                 type="password"
+                autoComplete="new-password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
                 minLength={8}
@@ -487,7 +496,14 @@ export function InstallerWizard({ initialDatabaseUrl }: { initialDatabaseUrl: st
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Telepon (opsional)</Label>
-              <Input id="phone" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} />
+              <Input
+                id="phone"
+                name="adminPhone"
+                type="tel"
+                autoComplete="tel"
+                value={adminPhone}
+                onChange={(e) => setAdminPhone(e.target.value)}
+              />
             </div>
             <div className="flex justify-between">
               <Button type="button" variant="outline" onClick={goBack}>

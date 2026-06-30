@@ -42,13 +42,14 @@ export function TemplateForm({
       ))}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-2">
-          <Label>Template</Label>
-          <div className="space-y-1">
+        <fieldset className="space-y-2 border-0 p-0">
+          <legend className="text-sm font-medium leading-none">Template</legend>
+          <div className="space-y-1 pt-2">
             {TENANT_TEMPLATE_KEYS.map((key) => (
               <button
                 key={key}
                 type="button"
+                aria-pressed={activeKey === key}
                 className={`block w-full rounded-md border px-3 py-2 text-left text-sm ${
                   activeKey === key ? "border-primary bg-primary/5" : ""
                 }`}
@@ -58,11 +59,13 @@ export function TemplateForm({
               </button>
             ))}
           </div>
-        </div>
+        </fieldset>
 
         <div className="space-y-2 lg:col-span-2">
-          <Label>{TEMPLATE_LABELS[activeKey]}</Label>
+          <Label htmlFor={`template-body-${activeKey}`}>{TEMPLATE_LABELS[activeKey]}</Label>
           <Textarea
+            id={`template-body-${activeKey}`}
+            name={`template_body_${activeKey}`}
             rows={8}
             value={values[activeKey] ?? ""}
             onChange={(e) => setValues((prev) => ({ ...prev, [activeKey]: e.target.value }))}
@@ -76,8 +79,11 @@ export function TemplateForm({
             }
           />
           <div>
-            <Label>Preview</Label>
-            <pre className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="text-sm font-medium leading-none">Preview</p>
+            <pre
+              id="template-preview"
+              className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm"
+            >
               {preview}
             </pre>
           </div>

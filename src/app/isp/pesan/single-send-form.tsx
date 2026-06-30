@@ -65,6 +65,9 @@ export function SingleSendForm({ pelanggan }: { pelanggan: PelangganRow[] }) {
         <Label htmlFor="search">Cari pelanggan</Label>
         <input
           id="search"
+          name="search"
+          type="search"
+          autoComplete="off"
           className="h-9 w-full rounded-md border px-3 text-sm"
           placeholder="Nama, WA, alamat…"
           value={search}
@@ -76,6 +79,7 @@ export function SingleSendForm({ pelanggan }: { pelanggan: PelangganRow[] }) {
         <Label htmlFor="pelangganId">Pelanggan</Label>
         <Select
           id="pelangganId"
+          name="pelangganIdUi"
           value={pelangganId}
           onChange={(e) => setPelangganId(e.target.value)}
         >
@@ -89,11 +93,12 @@ export function SingleSendForm({ pelanggan }: { pelanggan: PelangganRow[] }) {
         </Select>
       </div>
 
-      <div className="space-y-2">
-        <Label>Tipe pesan</Label>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <label className="flex items-center gap-2">
+      <fieldset className="space-y-2 border-0 p-0">
+        <legend className="text-sm font-medium leading-none">Tipe pesan</legend>
+        <div className="flex flex-wrap gap-4 pt-2 text-sm">
+          <label className="flex items-center gap-2" htmlFor="messageTypeInvoice">
             <input
+              id="messageTypeInvoice"
               type="radio"
               name="messageTypeUi"
               checked={messageType === "invoice"}
@@ -101,8 +106,9 @@ export function SingleSendForm({ pelanggan }: { pelanggan: PelangganRow[] }) {
             />
             Tagihan / link bayar
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2" htmlFor="messageTypeCustom">
             <input
+              id="messageTypeCustom"
               type="radio"
               name="messageTypeUi"
               checked={messageType === "custom"}
@@ -111,7 +117,7 @@ export function SingleSendForm({ pelanggan }: { pelanggan: PelangganRow[] }) {
             Custom
           </label>
         </div>
-      </div>
+      </fieldset>
 
       {messageType === "custom" && (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -119,6 +125,7 @@ export function SingleSendForm({ pelanggan }: { pelanggan: PelangganRow[] }) {
             <Label htmlFor="customBody">Isi pesan</Label>
             <Textarea
               id="customBody"
+              name="customBodyUi"
               rows={6}
               value={customBody}
               onChange={(e) => setCustomBody(e.target.value)}
@@ -133,8 +140,13 @@ export function SingleSendForm({ pelanggan }: { pelanggan: PelangganRow[] }) {
 
       {preview && (
         <div className="space-y-1">
-          <Label>Preview</Label>
-          <pre className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">{preview}</pre>
+          <p className="text-sm font-medium leading-none">Preview</p>
+          <pre
+            id="single-send-preview"
+            className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm"
+          >
+            {preview}
+          </pre>
         </div>
       )}
 

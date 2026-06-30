@@ -113,29 +113,41 @@ export function BulkSendForm({
         <input type="hidden" name="customBody" value={customBody} />
         {onlyUnpaid && <input type="hidden" name="onlyUnpaid" value="on" />}
 
-        <div className="flex flex-wrap gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={mode === "pick"}
-              onChange={() => setMode("pick")}
-            />
-            Pilih pelanggan
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={mode === "router"}
-              onChange={() => setMode("router")}
-            />
-            By router
-          </label>
-        </div>
+        <fieldset className="border-0 p-0">
+          <legend className="sr-only">Mode penerima</legend>
+          <div className="flex flex-wrap gap-4 text-sm">
+            <label className="flex items-center gap-2" htmlFor="bulkModePick">
+              <input
+                id="bulkModePick"
+                type="radio"
+                name="bulkRecipientMode"
+                checked={mode === "pick"}
+                onChange={() => setMode("pick")}
+              />
+              Pilih pelanggan
+            </label>
+            <label className="flex items-center gap-2" htmlFor="bulkModeRouter">
+              <input
+                id="bulkModeRouter"
+                type="radio"
+                name="bulkRecipientMode"
+                checked={mode === "router"}
+                onChange={() => setMode("router")}
+              />
+              By router
+            </label>
+          </div>
+        </fieldset>
 
         {mode === "router" && (
           <div className="space-y-2">
-            <Label>Router</Label>
-            <Select value={routerId} onChange={(e) => setRouterId(e.target.value)}>
+            <Label htmlFor="bulkRouterId">Router</Label>
+            <Select
+              id="bulkRouterId"
+              name="bulkRouterId"
+              value={routerId}
+              onChange={(e) => setRouterId(e.target.value)}
+            >
               <option value="">— Pilih router —</option>
               {routers.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -148,8 +160,12 @@ export function BulkSendForm({
 
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-[200px] flex-1 space-y-2">
-            <Label>Cari</Label>
+            <Label htmlFor="bulkSearch">Cari</Label>
             <input
+              id="bulkSearch"
+              name="bulkSearch"
+              type="search"
+              autoComplete="off"
               className="h-9 w-full rounded-md border px-3 text-sm"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -179,7 +195,10 @@ export function BulkSendForm({
                 <tr key={p.id} className="border-t">
                   <td className="p-2">
                     <input
+                      id={`bulk-pick-${p.id}`}
+                      name={`bulk-pick-${p.id}`}
                       type="checkbox"
+                      aria-label={`Pilih ${p.nama}`}
                       checked={Boolean(selected[p.id])}
                       onChange={(e) =>
                         setSelected((prev) => ({ ...prev, [p.id]: e.target.checked }))
@@ -197,8 +216,10 @@ export function BulkSendForm({
 
         <Badge variant="secondary">{selectedIds.length} pelanggan dipilih</Badge>
 
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex items-center gap-2 text-sm" htmlFor="bulkOnlyUnpaid">
           <input
+            id="bulkOnlyUnpaid"
+            name="onlyUnpaidUi"
             type="checkbox"
             checked={onlyUnpaid}
             onChange={(e) => setOnlyUnpaid(e.target.checked)}
@@ -206,33 +227,45 @@ export function BulkSendForm({
           Hanya yang punya tagihan belum lunas
         </label>
 
-        <div className="flex flex-wrap gap-4 text-sm">
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={messageType === "invoice"}
-              onChange={() => setMessageType("invoice")}
-            />
-            Tagihan / link bayar
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={messageType === "custom"}
-              onChange={() => setMessageType("custom")}
-            />
-            Custom
-          </label>
-        </div>
+        <fieldset className="border-0 p-0">
+          <legend className="text-sm font-medium leading-none">Tipe pesan</legend>
+          <div className="flex flex-wrap gap-4 pt-2 text-sm">
+            <label className="flex items-center gap-2" htmlFor="bulkMessageTypeInvoice">
+              <input
+                id="bulkMessageTypeInvoice"
+                type="radio"
+                name="bulkMessageTypeUi"
+                checked={messageType === "invoice"}
+                onChange={() => setMessageType("invoice")}
+              />
+              Tagihan / link bayar
+            </label>
+            <label className="flex items-center gap-2" htmlFor="bulkMessageTypeCustom">
+              <input
+                id="bulkMessageTypeCustom"
+                type="radio"
+                name="bulkMessageTypeUi"
+                checked={messageType === "custom"}
+                onChange={() => setMessageType("custom")}
+              />
+              Custom
+            </label>
+          </div>
+        </fieldset>
 
         {messageType === "custom" && (
           <div className="grid gap-4 lg:grid-cols-2">
-            <Textarea
-              rows={5}
-              value={customBody}
-              onChange={(e) => setCustomBody(e.target.value)}
-              placeholder="Pesan custom dengan placeholder"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="bulkCustomBody">Isi pesan custom</Label>
+              <Textarea
+                id="bulkCustomBody"
+                name="bulkCustomBody"
+                rows={5}
+                value={customBody}
+                onChange={(e) => setCustomBody(e.target.value)}
+                placeholder="Pesan custom dengan placeholder"
+              />
+            </div>
             <PlaceholderList
               onInsert={(token) => setCustomBody((prev) => `${prev}${prev ? " " : ""}${token}`)}
             />
@@ -241,8 +274,11 @@ export function BulkSendForm({
 
         {preview && selectedIds.length > 0 && (
           <div>
-            <Label>Preview (contoh pelanggan pertama)</Label>
-            <pre className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
+            <p className="text-sm font-medium leading-none">Preview (contoh pelanggan pertama)</p>
+            <pre
+              id="bulk-send-preview"
+              className="mt-1 whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm"
+            >
               {preview}
             </pre>
           </div>
