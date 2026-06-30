@@ -18,6 +18,7 @@ import {
 import { formatTagihanPeriode } from "@/features/messages/context";
 import { requireUser } from "@/lib/auth";
 import { formatDate, formatRupiah } from "@/lib/utils";
+import { TagihanFilterTabs } from "./tagihan-filter-tabs";
 
 const STATUS_LABEL: Record<TagihanPelangganStatus, string> = {
   open: "Bulan ini",
@@ -54,9 +55,6 @@ export default async function TagihanPelangganPage({
     return r.status === "open" || r.status === "tunggakan" || r.isIsolated;
   });
 
-  const filterLink = (value: string) =>
-    value === "belum-lunas" ? "/dashboard/tagihan" : `/dashboard/tagihan?filter=${value}`;
-
   return (
     <>
       <PageHeader
@@ -70,17 +68,7 @@ export default async function TagihanPelangganPage({
         </Card>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Button asChild variant={filter === "belum-lunas" ? "default" : "outline"} size="sm">
-          <Link href={filterLink("belum-lunas")}>Belum lunas</Link>
-        </Button>
-        <Button asChild variant={filter === "tunggakan" ? "default" : "outline"} size="sm">
-          <Link href={filterLink("tunggakan")}>Tunggakan</Link>
-        </Button>
-        <Button asChild variant={filter === "semua" ? "default" : "outline"} size="sm">
-          <Link href={filterLink("semua")}>Semua</Link>
-        </Button>
-      </div>
+      <TagihanFilterTabs active={filter} />
 
       <Card>
         <CardContent className="p-0">

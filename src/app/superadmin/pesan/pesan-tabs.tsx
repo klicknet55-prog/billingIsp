@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { QueryTabNav } from "@/components/ui/query-tab-nav";
 
 const TABS = [
   { id: "tunggal", label: "Kirim Tunggal" },
@@ -12,21 +11,12 @@ const TABS = [
 
 export function SuperadminPesanTabs({ active }: { active: string }) {
   return (
-    <nav className="flex flex-wrap gap-2 border-b pb-2">
-      {TABS.map((tab) => (
-        <Link
-          key={tab.id}
-          href={`/superadmin/pesan?tab=${tab.id}`}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            active === tab.id
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted"
-          )}
-        >
-          {tab.label}
-        </Link>
-      ))}
-    </nav>
+    <QueryTabNav
+      tabs={TABS}
+      active={active}
+      basePath="/superadmin/pesan"
+      paramKey="tab"
+      defaultTabId="tunggal"
+    />
   );
 }
