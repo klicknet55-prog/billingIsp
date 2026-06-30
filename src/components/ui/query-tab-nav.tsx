@@ -16,9 +16,15 @@ type QueryTabNavProps = {
   basePath: string;
   /** Nama query param — default `tab` */
   paramKey?: string;
-  /** Nilai tab default: param dihapus dari URL (mis. filter=belum-lunas) */
+  /** Nilai tab default: param dihapus dari URL */
   defaultTabId?: string;
   className?: string;
+  /**
+   * client = ganti tab instan tanpa reload server (disarankan jika data sudah di-load).
+   * navigate = soft navigation + refresh RSC.
+   */
+  mode?: "client" | "navigate";
+  onTabChange?: (tabId: string) => void;
 };
 
 function buildTabUrl(
@@ -43,6 +49,23 @@ function buildTabUrl(
   return qs ? `${basePath}?${qs}` : basePath;
 }
 
+function syncUrl(
+  basePath: string,
+  paramKey: string,
+  tabId: string,
+  defaultTabId: string | undefined
+) {
+  if (typeof window === "undefined") return;
+  const url = buildTabUrl(
+    basePath,
+    paramKey,
+    tabId,
+    defaultTabId,
+    window.location.search
+  );
+  window.history.replaceState(window.history.state, "", url);
+}
+
 export function QueryTabNav({
   tabs,
   active,
@@ -50,17 +73,30 @@ export function QueryTabNav({
   paramKey = "tab",
   defaultTabId,
   className,
+  mode = "navigate",
+  onTabChange,
 }: QueryTabNavProps) {
   const router = useRouter();
   const [optimistic, setOptimistic] = useState(active);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    setOptimistic(active);
-  }, [active]);
+    if (mode === "client") return;
+    if (!pending) {
+      setOptimistic(active);
+    }
+  }, [active, pending, mode]);
+
+  const displayActive = mode === "client" ? active : optimistic;
 
   function selectTab(tabId: string) {
-    if (tabId === optimistic && !pending) return;
+    if (tabId === displayActive && !pending) return;
+
+    if (mode === "client") {
+      onTabChange?.(tabId);
+      syncUrl(basePath, paramKey, tabId, defaultTabId);
+      return;
+    }
 
     setOptimistic(tabId);
     const url = buildTabUrl(
@@ -72,7 +108,8 @@ export function QueryTabNav({
     );
 
     startTransition(() => {
-      router.replace(url, { scroll: false });
+      router.push(url, { scroll: false });
+      router.refresh();
     });
   }
 
@@ -82,7 +119,7 @@ export function QueryTabNav({
       aria-label="Navigasi tab"
     >
       {tabs.map((tab) => {
-        const selected = optimistic === tab.id;
+        const selected = displayActive === tab.id;
         return (
           <button
             key={tab.id}
@@ -95,7 +132,7 @@ export function QueryTabNav({
               selected
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted active:bg-muted/80",
-              pending && selected && "opacity-80"
+              pending && selected && mode === "navigate" && "opacity-80"
             )}
           >
             {tab.label}
