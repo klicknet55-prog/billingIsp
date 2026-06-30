@@ -3,7 +3,10 @@ import { and, asc, eq, ne } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { odp, pelanggan, routers, type Odp } from "@/lib/db/schema";
 import { newId } from "@/lib/utils";
-import { kapasitasFromSplitterPasif } from "./utils";
+import { kapasitasFromSplitterPasif, normalizeOdpPort, odpPortLabels } from "./utils";
+import type { OdpFormOption } from "./types";
+
+export type { OdpFormOption } from "./types";
 
 export interface OdpRow extends Odp {
   portTerpakai: number;
@@ -93,6 +96,41 @@ export async function listOdpOptions(tenantId: string, excludeId?: string) {
     orderBy: [asc(odp.kode)],
   });
   return excludeId ? rows.filter((r) => r.id !== excludeId) : rows;
+}
+
+/** ODP + daftar port yang sudah dipakai (untuk form pelanggan). */
+export async function listOdpFormOptions(
+  tenantId: string,
+  excludePelangganId?: string
+): Promise<OdpFormOption[]> {
+  const [odpRows, pelangganRows] = await Promise.all([
+    db.query.odp.findMany({
+      where: eq(odp.tenantId, tenantId),
+      columns: { id: true, kode: true, nama: true, kapasitasPort: true, isActive: true },
+      orderBy: [asc(odp.kode)],
+    }),
+    db.query.pelanggan.findMany({
+      where: eq(pelanggan.tenantId, tenantId),
+      columns: { id: true, odpId: true, odpPort: true },
+    }),
+  ]);
+
+  const usedByOdp = new Map<string, string[]>();
+  for (const row of pelangganRows) {
+    if (!row.odpId || !row.odpPort?.trim()) continue;
+    if (excludePelangganId && row.id === excludePelangganId) continue;
+    const ports = usedByOdp.get(row.odpId) ?? [];
+    ports.push(normalizeOdpPort(row.odpPort));
+    usedByOdp.set(row.odpId, ports);
+  }
+
+  return odpRows.map((row) => ({
+    id: row.id,
+    kode: row.kode,
+    nama: row.nama,
+    kapasitasPort: row.kapasitasPort,
+    usedPorts: usedByOdp.get(row.id) ?? [],
+  }));
 }
 
 export async function getOdp(tenantId: string, id: string) {
@@ -288,6 +326,44 @@ export async function assertPelangganOdpCapacity(
   const used = await countPortTerpakai(tenantId, odpId, excludePelangganId);
   if (used >= row.kapasitasPort) {
     throw new Error(`Kapasitas ODP ${row.kode} penuh (${used}/${row.kapasitasPort}).`);
+  }
+}
+
+/** Validasi nomor port ODP unik dan masih tersedia. */
+export async function assertPelangganOdpPort(
+  tenantId: string,
+  odpId: string | null | undefined,
+  odpPort: string | null | undefined,
+  excludePelangganId?: string
+) {
+  if (!odpId) return;
+
+  const row = await db.query.odp.findFirst({
+    where: and(eq(odp.tenantId, tenantId), eq(odp.id, odpId)),
+  });
+  if (!row) throw new Error("ODP tidak ditemukan.");
+
+  const port = odpPort?.trim();
+  if (!port) {
+    throw new Error("Pilih port ODP.");
+  }
+
+  const normalized = normalizeOdpPort(port);
+  const validLabels = odpPortLabels(row.kapasitasPort);
+  if (!validLabels.includes(normalized)) {
+    throw new Error(`Port ${normalized} tidak valid untuk ODP ${row.kode}.`);
+  }
+
+  const assigned = await db.query.pelanggan.findMany({
+    where: and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.odpId, odpId)),
+    columns: { id: true, odpPort: true },
+  });
+
+  for (const p of assigned) {
+    if (excludePelangganId && p.id === excludePelangganId) continue;
+    if (p.odpPort && normalizeOdpPort(p.odpPort) === normalized) {
+      throw new Error(`Port ${normalized} sudah dipakai di ODP ${row.kode}.`);
+    }
   }
 }
 

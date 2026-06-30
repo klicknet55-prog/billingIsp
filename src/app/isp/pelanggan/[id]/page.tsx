@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { updatePelangganAction } from "@/features/customers/actions";
 import { PelangganFields } from "@/features/customers/components/pelanggan-fields";
 import { getPelanggan } from "@/features/customers/service";
-import { listOdpOptions } from "@/features/odp/service";
+import { listOdpFormOptions } from "@/features/odp/service";
 import { listPaket } from "@/features/packages/service";
 import { listRouters } from "@/features/routers/service";
 import { requireUser } from "@/lib/auth";
@@ -27,7 +27,7 @@ export default async function EditPelangganPage({
     getPelanggan(tenantId, id),
     listPaket(tenantId),
     listRouters(tenantId),
-    listOdpOptions(tenantId),
+    listOdpFormOptions(tenantId, id),
   ]);
   if (!cust) notFound();
 

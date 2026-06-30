@@ -41,6 +41,12 @@ export default async function RouterPage({
     ? `${quota.totalRouter}/${quota.maxRouter ?? "∞"}`
     : `${rows.length}/-`;
 
+  const errorLower = error.toLowerCase();
+  const showPelangganLink =
+    routerId && (errorLower.includes("pelanggan") || errorLower.includes("data lain"));
+  const showOdpLink = errorLower.includes("odp") || errorLower.includes("sumber input");
+  const showPaketLink = errorLower.includes("paket");
+
   return (
     <>
       <PageHeader
@@ -68,15 +74,27 @@ export default async function RouterPage({
       )}
       {error && (
         <Card className="mb-4 border-destructive/30 bg-destructive/5">
-          <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-3 text-sm">
             <span className="text-destructive">{error}</span>
-            {routerId && (
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/dashboard/pelanggan?routerId=${encodeURIComponent(routerId)}`}>
-                  Lihat Pelanggan Terkait
-                </Link>
-              </Button>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {showPelangganLink && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/dashboard/pelanggan?routerId=${encodeURIComponent(routerId)}`}>
+                    Lihat Pelanggan Terkait
+                  </Link>
+                </Button>
+              )}
+              {showOdpLink && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/dashboard/peta?tab=odp">Lihat ODP di Peta</Link>
+                </Button>
+              )}
+              {showPaketLink && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/dashboard/paket">Lihat Paket Internet</Link>
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

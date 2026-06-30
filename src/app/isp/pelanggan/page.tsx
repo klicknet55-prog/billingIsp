@@ -17,7 +17,7 @@ import { PelangganCreateDialog } from "@/features/customers/components/pelanggan
 import { PelangganImportDialog } from "@/features/customers/components/pelanggan-import-dialog";
 import { PelangganDeleteDialog } from "@/features/customers/components/pelanggan-delete-dialog";
 import { listPelanggan } from "@/features/customers/service";
-import { listOdpOptions } from "@/features/odp/service";
+import { listOdpFormOptions } from "@/features/odp/service";
 import { listPaket } from "@/features/packages/service";
 import { listRouters } from "@/features/routers/service";
 import { getTenantQuotaSnapshot } from "@/features/tenants/service";
@@ -41,7 +41,7 @@ export default async function PelangganPage({
     listPaket(tenantId),
     listRouters(tenantId),
     getTenantQuotaSnapshot(tenantId),
-    listOdpOptions(tenantId),
+    listOdpFormOptions(tenantId),
   ]);
   const maps = getMapsClient();
   const pelangganQuotaText = quota

@@ -27,7 +27,8 @@ import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { newId } from "@/lib/utils";
 import { computeInitialDueDate } from "@/features/jobs/due-date";
 import { routerToCredentials } from "@/features/routers/service";
-import { assertPelangganOdpCapacity } from "@/features/odp/service";
+import { assertPelangganOdpCapacity, assertPelangganOdpPort } from "@/features/odp/service";
+import { normalizeOdpPort } from "@/features/odp/utils";
 
 const log = createLogger("customers");
 
@@ -228,6 +229,7 @@ export async function createPelanggan(
   }
 
   await assertPelangganOdpCapacity(tenantId, aligned.odpId);
+  await assertPelangganOdpPort(tenantId, aligned.odpId, aligned.odpPort);
 
   const tglDaftar = aligned.tglDaftar ?? new Date();
   const tglJatuhTempo = aligned.tglJatuhTempo ?? computeInitialDueDate(tglDaftar);
@@ -248,7 +250,10 @@ export async function createPelanggan(
     paketInternetId: aligned.paketInternetId || null,
     routerId: aligned.routerId || null,
     odpId: aligned.odpId || null,
-    odpPort: aligned.odpPort?.trim() || null,
+    odpPort:
+      aligned.odpId && aligned.odpPort?.trim()
+        ? normalizeOdpPort(aligned.odpPort)
+        : null,
     tglDaftar,
     tglJatuhTempo,
     createdBy,
@@ -283,6 +288,7 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
   const aligned = await alignConnectionTypeWithPaket(tenantId, input);
   await assertPaketMatchesRouter(tenantId, aligned);
   await assertPelangganOdpCapacity(tenantId, aligned.odpId, id);
+  await assertPelangganOdpPort(tenantId, aligned.odpId, aligned.odpPort, id);
   await syncCustomerConnection(tenantId, aligned, aligned.nama);
   const tglDaftar = aligned.tglDaftar ?? undefined;
   const tglJatuhTempo =
@@ -303,7 +309,10 @@ export async function updatePelanggan(tenantId: string, id: string, input: Pelan
       paketInternetId: aligned.paketInternetId || null,
       routerId: aligned.routerId || null,
       odpId: aligned.odpId || null,
-      odpPort: aligned.odpPort?.trim() || null,
+      odpPort:
+        aligned.odpId && aligned.odpPort?.trim()
+          ? normalizeOdpPort(aligned.odpPort)
+          : null,
       ...(tglDaftar ? { tglDaftar } : {}),
       ...(tglJatuhTempo ? { tglJatuhTempo } : {}),
     })

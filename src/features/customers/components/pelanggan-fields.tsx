@@ -5,6 +5,8 @@ import { MapPinPicker } from "@/components/maps/map-pin-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { availableOdpPorts, normalizeOdpPort } from "@/features/odp/utils";
+import type { OdpFormOption } from "@/features/odp/types";
 import type { Pelanggan } from "@/lib/db/schema";
 
 interface RouterOption {
@@ -17,13 +19,6 @@ interface PaketOption {
   label: string;
   routerId: string | null;
   tipe: "pppoe" | "hotspot";
-}
-
-interface OdpOption {
-  id: string;
-  kode: string;
-  nama: string | null;
-  kapasitasPort: number;
 }
 
 function dateValue(d: Date | null | undefined): string {
@@ -40,10 +35,14 @@ export function PelangganFields({
   defaults?: Pelanggan;
   paketOptions: PaketOption[];
   routerOptions: RouterOption[];
-  odpOptions?: OdpOption[];
+  odpOptions?: OdpFormOption[];
 }) {
   const [routerId, setRouterId] = useState(defaults?.routerId ?? "");
   const [paketId, setPaketId] = useState(defaults?.paketInternetId ?? "");
+  const [odpId, setOdpId] = useState(defaults?.odpId ?? "");
+  const [odpPort, setOdpPort] = useState(
+    defaults?.odpPort ? normalizeOdpPort(defaults.odpPort) : ""
+  );
 
   const filteredPakets = useMemo(
     () => (routerId ? paketOptions.filter((p) => p.routerId === routerId) : []),
@@ -55,6 +54,16 @@ export function PelangganFields({
   const selectedPaket = filteredPakets.find((p) => p.id === effectivePaketId);
   const connectionType = selectedPaket?.tipe ?? defaults?.connectionType ?? "pppoe";
 
+  const selectedOdp = odpOptions.find((o) => o.id === odpId);
+  const availablePorts = useMemo(() => {
+    if (!selectedOdp) return [];
+    const keepPort =
+      defaults?.odpId === odpId && defaults.odpPort
+        ? normalizeOdpPort(defaults.odpPort)
+        : odpPort || null;
+    return availableOdpPorts(selectedOdp.kapasitasPort, selectedOdp.usedPorts, keepPort);
+  }, [selectedOdp, odpId, odpPort, defaults?.odpId, defaults?.odpPort]);
+
   function onRouterChange(nextRouterId: string) {
     setRouterId(nextRouterId);
     const nextPakets = nextRouterId
@@ -63,6 +72,11 @@ export function PelangganFields({
     if (paketId && !nextPakets.some((p) => p.id === paketId)) {
       setPaketId("");
     }
+  }
+
+  function onOdpChange(nextOdpId: string) {
+    setOdpId(nextOdpId);
+    setOdpPort("");
   }
 
   return (
@@ -148,24 +162,52 @@ export function PelangganFields({
       </div>
       <div className="space-y-2">
         <Label htmlFor="odpId">ODP</Label>
-        <Select id="odpId" name="odpId" defaultValue={defaults?.odpId ?? ""}>
+        <Select
+          id="odpId"
+          name="odpId"
+          value={odpId}
+          onChange={(e) => onOdpChange(e.target.value)}
+        >
           <option value="">- Tanpa ODP -</option>
-          {odpOptions.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.kode}
-              {o.nama ? ` — ${o.nama}` : ""} (max {o.kapasitasPort} port)
-            </option>
-          ))}
+          {odpOptions.map((o) => {
+            const sisa = availableOdpPorts(o.kapasitasPort, o.usedPorts).length;
+            return (
+              <option key={o.id} value={o.id}>
+                {o.kode}
+                {o.nama ? ` — ${o.nama}` : ""} ({sisa} port tersisa)
+              </option>
+            );
+          })}
         </Select>
       </div>
       <div className="space-y-2">
         <Label htmlFor="odpPort">Port ODP</Label>
-        <Input
+        <Select
           id="odpPort"
           name="odpPort"
-          defaultValue={defaults?.odpPort ?? ""}
-          placeholder="P3"
-        />
+          value={odpPort}
+          disabled={!odpId}
+          required={!!odpId && availablePorts.length > 0}
+          onChange={(e) => setOdpPort(e.target.value)}
+        >
+          <option value="">
+            {!odpId
+              ? "Pilih ODP terlebih dahulu"
+              : availablePorts.length === 0
+                ? "Tidak ada port tersisa"
+                : "- Pilih port -"}
+          </option>
+          {availablePorts.map((port) => (
+            <option key={port} value={port}>
+              {port}
+            </option>
+          ))}
+        </Select>
+        {odpId && selectedOdp && (
+          <p className="text-xs text-muted-foreground">
+            {availablePorts.length} dari {selectedOdp.kapasitasPort} port tersedia.
+          </p>
+        )}
       </div>
       <MapPinPicker
         latitude={defaults?.latitude}

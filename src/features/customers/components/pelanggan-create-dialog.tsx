@@ -18,12 +18,7 @@ interface PaketOption {
   tipe: "pppoe" | "hotspot";
 }
 
-interface OdpOption {
-  id: string;
-  kode: string;
-  nama: string | null;
-  kapasitasPort: number;
-}
+import type { OdpFormOption } from "@/features/odp/types";
 
 export function PelangganCreateDialog({
   paketOptions,
@@ -32,7 +27,7 @@ export function PelangganCreateDialog({
 }: {
   paketOptions: PaketOption[];
   routerOptions: RouterOption[];
-  odpOptions: OdpOption[];
+  odpOptions: OdpFormOption[];
 }) {
   return (
     <Dialog

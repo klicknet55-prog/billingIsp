@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { paketInternet, packageTenants, pelanggan, routers, subscriptions, type Router } from "@/lib/db/schema";
+import { paketInternet, packageTenants, pelanggan, odp, routers, subscriptions, type Router } from "@/lib/db/schema";
 import { getMikrotikClient } from "@/lib/integrations/mikrotik";
 import type { RouterCredentials } from "@/lib/integrations/mikrotik/types";
 import { newId } from "@/lib/utils";
@@ -171,7 +171,26 @@ export async function deleteRouter(tenantId: string, id: string) {
       `Router masih dipakai oleh ${usedByPaket} paket internet. Ubah/hapus paket terkait terlebih dahulu.`
     );
   }
-  await db.delete(routers).where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));
+  const usedByOdp = await db.$count(
+    odp,
+    and(eq(odp.tenantId, tenantId), eq(odp.inputRouterId, id))
+  );
+  if (usedByOdp > 0) {
+    throw new Error(
+      `Router masih jadi sumber input ${usedByOdp} ODP. Ubah sumber input ODP di Peta terlebih dahulu.`
+    );
+  }
+  try {
+    await db.delete(routers).where(and(eq(routers.tenantId, tenantId), eq(routers.id, id)));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/foreign\s*key/i.test(msg)) {
+      throw new Error(
+        "Router masih dipakai data lain. Periksa pelanggan, paket internet, atau ODP terkait."
+      );
+    }
+    throw err;
+  }
 }
 
 /** Cek status router via Mikrotik lalu simpan ke DB. */
