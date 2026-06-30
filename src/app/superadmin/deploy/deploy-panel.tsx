@@ -221,8 +221,9 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
           <h3 className="font-semibold">Jalankan update aplikasi</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Proses: backup DB → git pull → npm ci → patch schema → build → restart PM2. Aplikasi
-          akan offline singkat saat restart (±30 detik).
+          Proses: backup DB → git pull → npm ci → patch/migrasi schema (SQLite atau
+          PostgreSQL) → build → restart PM2. Aplikasi akan offline singkat saat restart
+          (±30 detik).
         </p>
         <div className="space-y-2">
           <Label htmlFor="confirm">Ketik DEPLOY untuk konfirmasi</Label>

@@ -225,7 +225,7 @@ export async function isDeployRunning(): Promise<boolean> {
 
 export async function startDeployProcess(triggeredBy: string): Promise<void> {
   const script = path.join(process.cwd(), "scripts", "deploy-app.ts");
-  const child = spawn(process.execPath, ["--import", "tsx", script], {
+  const child = spawn(process.execPath, ["--env-file=.env", "--import", "tsx", script], {
     cwd: process.cwd(),
     detached: true,
     stdio: "ignore",

@@ -11,7 +11,8 @@ import { execSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, unlink, writeFile, appendFile, access } from "node:fs/promises";
 import path from "node:path";
 import { compareWithRemote, resolveDeployBranch, runGit } from "../src/features/platform-deploy/git-update";
-import { isPostgresDeployEnv, runPgDump } from "../src/lib/db/pg-backup";
+import { isPostgresDriver } from "../src/lib/db/driver";
+import { runPgDump } from "../src/lib/db/pg-backup";
 
 const ROOT = process.cwd();
 const DEPLOY_DIR = path.join(ROOT, "data", "deploy");
@@ -196,7 +197,7 @@ async function main() {
     await mkdir(backupDir, { recursive: true });
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 
-    if (isPostgresDeployEnv()) {
+    if (isPostgresDriver()) {
       const backupPath = path.join(backupDir, `pre-deploy-${stamp}.sql`);
       try {
         runPgDump(backupPath);
@@ -260,8 +261,7 @@ async function main() {
     await log("npm ci selesai");
 
     await setStep(state, "db_ensure_schema", "running");
-    const dbDriver = process.env.DATABASE_DRIVER?.trim().toLowerCase();
-    if (dbDriver === "postgres" || dbDriver === "postgresql") {
+    if (isPostgresDriver()) {
       run("npm run db:migrate:pg");
       await log("db:migrate:pg selesai (PostgreSQL)");
     } else {

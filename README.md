@@ -250,14 +250,36 @@ HTTPS: `sudo certbot --nginx -d isp.tunnelhost.my.id`
 
 ### 6. Update rutin setelah `git push`
 
+**SQLite** (server production lama, `isp.tunnelhost.my.id`):
+
 ```bash
 cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
 git pull origin netmanage-implementation
-npm ci
+npm ci --include=dev
 npm run db:ensure-schema
 npm run build
-pm2 restart billingisp
+pm2 restart billingisp --update-env
 ```
+
+**PostgreSQL** (server baru, `billisp.tunnelhost.my.id`):
+
+```bash
+cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+git pull origin netmanage-implementation
+npm ci --include=dev
+npm run db:migrate:pg
+npm run build
+pm2 restart billisp --update-env
+```
+
+Atau gunakan **Superadmin → Update Aplikasi** (`DEPLOY_ENABLED=true`) — alur sama: backup DB → pull → `npm ci --include=dev` → schema (`ensure-schema` / `db:migrate:pg` sesuai `DATABASE_DRIVER`) → build → restart PM2.
+
+Pastikan di `.env`:
+
+| Server | `DATABASE_DRIVER` | `DEPLOY_PM2_APP` |
+|--------|-------------------|------------------|
+| SQLite (isp) | `sqlite` atau kosong | `billingisp` |
+| PostgreSQL (billisp) | `postgres` | `billisp` |
 
 ### 6b. Checklist verifikasi deploy
 
@@ -288,7 +310,7 @@ Ringkas:
 | Topik | Keterangan |
 |-------|------------|
 | **Jaringan Mikrotik** | Server production harus bisa menjangkau IP/router (VPN/LAN). |
-| **Database** | SQLite (`netmanage.db`) — backup file secara berkala. |
+| **Database** | SQLite: backup file `netmanage.db`. PostgreSQL: `pg_dump` + `npm run db:migrate:pg` saat deploy. |
 | **PM2 reboot** | Wajib `pm2 startup` (sudo) + `pm2 save`; jalankan PM2 sebagai user pemilik repo, bukan root. |
 | **Cron** | Wajib di production — lihat [Pasang Cron (Background Worker)](#pasang-cron-background-worker). |
 | **Duitku** | `DUITKU_CALLBACK_URL` harus URL publik server, bukan localhost. |

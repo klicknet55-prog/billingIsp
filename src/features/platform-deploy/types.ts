@@ -42,7 +42,7 @@ const STEP_LABELS: Record<string, string> = {
   backup_database: "Backup database",
   git_pull: "Git pull",
   npm_ci: "npm ci",
-  db_ensure_schema: "Patch schema DB",
+  db_ensure_schema: "Patch / migrasi schema DB",
   npm_build: "Build production",
   pm2_restart: "Restart PM2",
 };

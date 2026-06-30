@@ -1,15 +1,14 @@
 import { execSync } from "node:child_process";
+import { isPostgresDriver } from "./driver";
 
 export function isPostgresDatabaseUrl(url?: string | null): boolean {
   const u = (url ?? process.env.DATABASE_URL ?? "").trim();
   return u.startsWith("postgresql://") || u.startsWith("postgres://");
 }
 
-/** Deteksi Postgres dari DATABASE_DRIVER atau bentuk DATABASE_URL. */
+/** Sumber tunggal: DATABASE_DRIVER=postgres (bukan hanya bentuk DATABASE_URL). */
 export function isPostgresDeployEnv(): boolean {
-  const driver = process.env.DATABASE_DRIVER?.trim().toLowerCase();
-  if (driver === "postgres" || driver === "postgresql") return true;
-  return isPostgresDatabaseUrl();
+  return isPostgresDriver();
 }
 
 /**
