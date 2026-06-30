@@ -17,6 +17,9 @@ import { setIsolasi } from "@/features/customers/service";
 import { emitWebhookEvent } from "@/features/webhooks/dispatch";
 import { FIRST_INVOICE_DAYS, shouldGenerateInvoice } from "@/features/jobs/billing";
 import { newId } from "@/lib/utils";
+import type { TagihanPelangganRow, TagihanPelangganStatus } from "./tagihan-types";
+
+export type { TagihanPelangganRow, TagihanPelangganStatus } from "./tagihan-types";
 
 export type PaymentSelection = "bulan_ini" | "tunggakan" | "keduanya";
 
@@ -27,28 +30,6 @@ export interface TagihanSummary {
   hasBulanIni: boolean;
   activePeriode: string;
   activeDueDate: Date;
-}
-
-export type TagihanPelangganStatus =
-  | "open"
-  | "tunggakan"
-  | "not_due"
-  | "clear";
-
-export interface TagihanPelangganRow {
-  pelangganId: string;
-  nama: string;
-  noWa: string;
-  paketNama: string | null;
-  tglJatuhTempo: Date | null;
-  activePeriode: string;
-  activeDueDate: Date;
-  bulanIni: typeof tagihan.$inferSelect | null;
-  tunggakanTotal: number;
-  tunggakanCount: number;
-  status: TagihanPelangganStatus;
-  isIsolated: boolean;
-  canCatatNunggak: boolean;
 }
 
 export async function getTagihanForPelanggan(tenantId: string, pelangganId: string) {

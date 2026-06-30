@@ -11,18 +11,14 @@ import {
   users,
 } from "@/lib/db/schema";
 import { getTagihanSummary } from "@/features/billing/tagihan-service";
+import { formatTagihanPeriode } from "@/features/billing/format-periode";
 import { portalPayLink } from "@/features/jobs/billing";
-import { formatBillingPeriod, formatDate, formatRupiah } from "@/lib/utils";
+import { formatDate, formatRupiah } from "@/lib/utils";
 import { getTenantSubscriptionStatus } from "@/features/tenants/service";
 
 export type PelangganContextVars = Record<string, string>;
 
-/** YYYY-MM → contoh: Juni 2026 */
-export function formatTagihanPeriode(periode: string): string {
-  const match = /^(\d{4})-(\d{2})$/.exec(periode);
-  if (!match) return periode;
-  return formatBillingPeriod(new Date(Number(match[1]), Number(match[2]) - 1, 1));
-}
+export { formatTagihanPeriode } from "@/features/billing/format-periode";
 
 /** Ringkasan tunggakan untuk placeholder [[tunggakan]]. */
 export function formatTunggakanLabel(

@@ -13,11 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatTagihanPeriode } from "@/features/billing/format-periode";
 import type {
   TagihanPelangganRow,
   TagihanPelangganStatus,
-} from "@/features/billing/tagihan-service";
-import { formatTagihanPeriode } from "@/features/messages/context";
+} from "@/features/billing/tagihan-types";
 import { formatDate, formatRupiah } from "@/lib/utils";
 import { QueryTabNav } from "@/components/ui/query-tab-nav";
 
