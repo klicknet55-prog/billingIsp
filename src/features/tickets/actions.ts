@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { assignTicket, createTicket, updateTicketStatus, updateTeknisiLocation } from "./service";
 
@@ -8,12 +9,23 @@ const ISP_ROLES = ["owner", "admin", "teknisi"] as const;
 
 export async function createTicketAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
-  await createTicket(user.tenantId!, {
-    pelangganId: String(formData.get("pelangganId") ?? ""),
-    judul: String(formData.get("judul") ?? "").trim(),
-    deskripsi: String(formData.get("deskripsi") ?? "") || null,
-  });
-  revalidatePath("/dashboard/tiket");
+  const fromTambah = String(formData.get("fromPage") ?? "") === "tambah";
+  const listPath = "/dashboard/tiket";
+  const formPath = fromTambah ? "/dashboard/tiket/tambah" : listPath;
+
+  try {
+    await createTicket(user.tenantId!, {
+      pelangganId: String(formData.get("pelangganId") ?? ""),
+      judul: String(formData.get("judul") ?? "").trim(),
+      deskripsi: String(formData.get("deskripsi") ?? "") || null,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal membuat tiket.";
+    redirect(`${formPath}?error=${encodeURIComponent(msg)}`);
+  }
+
+  revalidatePath(listPath);
+  redirect(`${listPath}?success=${encodeURIComponent("Tiket berhasil dibuat.")}`);
 }
 
 export async function updateTicketStatusAction(formData: FormData) {

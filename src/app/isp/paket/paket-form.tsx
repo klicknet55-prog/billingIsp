@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +16,11 @@ interface RouterOption {
 export function PaketForm({
   routers,
   onCancel,
+  cancelHref,
 }: {
   routers: RouterOption[];
   onCancel?: () => void;
+  cancelHref?: string;
 }) {
   const [routerId, setRouterId] = useState("");
   const [tipe, setTipe] = useState<"pppoe" | "hotspot">("pppoe");
@@ -49,6 +52,7 @@ export function PaketForm({
 
   return (
     <form action={createPaketAction} className="grid gap-4 sm:grid-cols-2">
+      {cancelHref ? <input type="hidden" name="fromPage" value="tambah" /> : null}
       <div className="space-y-2">
         <Label htmlFor="nama">Nama</Label>
         <Input id="nama" name="nama" required placeholder="Home 10" />
@@ -91,9 +95,6 @@ export function PaketForm({
         {routers.length === 0 && (
           <p className="text-xs text-muted-foreground">Belum ada router. Tambah di menu Router.</p>
         )}
-        <p className="text-xs text-muted-foreground">
-          Satu router dapat dipakai untuk paket PPPoE dan Hotspot sekaligus.
-        </p>
       </div>
 
       {tipe === "pppoe" && (
@@ -140,13 +141,19 @@ export function PaketForm({
         </div>
       )}
 
-      <div className="flex justify-end gap-2 sm:col-span-2">
-        {onCancel && (
+      <div className="flex flex-col-reverse gap-2 sm:col-span-2 sm:flex-row sm:justify-end">
+        {cancelHref ? (
+          <Button asChild type="button" variant="ghost" className="min-h-11">
+            <Link href={cancelHref}>Batal</Link>
+          </Button>
+        ) : onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel}>
             Batal
           </Button>
-        )}
-        <Button type="submit">Simpan</Button>
+        ) : null}
+        <Button type="submit" className="min-h-11">
+          Simpan Paket
+        </Button>
       </div>
     </form>
   );

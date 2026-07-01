@@ -15,9 +15,11 @@ import {
   upsertPlatformWhatsAppConfig,
   ensureTenantKlicknetFromEnv,
   ensurePlatformKlicknetFromEnv,
+  getTenantWhatsAppConfigRow,
+  getPlatformWhatsAppConfigRow,
 } from "./service";
 import { decryptSecret } from "@/lib/crypto";
-import { klicknetCreateDevice, klicknetFetchQr } from "@/lib/integrations/whatsapp/klicknet";
+import { klicknetCreateDevice, klicknetFetchQr, klicknetFetchPairCode, klicknetLogoutAndDeleteDevice, klicknetReconnectDevice } from "@/lib/integrations/whatsapp/klicknet";
 import {
   resolveWhatsAppApiUrl,
   resolveGowaBasicAuthUser,
@@ -100,6 +102,73 @@ const waTestSchema = z.object({
   message: z.string().trim().min(1, "Pesan test wajib diisi"),
 });
 
+type KlicknetDeviceActionState = ActionState & {
+  deviceId?: string;
+  qrLink?: string;
+  pairCode?: string;
+  loginMode?: "qr" | "code";
+};
+
+function klicknetCredsFromRow(row: {
+  apiUrl: string;
+  apiTokenEncrypted: string;
+  basicAuthUser: string | null;
+  deviceId: string | null;
+}) {
+  const auth = resolveKlicknetAuth({
+    basicAuthUser: row.basicAuthUser,
+    password: decryptSecret(row.apiTokenEncrypted),
+  });
+  if (!auth.username || !auth.password) {
+    throw new Error("Basic Auth GOWA belum lengkap — simpan konfigurasi atau set .env.");
+  }
+  const baseUrl = resolveWhatsAppApiUrl("klicknet", row.apiUrl);
+  return {
+    baseUrl,
+    username: auth.username,
+    password: auth.password,
+    deviceId: row.deviceId?.trim() ?? "",
+  };
+}
+
+async function registerKlicknetDeviceForTenant(tenantId: string, deviceName: string) {
+  const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+  const deviceId = buildKlicknetDeviceId({
+    scope: "tenant",
+    tenantId,
+    tenantDomain: tenant?.domain,
+    rawName: deviceName,
+  });
+  const row = await ensureTenantKlicknetFromEnv(tenantId);
+  if (!row) {
+    throw new Error(
+      "Konfigurasi Klicknet belum siap. Pilih provider Klicknet lalu Simpan, atau lengkapi KLICKNET_WA_* di .env."
+    );
+  }
+  const creds = klicknetCredsFromRow(row);
+  const created = await klicknetCreateDevice(
+    { baseUrl: creds.baseUrl, username: creds.username, password: creds.password },
+    deviceId
+  );
+  return { ...creds, deviceId: created.deviceId };
+}
+
+async function registerKlicknetDeviceForPlatform(deviceName: string) {
+  const deviceId = buildKlicknetDeviceId({ scope: "platform", rawName: deviceName });
+  const row = await ensurePlatformKlicknetFromEnv();
+  if (!row) {
+    throw new Error(
+      "Konfigurasi Klicknet belum siap. Pilih provider Klicknet lalu Simpan, atau lengkapi KLICKNET_WA_* di .env."
+    );
+  }
+  const creds = klicknetCredsFromRow(row);
+  const created = await klicknetCreateDevice(
+    { baseUrl: creds.baseUrl, username: creds.username, password: creds.password },
+    deviceId
+  );
+  return { ...creds, deviceId: created.deviceId };
+}
+
 export async function saveTenantDuitkuConfigAction(
   _prev: ActionState,
   formData: FormData
@@ -131,6 +200,9 @@ export async function saveTenantWhatsAppConfigAction(
   const user = await requireUser(["owner", "admin"]);
   const parsed = parseWaForm(formData);
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+  const deviceName = String(formData.get("deviceName") ?? "").trim();
+  const current = await getTenantWhatsAppConfigRow(user.tenantId!);
+
   try {
     await upsertTenantWhatsAppConfig({
       tenantId: user.tenantId!,
@@ -138,10 +210,25 @@ export async function saveTenantWhatsAppConfigAction(
       apiUrl: parsed.data.apiUrl,
       apiToken: parsed.data.apiToken,
       phoneNumberId: parsed.data.phoneNumberId || undefined,
-      deviceId: parsed.data.deviceId || undefined,
+      deviceId: current?.deviceId ?? undefined,
       basicAuthUser: parsed.data.basicAuthUser || undefined,
       isEnabled: parsed.data.isEnabled === "on",
     });
+
+    if (parsed.data.provider === "klicknet" && deviceName) {
+      const registered = await registerKlicknetDeviceForTenant(user.tenantId!, deviceName);
+      await upsertTenantWhatsAppConfig({
+        tenantId: user.tenantId!,
+        provider: parsed.data.provider,
+        apiUrl: parsed.data.apiUrl,
+        apiToken: parsed.data.apiToken,
+        phoneNumberId: parsed.data.phoneNumberId || undefined,
+        deviceId: registered.deviceId,
+        basicAuthUser: parsed.data.basicAuthUser || undefined,
+        isEnabled: parsed.data.isEnabled === "on",
+      });
+    }
+
     revalidatePath("/dashboard/integrasi");
     return { ok: true };
   } catch (err) {
@@ -183,63 +270,98 @@ export async function testPlatformWhatsAppConfigAction(
   }
 }
 
-export async function createKlicknetDeviceAction(
-  _prev: ActionState,
+export async function loginKlicknetDeviceAction(
+  _prev: KlicknetDeviceActionState,
   formData: FormData
-): Promise<ActionState & { deviceId?: string; qrLink?: string }> {
+): Promise<KlicknetDeviceActionState> {
   const user = await requireUser(["owner", "admin"]);
-  const deviceName = String(formData.get("deviceName") ?? "").trim();
-  if (!deviceName) return { error: "Nama device wajib diisi." };
-
-  const tenant = await db.query.tenants.findFirst({
-    where: eq(tenants.id, user.tenantId!),
-  });
-  const deviceId = buildKlicknetDeviceId({
-    scope: "tenant",
-    tenantId: user.tenantId!,
-    tenantDomain: tenant?.domain,
-    rawName: deviceName,
-  });
-
+  const loginMode = String(formData.get("loginMode") ?? "qr") === "code" ? "code" : "qr";
   const row = await ensureTenantKlicknetFromEnv(user.tenantId!);
-  if (!row) {
-    return {
-      error:
-        "Konfigurasi Klicknet belum siap. Pilih provider Klicknet lalu Simpan, atau lengkapi KLICKNET_WA_* di .env.",
-    };
+  if (!row?.deviceId) {
+    return { error: "Device belum dibuat. Isi nama device lalu Simpan WhatsApp terlebih dahulu." };
   }
 
   try {
-    const auth = resolveKlicknetAuth({
-      basicAuthUser: row.basicAuthUser,
-      password: decryptSecret(row.apiTokenEncrypted),
-    });
-    if (!auth.username || !auth.password) {
-      return { error: "Basic Auth GOWA belum lengkap — simpan konfigurasi atau set .env." };
+    const creds = klicknetCredsFromRow(row);
+    const credsWithDevice = {
+      baseUrl: creds.baseUrl,
+      username: creds.username,
+      password: creds.password,
+      deviceId: creds.deviceId,
+    };
+
+    if (loginMode === "code") {
+      const phone = String(formData.get("loginPhone") ?? "").trim();
+      if (!phone) return { error: "Nomor WhatsApp wajib untuk login dengan kode." };
+      const result = await klicknetFetchPairCode(credsWithDevice, phone);
+      revalidatePath("/dashboard/integrasi");
+      return {
+        ok: true,
+        deviceId: creds.deviceId,
+        pairCode: result.pairCode,
+        loginMode: "code",
+      };
     }
-    const baseUrl = resolveWhatsAppApiUrl("klicknet", row.apiUrl);
-    const created = await klicknetCreateDevice(
-      { baseUrl, username: auth.username, password: auth.password },
-      deviceId
-    );
-    const resolvedDeviceId = created.deviceId;
+
+    const qr = await klicknetFetchQr(credsWithDevice);
+    revalidatePath("/dashboard/integrasi");
+    return { ok: true, deviceId: creds.deviceId, qrLink: qr.qrLink, loginMode: "qr" };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function logoutKlicknetDeviceAction(
+  _prev: ActionState
+): Promise<ActionState> {
+  const user = await requireUser(["owner", "admin"]);
+  const row = await getTenantWhatsAppConfigRow(user.tenantId!);
+  if (!row?.deviceId) {
+    return { error: "Tidak ada device untuk di-logout." };
+  }
+
+  try {
+    const creds = klicknetCredsFromRow(row);
+    await klicknetLogoutAndDeleteDevice({
+      baseUrl: creds.baseUrl,
+      username: creds.username,
+      password: creds.password,
+      deviceId: creds.deviceId,
+    });
     await upsertTenantWhatsAppConfig({
       tenantId: user.tenantId!,
-      apiUrl: baseUrl,
-      provider: "klicknet",
-      apiToken: auth.password,
-      deviceId: resolvedDeviceId,
-      basicAuthUser: auth.username,
+      provider: row.provider,
+      apiUrl: row.apiUrl,
+      deviceId: "",
+      basicAuthUser: row.basicAuthUser ?? undefined,
       isEnabled: row.isEnabled,
     });
-    const qr = await klicknetFetchQr({
-      baseUrl,
-      username: auth.username,
-      password: auth.password,
-      deviceId: resolvedDeviceId,
+    revalidatePath("/dashboard/integrasi");
+    return { ok: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function reconnectKlicknetDeviceAction(
+  _prev: ActionState
+): Promise<ActionState> {
+  const user = await requireUser(["owner", "admin"]);
+  const row = await ensureTenantKlicknetFromEnv(user.tenantId!);
+  if (!row?.deviceId) {
+    return { error: "Device belum dibuat. Simpan konfigurasi dengan nama device terlebih dahulu." };
+  }
+
+  try {
+    const creds = klicknetCredsFromRow(row);
+    await klicknetReconnectDevice({
+      baseUrl: creds.baseUrl,
+      username: creds.username,
+      password: creds.password,
+      deviceId: creds.deviceId,
     });
     revalidatePath("/dashboard/integrasi");
-    return { ok: true, deviceId: resolvedDeviceId, qrLink: qr.qrLink };
+    return { ok: true };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
   }
@@ -252,15 +374,104 @@ export async function savePlatformWhatsAppConfigAction(
   await requireUser(["superadmin"]);
   const parsed = parseWaForm(formData);
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+  const deviceName = String(formData.get("deviceName") ?? "").trim();
+  const current = await getPlatformWhatsAppConfigRow();
+
   try {
     await upsertPlatformWhatsAppConfig({
       provider: parsed.data.provider,
       apiUrl: parsed.data.apiUrl,
       apiToken: parsed.data.apiToken,
       phoneNumberId: parsed.data.phoneNumberId || undefined,
-      deviceId: parsed.data.deviceId || undefined,
+      deviceId: current?.deviceId ?? undefined,
       basicAuthUser: parsed.data.basicAuthUser || undefined,
       isEnabled: parsed.data.isEnabled === "on",
+    });
+
+    if (parsed.data.provider === "klicknet" && deviceName) {
+      const registered = await registerKlicknetDeviceForPlatform(deviceName);
+      await upsertPlatformWhatsAppConfig({
+        provider: parsed.data.provider,
+        apiUrl: parsed.data.apiUrl,
+        apiToken: parsed.data.apiToken,
+        phoneNumberId: parsed.data.phoneNumberId || undefined,
+        deviceId: registered.deviceId,
+        basicAuthUser: parsed.data.basicAuthUser || undefined,
+        isEnabled: parsed.data.isEnabled === "on",
+      });
+    }
+
+    revalidatePath("/superadmin/integrasi");
+    return { ok: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function loginPlatformKlicknetDeviceAction(
+  _prev: KlicknetDeviceActionState,
+  formData: FormData
+): Promise<KlicknetDeviceActionState> {
+  await requireUser(["superadmin"]);
+  const loginMode = String(formData.get("loginMode") ?? "qr") === "code" ? "code" : "qr";
+  const row = await ensurePlatformKlicknetFromEnv();
+  if (!row?.deviceId) {
+    return { error: "Device belum dibuat. Isi nama device lalu Simpan WhatsApp terlebih dahulu." };
+  }
+
+  try {
+    const creds = klicknetCredsFromRow(row);
+    const credsWithDevice = {
+      baseUrl: creds.baseUrl,
+      username: creds.username,
+      password: creds.password,
+      deviceId: creds.deviceId,
+    };
+
+    if (loginMode === "code") {
+      const phone = String(formData.get("loginPhone") ?? "").trim();
+      if (!phone) return { error: "Nomor WhatsApp wajib untuk login dengan kode." };
+      const result = await klicknetFetchPairCode(credsWithDevice, phone);
+      revalidatePath("/superadmin/integrasi");
+      return {
+        ok: true,
+        deviceId: creds.deviceId,
+        pairCode: result.pairCode,
+        loginMode: "code",
+      };
+    }
+
+    const qr = await klicknetFetchQr(credsWithDevice);
+    revalidatePath("/superadmin/integrasi");
+    return { ok: true, deviceId: creds.deviceId, qrLink: qr.qrLink, loginMode: "qr" };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function logoutPlatformKlicknetDeviceAction(
+  _prev: ActionState
+): Promise<ActionState> {
+  await requireUser(["superadmin"]);
+  const row = await getPlatformWhatsAppConfigRow();
+  if (!row?.deviceId) {
+    return { error: "Tidak ada device untuk di-logout." };
+  }
+
+  try {
+    const creds = klicknetCredsFromRow(row);
+    await klicknetLogoutAndDeleteDevice({
+      baseUrl: creds.baseUrl,
+      username: creds.username,
+      password: creds.password,
+      deviceId: creds.deviceId,
+    });
+    await upsertPlatformWhatsAppConfig({
+      provider: row.provider,
+      apiUrl: row.apiUrl,
+      deviceId: "",
+      basicAuthUser: row.basicAuthUser ?? undefined,
+      isEnabled: row.isEnabled,
     });
     revalidatePath("/superadmin/integrasi");
     return { ok: true };
@@ -269,57 +480,25 @@ export async function savePlatformWhatsAppConfigAction(
   }
 }
 
-export async function createPlatformKlicknetDeviceAction(
-  _prev: ActionState,
-  formData: FormData
-): Promise<ActionState & { deviceId?: string; qrLink?: string }> {
+export async function reconnectPlatformKlicknetDeviceAction(
+  _prev: ActionState
+): Promise<ActionState> {
   await requireUser(["superadmin"]);
-  const deviceName = String(formData.get("deviceName") ?? "").trim();
-  if (!deviceName) return { error: "Nama device wajib diisi." };
-
-  const deviceId = buildKlicknetDeviceId({
-    scope: "platform",
-    rawName: deviceName,
-  });
-
   const row = await ensurePlatformKlicknetFromEnv();
-  if (!row) {
-    return {
-      error:
-        "Konfigurasi Klicknet belum siap. Pilih provider Klicknet lalu Simpan, atau lengkapi KLICKNET_WA_* di .env.",
-    };
+  if (!row?.deviceId) {
+    return { error: "Device belum dibuat. Simpan konfigurasi dengan nama device terlebih dahulu." };
   }
 
   try {
-    const auth = resolveKlicknetAuth({
-      basicAuthUser: row.basicAuthUser,
-      password: decryptSecret(row.apiTokenEncrypted),
-    });
-    if (!auth.username || !auth.password) {
-      return { error: "Basic Auth GOWA belum lengkap — simpan konfigurasi atau set .env." };
-    }
-    const baseUrl = resolveWhatsAppApiUrl("klicknet", row.apiUrl);
-    const created = await klicknetCreateDevice(
-      { baseUrl, username: auth.username, password: auth.password },
-      deviceId
-    );
-    const resolvedDeviceId = created.deviceId;
-    await upsertPlatformWhatsAppConfig({
-      apiUrl: baseUrl,
-      provider: "klicknet",
-      apiToken: auth.password,
-      deviceId: resolvedDeviceId,
-      basicAuthUser: auth.username,
-      isEnabled: row.isEnabled,
-    });
-    const qr = await klicknetFetchQr({
-      baseUrl,
-      username: auth.username,
-      password: auth.password,
-      deviceId: resolvedDeviceId,
+    const creds = klicknetCredsFromRow(row);
+    await klicknetReconnectDevice({
+      baseUrl: creds.baseUrl,
+      username: creds.username,
+      password: creds.password,
+      deviceId: creds.deviceId,
     });
     revalidatePath("/superadmin/integrasi");
-    return { ok: true, deviceId: resolvedDeviceId, qrLink: qr.qrLink };
+    return { ok: true };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
   }

@@ -28,10 +28,7 @@ export default async function InvoicePage({
 
   return (
     <>
-      <PageHeader
-        title="Riwayat Nota"
-        description="Nota pembayaran dibuat otomatis setelah pelanggan/admin melakukan pembayaran tagihan."
-      />
+      <PageHeader title="Riwayat Nota" />
       {pelangganId && (
         <Card className="mb-4 border-primary/30 bg-primary/5">
           <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">

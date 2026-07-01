@@ -1,4 +1,5 @@
 import { Pencil, Plus, KeyRound } from "lucide-react";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,7 +18,7 @@ import {
 } from "@/features/staff/actions";
 import { listStaff } from "@/features/staff/service";
 import { requireUser } from "@/lib/auth";
-import { StaffFormDialog } from "./staff-form";
+import { StaffCreateDialog, StaffFormDialog } from "./staff-form";
 import { StaffResetPasswordDialog } from "./staff-reset-password-dialog";
 
 export default async function StafPage() {
@@ -30,13 +31,16 @@ export default async function StafPage() {
         title="Manajemen Staf"
         description="Kelola akun admin, kolektor, dan teknisi."
         action={
-          <StaffFormDialog
-            trigger={
-              <Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild className="md:hidden">
+              <Link href="/dashboard/staf/tambah">
                 <Plus /> Tambah Staf
-              </Button>
-            }
-          />
+              </Link>
+            </Button>
+            <div className="hidden md:contents">
+              <StaffCreateDialog />
+            </div>
+          </div>
         }
       />
       <Card>

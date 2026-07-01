@@ -39,7 +39,7 @@ export function MobileMenuDrawer({
       <button
         type="button"
         aria-label="Tutup menu"
-        className="fixed inset-0 z-[200] bg-black/50 md:hidden"
+        className="fixed inset-0 z-[850] bg-black/50 md:hidden"
         style={{ touchAction: "manipulation" }}
         onClick={onClose}
       />
@@ -47,7 +47,7 @@ export function MobileMenuDrawer({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="fixed inset-y-0 left-0 z-[210] flex w-[min(100vw,18rem)] flex-col border-r bg-card shadow-xl md:hidden"
+        className="fixed inset-y-0 left-0 z-[860] flex w-[min(100vw,18rem)] flex-col border-r bg-card shadow-xl md:hidden"
         style={{ touchAction: "manipulation" }}
       >
         <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">

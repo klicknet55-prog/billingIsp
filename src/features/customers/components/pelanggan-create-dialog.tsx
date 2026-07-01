@@ -38,7 +38,7 @@ export function PelangganCreateDialog({
         </Button>
       }
       title="Tambah Pelanggan"
-      description="Isi data pelanggan baru. Username dan password akan disinkronkan ke Mikrotik jika router terhubung."
+      description="Isi data pelanggan baru."
       className="max-w-2xl"
     >
       {(closeDialog) => (

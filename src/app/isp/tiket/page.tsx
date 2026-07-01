@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,10 +37,11 @@ const nextLabel = { open: "Mulai Tangani", in_progress: "Selesaikan", resolved: 
 export default async function TiketPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pelangganId?: string }>;
+  searchParams: Promise<{ pelangganId?: string; success?: string }>;
 }) {
   const qs = await searchParams;
   const pelangganId = qs.pelangganId ? decodeURIComponent(qs.pelangganId) : "";
+  const success = qs.success ? decodeURIComponent(qs.success) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
   const [rows, pelanggan, teknisi] = await Promise.all([
@@ -53,36 +55,51 @@ export default async function TiketPage({
       {user.role === "teknisi" && <TeknisiLocationPing />}
       <PageHeader
         title="Helpdesk Tiket"
-        description="Tiket baru otomatis ditetapkan ke teknisi terdekat (GPS). Anda bisa ubah manual."
         action={
-          <Disclosure label="Buat Tiket">
-            <form action={createTicketAction} className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="pelangganId">Pelanggan</Label>
-                  <Select id="pelangganId" name="pelangganId" required>
-                    <option value="">- Pilih -</option>
-                    {pelanggan.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.nama}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="judul">Judul</Label>
-                  <Input id="judul" name="judul" required placeholder="Internet mati" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="deskripsi">Deskripsi</Label>
-                <Textarea id="deskripsi" name="deskripsi" />
-              </div>
-              <Button type="submit">Simpan</Button>
-            </form>
-          </Disclosure>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" className="md:hidden">
+              <Link href="/dashboard/tiket/tambah">
+                <Plus />
+                Buat Tiket
+              </Link>
+            </Button>
+            <div className="hidden md:contents">
+              <Disclosure label="Buat Tiket">
+                <form action={createTicketAction} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="pelangganId">Pelanggan</Label>
+                      <Select id="pelangganId" name="pelangganId" required className="w-full min-w-0">
+                        <option value="">- Pilih -</option>
+                        {pelanggan.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.nama}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="judul">Judul</Label>
+                      <Input id="judul" name="judul" required placeholder="Internet mati" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="deskripsi">Deskripsi</Label>
+                    <Textarea id="deskripsi" name="deskripsi" />
+                  </div>
+                  <Button type="submit">Simpan</Button>
+                </form>
+              </Disclosure>
+            </div>
+          </div>
         }
       />
+
+      {success && (
+        <Card className="mb-4 border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="p-3 text-sm text-emerald-700 dark:text-emerald-400">{success}</CardContent>
+        </Card>
+      )}
       {pelangganId && (
         <Card className="mb-4 border-primary/30 bg-primary/5">
           <CardContent className="flex items-center justify-between gap-3 p-3 text-sm">

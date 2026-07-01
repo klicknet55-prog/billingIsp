@@ -75,8 +75,24 @@ export function KolektorAssignmentForm({
     }))
   );
 
+  const kolektorSelect = (pelangganId: string) => (
+    <Select
+      value={assignments[pelangganId] ?? ""}
+      onChange={(e) => setKolektor(pelangganId, e.target.value)}
+      disabled={kolektors.length === 0}
+      className="w-full min-w-0 max-w-full"
+    >
+      <option value="">— Belum ditugaskan —</option>
+      {kolektors.map((k) => (
+        <option key={k.id} value={k.id}>
+          {k.nama}
+        </option>
+      ))}
+    </Select>
+  );
+
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} className="space-y-4 min-w-0">
       <input type="hidden" name="assignments" value={payload} readOnly />
 
       <div className="flex flex-wrap gap-2">
@@ -95,21 +111,23 @@ export function KolektorAssignmentForm({
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           <Label htmlFor="search-pelanggan">Cari pelanggan</Label>
           <Input
             id="search-pelanggan"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Nama, WhatsApp, alamat..."
+            className="w-full min-w-0"
           />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 min-w-0">
           <Label htmlFor="filter-kolektor">Filter</Label>
           <Select
             id="filter-kolektor"
             value={filterKolektor}
             onChange={(e) => setFilterKolektor(e.target.value)}
+            className="w-full min-w-0"
           >
             <option value="">Semua pelanggan</option>
             <option value="__unassigned__">Belum ditugaskan</option>
@@ -122,13 +140,36 @@ export function KolektorAssignmentForm({
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-md border">
+      {/* Mobile: card layout */}
+      <div className="space-y-3 md:hidden">
+        {filtered.map((p) => (
+          <div key={p.id} className="rounded-md border p-3 space-y-3 min-w-0">
+            <div>
+              <div className="font-medium">{p.nama}</div>
+              {p.alamat && <div className="text-xs text-muted-foreground">{p.alamat}</div>}
+              <div className="text-xs text-muted-foreground mt-0.5">{p.noWa}</div>
+            </div>
+            <div className="space-y-1.5 min-w-0">
+              <Label className="text-xs text-muted-foreground">Kolektor</Label>
+              {kolektorSelect(p.id)}
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted-foreground">
+            Tidak ada pelanggan yang cocok dengan filter.
+          </p>
+        )}
+      </div>
+
+      {/* Desktop: table layout */}
+      <div className="hidden md:block overflow-x-auto rounded-md border">
         <table className="w-full text-sm">
           <thead className="border-b bg-muted/40 text-left">
             <tr>
               <th className="px-3 py-2 font-medium">Pelanggan</th>
               <th className="px-3 py-2 font-medium">WhatsApp</th>
-              <th className="px-3 py-2 font-medium">Kolektor</th>
+              <th className="px-3 py-2 font-medium min-w-[12rem]">Kolektor</th>
             </tr>
           </thead>
           <tbody>
@@ -139,19 +180,8 @@ export function KolektorAssignmentForm({
                   {p.alamat && <div className="text-xs text-muted-foreground">{p.alamat}</div>}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{p.noWa}</td>
-                <td className="px-3 py-2">
-                  <Select
-                    value={assignments[p.id] ?? ""}
-                    onChange={(e) => setKolektor(p.id, e.target.value)}
-                    disabled={kolektors.length === 0}
-                  >
-                    <option value="">— Belum ditugaskan —</option>
-                    {kolektors.map((k) => (
-                      <option key={k.id} value={k.id}>
-                        {k.nama}
-                      </option>
-                    ))}
-                  </Select>
+                <td className="px-3 py-2 min-w-0">
+                  {kolektorSelect(p.id)}
                 </td>
               </tr>
             ))}

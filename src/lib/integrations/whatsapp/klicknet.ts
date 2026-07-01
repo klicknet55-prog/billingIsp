@@ -22,6 +22,7 @@ type GowaQrPayload = {
   qr_link?: string;
   qr_code?: string;
   qr_duration?: number;
+  pair_code?: string;
   logged_in?: boolean;
   connected?: boolean;
 };
@@ -194,6 +195,66 @@ export async function klicknetFetchQr(creds: KlicknetCredentials) {
   return { qrLink, qrDuration: payload.qr_duration ?? 30 };
 }
 
+function resolvePairCode(payload: GowaQrPayload): string {
+  return payload.pair_code?.trim() ?? "";
+}
+
+/** Ambil kode pairing — POST /devices/:id/login/code, fallback GET /app/login-with-code. */
+export async function klicknetFetchPairCode(creds: KlicknetCredentials, phone: string) {
+  const base = normalizeBaseUrl(creds.baseUrl);
+  const deviceId = creds.deviceId?.trim();
+  if (!deviceId) throw new Error("Device ID belum diset.");
+
+  const normalizedPhone = phone.replace(/\D/g, "");
+  if (normalizedPhone.length < 8) throw new Error("Nomor WhatsApp tidak valid.");
+
+  const headers = authHeaders(creds);
+  const phoneParam = encodeURIComponent(normalizedPhone);
+
+  const devicesRes = await gowaFetch(
+    `${base}/devices/${encodeURIComponent(deviceId)}/login/code?phone=${phoneParam}`,
+    { method: "POST", headers }
+  );
+  const devicesBody = await readResponse(devicesRes);
+
+  if (devicesRes.ok) {
+    const payload = extractPayload(devicesBody.json);
+    const pairCode = resolvePairCode(payload);
+    if (pairCode) return { pairCode };
+  }
+
+  const useAppLogin =
+    !devicesRes.ok &&
+    (isLoginPerIdNotImplemented(devicesRes.status, devicesBody.text) ||
+      devicesRes.status === 404 ||
+      devicesRes.status === 501);
+
+  if (!useAppLogin && !devicesRes.ok) {
+    throw new Error(
+      `Gagal ambil kode pairing: ${devicesRes.status} ${devicesBody.text.slice(0, 160)}`
+    );
+  }
+
+  const appRes = await gowaFetch(`${base}/app/login-with-code?phone=${phoneParam}`, {
+    headers: { ...headers, "X-Device-Id": deviceId },
+  });
+  const appBody = await readResponse(appRes);
+
+  if (!appRes.ok) {
+    throw new Error(
+      `Gagal ambil kode pairing (app/login-with-code): ${appRes.status} ${appBody.text.slice(0, 160)}`
+    );
+  }
+
+  const payload = extractPayload(appBody.json);
+  const pairCode = resolvePairCode(payload);
+  if (!pairCode) {
+    throw new Error("Respons kode pairing kosong — periksa nomor WhatsApp dan Device ID.");
+  }
+
+  return { pairCode };
+}
+
 export async function klicknetDeviceStatus(creds: KlicknetCredentials) {
   const base = normalizeBaseUrl(creds.baseUrl);
   const deviceId = creds.deviceId?.trim();
@@ -220,6 +281,49 @@ export async function klicknetDeviceStatus(creds: KlicknetCredentials) {
   const { json } = await readResponse(appRes);
   const payload = extractPayload(json);
   return { connected: Boolean(payload.logged_in ?? payload.connected) };
+}
+
+export async function klicknetReconnectDevice(creds: KlicknetCredentials) {
+  const base = normalizeBaseUrl(creds.baseUrl);
+  const deviceId = creds.deviceId?.trim();
+  if (!deviceId) throw new Error("Device ID belum diset.");
+
+  const res = await gowaFetch(`${base}/devices/${encodeURIComponent(deviceId)}/reconnect`, {
+    method: "POST",
+    headers: authHeaders(creds),
+  });
+
+  if (!res.ok) {
+    const { text } = await readResponse(res);
+    throw new Error(`Gagal reconnect: ${res.status} ${text.slice(0, 160)}`);
+  }
+}
+
+/** Logout sesi WhatsApp lalu hapus device dari server GOWA. */
+export async function klicknetLogoutAndDeleteDevice(creds: KlicknetCredentials) {
+  const base = normalizeBaseUrl(creds.baseUrl);
+  const deviceId = creds.deviceId?.trim();
+  if (!deviceId) throw new Error("Device ID belum diset.");
+
+  const headers = authHeaders(creds);
+
+  const logoutRes = await gowaFetch(`${base}/devices/${encodeURIComponent(deviceId)}/logout`, {
+    method: "POST",
+    headers,
+  });
+  if (!logoutRes.ok && logoutRes.status !== 404) {
+    const { text } = await readResponse(logoutRes);
+    log.warn(`Logout device ${deviceId} gagal ${logoutRes.status}`, text);
+  }
+
+  const deleteRes = await gowaFetch(`${base}/devices/${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+    headers,
+  });
+  if (!deleteRes.ok && deleteRes.status !== 404) {
+    const { text } = await readResponse(deleteRes);
+    throw new Error(`Gagal hapus device: ${deleteRes.status} ${text.slice(0, 160)}`);
+  }
 }
 
 export async function klicknetSendText(creds: KlicknetCredentials, phone: string, message: string) {

@@ -25,7 +25,7 @@ export function AdminProfileForm({
   const fe = state.fieldErrors ?? {};
 
   return (
-    <form action={action} encType="multipart/form-data" className="space-y-3">
+    <form action={action} className="space-y-3">
       <div>
         <label className="mb-1 block text-sm font-medium">Nama</label>
         <input
@@ -81,7 +81,7 @@ export function CompanyProfileForm({
   const fe = state.fieldErrors ?? {};
 
   return (
-    <form action={action} encType="multipart/form-data" className="space-y-3">
+    <form action={action} className="space-y-3">
       <div>
         <label className="mb-1 block text-sm font-medium">Nama Usaha</label>
         <input

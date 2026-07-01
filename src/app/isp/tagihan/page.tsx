@@ -20,7 +20,7 @@ export default async function TagihanPelangganPage({
     <>
       <PageHeader
         title="Tagihan Pelanggan"
-        description="Kelola tagihan bulan ini, tunggakan, dan pembayaran — terpisah dari data pelanggan."
+        description="Kelola tagihan pelanggan."
       />
 
       {error && (

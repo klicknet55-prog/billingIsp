@@ -24,10 +24,7 @@ export default async function PetaPage({
 
   return (
     <>
-      <PageHeader
-        title="Peta"
-        description="Visualisasi server/router, ODP, dan pelanggan. Status modem dari Mikrotik."
-      />
+      <PageHeader title="Peta" />
       {error && (
         <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
           {error}

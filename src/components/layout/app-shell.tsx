@@ -325,7 +325,7 @@ export function AppShell({
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-[100] flex h-14 shrink-0 items-center border-b bg-background px-4 print:hidden md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
+        <header className="nm-mobile-chrome sticky top-0 z-[400] flex h-14 shrink-0 items-center border-b bg-background px-4 print:hidden md:z-[100] md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
           {slimMobileHeader && (
             <div className="flex w-full items-center justify-between gap-3 md:hidden">
               <Link

@@ -17,10 +17,7 @@ export default async function KolektorPelangganPage() {
 
   return (
     <>
-      <PageHeader
-        title="Area Kolektor"
-        description="Atur pelanggan mana yang ditagih oleh masing-masing kolektor. Kolektor hanya melihat tagihan pelanggan area mereka."
-      />
+      <PageHeader title="Area Kolektor" />
       <Card>
         <CardHeader>
           <CardTitle>Penugasan Pelanggan</CardTitle>

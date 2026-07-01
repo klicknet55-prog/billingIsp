@@ -1,4 +1,4 @@
-import { MapPin, Pencil } from "lucide-react";
+import { MapPin, Pencil, Plus } from "lucide-react";
 import Link from "next/link";
 import { MobileDataCard } from "@/components/layout/mobile-data-card";
 import { PageHeader } from "@/components/layout/page-header";
@@ -53,25 +53,37 @@ export default async function PelangganPage({
     <>
       <PageHeader
         title="Pelanggan"
-        description={`Kelola data pelanggan, koordinat, dan status koneksi. Kuota: ${pelangganQuotaText}${
+        description={`Kuota: ${pelangganQuotaText}${
           quota ? ` (Paket ${quota.paketNama})` : ""
         }`}
         action={
           <div className="flex flex-wrap gap-2">
             <PelangganImportDialog />
-            <PelangganCreateDialog
-              paketOptions={paket.map((p) => ({
-                id: p.id,
-                label: `${p.nama} (${p.kecepatan})`,
-                routerId: p.routerId,
-                tipe: p.tipe,
-              }))}
-              routerOptions={routers.map((r) => ({
-                id: r.id,
-                label: r.nama,
-              }))}
-              odpOptions={odpOptions}
-            />
+            {(user.role === "owner" || user.role === "admin") && (
+              <>
+                <Button asChild size="sm" className="md:hidden">
+                  <Link href="/dashboard/pelanggan/tambah">
+                    <Plus />
+                    Tambah Pelanggan
+                  </Link>
+                </Button>
+                <div className="hidden md:contents">
+                  <PelangganCreateDialog
+                    paketOptions={paket.map((p) => ({
+                      id: p.id,
+                      label: `${p.nama} (${p.kecepatan})`,
+                      routerId: p.routerId,
+                      tipe: p.tipe,
+                    }))}
+                    routerOptions={routers.map((r) => ({
+                      id: r.id,
+                      label: r.nama,
+                    }))}
+                    odpOptions={odpOptions}
+                  />
+                </div>
+              </>
+            )}
           </div>
         }
       />

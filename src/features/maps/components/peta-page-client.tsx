@@ -16,7 +16,7 @@ import type { Router } from "@/lib/db/schema";
 
 const MapCanvas = dynamic(
   () => import("./map-canvas").then((m) => m.MapCanvas),
-  { ssr: false, loading: () => <div className="h-[min(70vh,560px)] animate-pulse rounded-md bg-muted" /> }
+  { ssr: false, loading: () => <div className="map-canvas-root h-[min(45vh,360px)] animate-pulse rounded-md bg-muted md:h-[min(70vh,560px)]" /> }
 );
 
 const OdpPanel = dynamic(
@@ -111,7 +111,7 @@ export function PetaPageClient({
       </div>
 
       {tab === "peta" ? (
-        <>
+        <div className="relative z-0 space-y-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Status modem</label>
@@ -183,7 +183,7 @@ export function PetaPageClient({
             odpFilter={odpFilter}
             showLines={showLines}
           />
-        </>
+        </div>
       ) : tab === "odp" ? (
         <OdpPanel rows={odpRows} routers={routers} />
       ) : (

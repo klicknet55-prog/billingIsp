@@ -1,4 +1,6 @@
 import { Pencil } from "lucide-react";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +19,13 @@ import { requireUser } from "@/lib/auth";
 import { formatRupiah } from "@/lib/utils";
 import { PaketCreateDialog, PaketFormDialog } from "./paket-form-dialog";
 
-export default async function PaketPage() {
+export default async function PaketPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; success?: string }>;
+}) {
+  const qs = await searchParams;
+  const success = qs.success ? decodeURIComponent(qs.success) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const [rows, routerRows] = await Promise.all([
     listPaket(user.tenantId!),
@@ -30,9 +38,29 @@ export default async function PaketPage() {
     <>
       <PageHeader
         title="Paket Internet"
-        description="Atur paket layanan, termasuk mapping profile PPPoE/Hotspot Mikrotik."
-        action={<PaketCreateDialog routers={routerOptions} />}
+        description="Pengaturan paket layanan"
+        action={
+          (user.role === "owner" || user.role === "admin") && (
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" className="md:hidden">
+                <Link href="/dashboard/paket/tambah">
+                  <Plus />
+                  Tambah Paket
+                </Link>
+              </Button>
+              <div className="hidden md:contents">
+                <PaketCreateDialog routers={routerOptions} />
+              </div>
+            </div>
+          )
+        }
       />
+
+      {success && (
+        <Card className="mb-4 border-emerald-500/30 bg-emerald-500/5">
+          <CardContent className="p-3 text-sm text-emerald-700 dark:text-emerald-400">{success}</CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="p-0">

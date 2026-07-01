@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
@@ -10,14 +11,23 @@ import {
   savePlatformWhatsAppConfigAction,
   testTenantWhatsAppConfigAction,
   testPlatformWhatsAppConfigAction,
-  createKlicknetDeviceAction,
-  createPlatformKlicknetDeviceAction,
+  loginKlicknetDeviceAction,
+  loginPlatformKlicknetDeviceAction,
+  logoutKlicknetDeviceAction,
+  logoutPlatformKlicknetDeviceAction,
+  reconnectKlicknetDeviceAction,
+  reconnectPlatformKlicknetDeviceAction,
 } from "@/features/integrations/actions";
 import type { GowaEnvDefaults } from "@/lib/integrations/whatsapp/config";
 import { klicknetDeviceSuffix } from "@/lib/integrations/whatsapp/config";
 
 const initial: ActionState = {};
-type KlicknetDeviceState = ActionState & { deviceId?: string; qrLink?: string };
+type KlicknetDeviceState = ActionState & {
+  deviceId?: string;
+  qrLink?: string;
+  pairCode?: string;
+  loginMode?: "qr" | "code";
+};
 const deviceInitial: KlicknetDeviceState = {};
 
 export function DuitkuConfigForm({
@@ -128,7 +138,10 @@ export function WhatsAppConfigForm({
   };
 }) {
   const saveAction = scope === "platform" ? savePlatformWhatsAppConfigAction : saveTenantWhatsAppConfigAction;
-  const deviceActionFn = scope === "platform" ? createPlatformKlicknetDeviceAction : createKlicknetDeviceAction;
+  const loginActionFn = scope === "platform" ? loginPlatformKlicknetDeviceAction : loginKlicknetDeviceAction;
+  const logoutActionFn = scope === "platform" ? logoutPlatformKlicknetDeviceAction : logoutKlicknetDeviceAction;
+  const reconnectActionFn =
+    scope === "platform" ? reconnectPlatformKlicknetDeviceAction : reconnectKlicknetDeviceAction;
   const testActionFn = scope === "platform" ? testPlatformWhatsAppConfigAction : testTenantWhatsAppConfigAction;
   const [provider, setProvider] = useState<"gateway" | "waba" | "klicknet">(
     defaults.provider ?? (gowaEnv.baseUrl ? "klicknet" : "waba")
@@ -138,18 +151,44 @@ export function WhatsAppConfigForm({
     provider === "klicknet" &&
     gowaEnv.basicUser.length > 0 &&
     gowaEnv.hasBasicPassword;
+  const [loginMode, setLoginMode] = useState<"qr" | "code">("qr");
+  const router = useRouter();
   const [state, action] = useActionState(saveAction, initial);
-  const [deviceState, deviceAction] = useActionState(deviceActionFn, deviceInitial);
+  const [loginState, loginAction] = useActionState(loginActionFn, deviceInitial);
+  const [logoutState, logoutAction] = useActionState(logoutActionFn, initial);
+  const [reconnectState, reconnectAction] = useActionState(reconnectActionFn, initial);
   const [testState, testAction] = useActionState(testActionFn, initial);
   const { toast } = useToast();
   useEffect(() => {
-    if (state.ok) toast({ title: "Konfigurasi WhatsApp tersimpan", variant: "success" });
+    if (state.ok) {
+      toast({ title: "Konfigurasi WhatsApp tersimpan", variant: "success" });
+      router.refresh();
+    }
     if (state.error) toast({ title: state.error, variant: "error" });
-  }, [state.ok, state.error, toast]);
+  }, [state.ok, state.error, toast, router, provider]);
   useEffect(() => {
-    if (deviceState.ok) toast({ title: "Device Klicknet dibuat — scan QR", variant: "success" });
-    if (deviceState.error) toast({ title: deviceState.error, variant: "error" });
-  }, [deviceState.ok, deviceState.error, toast]);
+    if (loginState.ok) {
+      toast({
+        title:
+          loginState.loginMode === "code"
+            ? "Kode pairing siap — masukkan di WhatsApp"
+            : "Scan QR untuk login WhatsApp",
+        variant: "success",
+      });
+    }
+    if (loginState.error) toast({ title: loginState.error, variant: "error" });
+  }, [loginState.ok, loginState.error, loginState.loginMode, toast]);
+  useEffect(() => {
+    if (logoutState.ok) {
+      toast({ title: "Device di-logout dan dihapus", variant: "success" });
+      router.refresh();
+    }
+    if (logoutState.error) toast({ title: logoutState.error, variant: "error" });
+  }, [logoutState.ok, logoutState.error, toast, router]);
+  useEffect(() => {
+    if (reconnectState.ok) toast({ title: "Reconnect berhasil", variant: "success" });
+    if (reconnectState.error) toast({ title: reconnectState.error, variant: "error" });
+  }, [reconnectState.ok, reconnectState.error, toast]);
   useEffect(() => {
     if (testState.ok) toast({ title: "Pesan test terkirim", variant: "success" });
     if (testState.error) toast({ title: testState.error, variant: "error" });
@@ -226,11 +265,33 @@ export function WhatsAppConfigForm({
                 )}
               </>
             )}
-            {defaults.deviceId && (
-              <p className="text-xs text-muted-foreground">
-                Device terdaftar: <span className="font-mono">{defaults.deviceId}</span>
-              </p>
-            )}
+            <div>
+              <label className="mb-1 block text-sm font-medium">Nama device</label>
+              <div className="flex items-center gap-1">
+                <span className="shrink-0 rounded-md border bg-muted px-2 py-1.5 font-mono text-xs text-muted-foreground">
+                  {deviceIdPrefix}-
+                </span>
+                <input
+                  name="deviceName"
+                  placeholder="billing"
+                  defaultValue={
+                    defaults.deviceId
+                      ? klicknetDeviceSuffix(defaults.deviceId, deviceIdPrefix)
+                      : "billing"
+                  }
+                  className="h-9 min-w-0 flex-1 rounded-md border px-3 text-sm"
+                />
+              </div>
+              {defaults.deviceId ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Device terdaftar: <span className="font-mono">{defaults.deviceId}</span>
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Simpan akan mendaftarkan device ke server GOWA.
+                </p>
+              )}
+            </div>
           </>
         )}
 
@@ -303,48 +364,91 @@ export function WhatsAppConfigForm({
       </form>
 
       {provider === "klicknet" && (
-        <form action={deviceAction} className="space-y-3 rounded-md border p-3">
-          <p className="text-sm font-medium">Buat Device &amp; Scan QR</p>
-          <p className="text-xs text-muted-foreground">
-            Buat device lalu scan QR dengan WhatsApp.
-          </p>
-          <div>
-            <label className="mb-1 block text-xs font-medium">Nama device</label>
-            <div className="flex items-center gap-1">
-              <span className="shrink-0 rounded-md border bg-muted px-2 py-1.5 font-mono text-xs text-muted-foreground">
-                {deviceIdPrefix}-
-              </span>
-              <input
-                name="deviceName"
-                placeholder="billing"
-                defaultValue={
-                  defaults.deviceId
-                    ? klicknetDeviceSuffix(defaults.deviceId, deviceIdPrefix)
-                    : "billing"
-                }
-                className="h-9 min-w-0 flex-1 rounded-md border px-3 text-sm"
-              />
+        <div className="space-y-3 rounded-md border p-3">
+          <p className="text-sm font-medium">Sesi WhatsApp</p>
+
+          <form action={loginAction} className="space-y-3">
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Mode login</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLoginMode("qr")}
+                  className={`min-h-9 rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                    loginMode === "qr"
+                      ? "border-primary bg-primary/10 font-medium text-primary"
+                      : "text-muted-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  QR Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLoginMode("code")}
+                  className={`min-h-9 rounded-md border px-3 py-1.5 text-sm transition-colors ${
+                    loginMode === "code"
+                      ? "border-primary bg-primary/10 font-medium text-primary"
+                      : "text-muted-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  Kode Pairing
+                </button>
+              </div>
+              <input type="hidden" name="loginMode" value={loginMode} readOnly />
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              ID di server GOWA: <span className="font-mono">{deviceIdPrefix}-billing</span> (contoh)
-            </p>
+
+            {loginMode === "code" && (
+              <div>
+                <label className="mb-1 block text-xs font-medium">Nomor WhatsApp</label>
+                <input
+                  name="loginPhone"
+                  placeholder="62812xxxxxxx"
+                  className="h-9 w-full rounded-md border px-3 text-sm"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Nomor yang dipakai login WhatsApp (format 62…).
+                </p>
+              </div>
+            )}
+
+            <SubmitButton variant="outline">Login</SubmitButton>
+          </form>
+
+          <div className="flex flex-wrap gap-2">
+            <form action={reconnectAction}>
+              <SubmitButton variant="outline">Reconnect</SubmitButton>
+            </form>
+            <form action={logoutAction}>
+              <SubmitButton variant="outline">Logout</SubmitButton>
+            </form>
           </div>
-          {typeof deviceState.deviceId === "string" && deviceState.deviceId.length > 0 ? (
+
+          {typeof loginState.deviceId === "string" && loginState.deviceId.length > 0 ? (
             <p className="text-xs text-muted-foreground">
-              Device aktif: <span className="font-mono">{deviceState.deviceId}</span>
+              Device: <span className="font-mono">{loginState.deviceId}</span>
             </p>
           ) : null}
-          <SubmitButton variant="outline">Buat Device &amp; Tampilkan QR</SubmitButton>
-          {typeof deviceState.qrLink === "string" && deviceState.qrLink.length > 0 ? (
+
+          {typeof loginState.qrLink === "string" && loginState.qrLink.length > 0 ? (
             <div className="space-y-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={deviceState.qrLink} alt="QR WhatsApp" className="mx-auto max-w-[220px]" />
+              <img src={loginState.qrLink} alt="QR WhatsApp" className="mx-auto max-w-[220px]" />
               <p className="text-center text-xs text-muted-foreground">
-                WhatsApp → Pengaturan → Perangkat Tertaut → Tautkan perangkat
+                WhatsApp → Pengaturan → Perangkat Tertaut → Tautkan perangkat → Scan QR
               </p>
             </div>
           ) : null}
-        </form>
+
+          {typeof loginState.pairCode === "string" && loginState.pairCode.length > 0 ? (
+            <div className="space-y-2 rounded-md border bg-muted/30 p-3 text-center">
+              <p className="text-xs text-muted-foreground">Kode pairing</p>
+              <p className="font-mono text-2xl font-bold tracking-widest">{loginState.pairCode}</p>
+              <p className="text-xs text-muted-foreground">
+                WhatsApp → Perangkat Tertaut → Tautkan perangkat → Tautkan dengan nomor telepon
+              </p>
+            </div>
+          ) : null}
+        </div>
       )}
 
       <form action={testAction} className="space-y-3 rounded-md border p-3">

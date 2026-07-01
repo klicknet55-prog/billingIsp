@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
@@ -47,8 +48,19 @@ export async function fetchMikrotikProfilesAction(routerId: string, type: "pppoe
 
 export async function createPaketAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
-  await createPaket(user.tenantId!, paketFromForm(formData));
-  revalidatePath("/dashboard/paket");
+  const fromTambah = String(formData.get("fromPage") ?? "") === "tambah";
+  const listPath = "/dashboard/paket";
+  const formPath = fromTambah ? "/dashboard/paket/tambah" : listPath;
+
+  try {
+    await createPaket(user.tenantId!, paketFromForm(formData));
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal menambah paket.";
+    redirect(`${formPath}?error=${encodeURIComponent(msg)}`);
+  }
+
+  revalidatePath(listPath);
+  redirect(`${listPath}?success=${encodeURIComponent("Paket berhasil ditambahkan.")}`);
 }
 
 export async function updatePaketAction(

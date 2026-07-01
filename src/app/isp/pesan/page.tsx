@@ -24,10 +24,7 @@ export default async function IspPesanPage({
 
   return (
     <>
-      <PageHeader
-        title="Pesan WhatsApp"
-        description="Kirim pesan tunggal atau massal ke pelanggan, kelola template reminder."
-      />
+      <PageHeader title="Pesan WhatsApp" />
       <PesanPageClient
         initialTab={tab}
         pelanggan={pelanggan}

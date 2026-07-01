@@ -49,19 +49,23 @@ function parseInput(formData: FormData): PelangganInput {
 
 export async function createPelangganAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
+  const fromTambah = String(formData.get("fromPage") ?? "") === "tambah";
+  const listPath = "/dashboard/pelanggan";
+  const formPath = fromTambah ? "/dashboard/pelanggan/tambah" : listPath;
+
   let result: Awaited<ReturnType<typeof createPelanggan>>;
   try {
     result = await createPelanggan(user.tenantId!, parseInput(formData), user.id);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah pelanggan.";
-    redirect(`/dashboard/pelanggan?error=${encodeURIComponent(msg)}`);
+    redirect(`${formPath}?error=${encodeURIComponent(msg)}`);
   }
 
-  revalidatePath("/dashboard/pelanggan");
+  revalidatePath(listPath);
   if (result.mikrotikWarning) {
-    redirect(`/dashboard/pelanggan?warn=${encodeURIComponent(result.mikrotikWarning)}`);
+    redirect(`${listPath}?warn=${encodeURIComponent(result.mikrotikWarning)}`);
   }
-  redirect(`/dashboard/pelanggan?success=${encodeURIComponent("Pelanggan berhasil ditambahkan.")}`);
+  redirect(`${listPath}?success=${encodeURIComponent("Pelanggan berhasil ditambahkan.")}`);
 }
 
 export async function updatePelangganAction(formData: FormData) {

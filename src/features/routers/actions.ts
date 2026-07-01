@@ -21,6 +21,10 @@ const routerSchema = z.object({
 
 export async function createRouterAction(formData: FormData) {
   const user = await requireUser(ISP_ROLES);
+  const fromTambah = String(formData.get("fromPage") ?? "") === "tambah";
+  const listPath = "/dashboard/router";
+  const formPath = fromTambah ? "/dashboard/router/tambah" : listPath;
+
   const nama = String(formData.get("nama") ?? "").trim();
   const input = {
     nama,
@@ -36,28 +40,28 @@ export async function createRouterAction(formData: FormData) {
     id = await createRouter(user.tenantId!, input);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Gagal menambah router.";
-    redirect(`/dashboard/router?error=${encodeURIComponent(msg)}`);
+    redirect(`${formPath}?error=${encodeURIComponent(msg)}`);
   }
 
   let status;
   try {
     status = await refreshRouterStatus(user.tenantId!, id);
   } catch (err) {
-    revalidatePath("/dashboard/router");
+    revalidatePath(listPath);
     const detail = err instanceof Error ? err.message : "";
     redirect(
-      `/dashboard/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi cek status gagal.${detail ? ` ${detail}` : ""}`)}`
+      `${listPath}?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi cek status gagal.${detail ? ` ${detail}` : ""}`)}`
     );
   }
 
-  revalidatePath("/dashboard/router");
+  revalidatePath(listPath);
   if (status.online) {
     redirect(
-      `/dashboard/router?success=${encodeURIComponent(status.message ?? `Router "${nama}" tersimpan dan terhubung.`)}`
+      `${listPath}?success=${encodeURIComponent(status.message ?? `Router "${nama}" tersimpan dan terhubung.`)}`
     );
   }
   redirect(
-    `/dashboard/router?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi belum terhubung. ${status.error ?? ""}`)}`
+    `${listPath}?warn=${encodeURIComponent(`Router "${nama}" tersimpan, tetapi belum terhubung. ${status.error ?? ""}`)}`
   );
 }
 

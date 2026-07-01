@@ -10,7 +10,8 @@ import { Select } from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/features/auth/actions";
-import { createRouterAction, updateRouterAction } from "@/features/routers/actions";
+import { updateRouterAction } from "@/features/routers/actions";
+import { RouterCreateForm } from "@/features/routers/components/router-create-form";
 
 interface RouterRow {
   id: string;
@@ -23,46 +24,6 @@ interface RouterRow {
 
 const initial: ActionState = {};
 
-function CreateFormBody({ close }: { close: () => void }) {
-  return (
-    <form action={createRouterAction} className="grid gap-4 sm:grid-cols-2">
-      <div className="space-y-2">
-        <Label htmlFor="nama">Nama</Label>
-        <Input id="nama" name="nama" required placeholder="Router Pusat" />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="connectionMode">Mode Koneksi</Label>
-        <Select id="connectionMode" name="connectionMode" defaultValue="rest">
-          <option value="rest">REST API (RouterOS v7)</option>
-          <option value="legacy_api">Legacy API (8728/8729)</option>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="ipAddress">IP Address</Label>
-        <Input id="ipAddress" name="ipAddress" required placeholder="192.168.88.1 atau hostname DDNS" />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="apiPort">Port API / HTTPS</Label>
-        <Input id="apiPort" name="apiPort" defaultValue="443" />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
-        <Input id="username" name="username" required placeholder="admin" />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <Input id="password" name="password" type="password" required />
-      </div>
-      <div className="flex justify-end gap-2 sm:col-span-2">
-        <Button type="button" variant="ghost" onClick={close}>
-          Batal
-        </Button>
-        <Button type="submit">Simpan</Button>
-      </div>
-    </form>
-  );
-}
-
 export function RouterCreateDialog() {
   return (
     <Dialog
@@ -73,10 +34,9 @@ export function RouterCreateDialog() {
         </Button>
       }
       title="Tambah Router"
-      description="Kredensial Mikrotik disimpan per tenant. Setiap ISP mengelola router sendiri."
       className="max-w-2xl"
     >
-      {(close) => <CreateFormBody close={close} />}
+      {(close) => <RouterCreateForm onCancel={close} />}
     </Dialog>
   );
 }

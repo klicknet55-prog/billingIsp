@@ -218,7 +218,7 @@ export function PaketCreateDialog({ routers }: { routers: RouterOption[] }) {
         </Button>
       }
       title="Tambah Paket"
-      description="Buat paket layanan baru dan mapping profile PPPoE/Hotspot ke Mikrotik."
+      description="Buat paket layanan baru."
       className="max-w-2xl"
     >
       {(close) => <PaketForm routers={routers} onCancel={close} />}

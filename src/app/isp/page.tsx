@@ -107,21 +107,23 @@ export default async function IspDashboard() {
   return (
     <>
       <PageHeader title="Dashboard" description="Ringkasan operasional ISP Anda." />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Pelanggan" value={customers.length} icon={Users} />
-        <StatCard label="Aktif" value={customers.length - isolir} icon={Wifi} />
-        <StatCard label="Terisolir" value={isolir} icon={WifiOff} />
-        <StatCard label="Pendapatan Lunas" value={formatRupiah(pendapatan)} icon={FileText} />
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+        <StatCard compact label="Total Pelanggan" value={customers.length} icon={Users} />
+        <StatCard compact label="Aktif" value={customers.length - isolir} icon={Wifi} />
+        <StatCard compact label="Terisolir" value={isolir} icon={WifiOff} />
+        <StatCard compact label="Pendapatan Lunas" value={formatRupiah(pendapatan)} icon={FileText} />
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-4">
         <StatCard
+          compact
           label="Tagihan Bulan Ini"
           value={formatRupiah(totalBulanIni)}
           icon={CalendarClock}
           hint={`${bulanIniRows.length} tagihan open`}
         />
         <StatCard
+          compact
           label="Tunggakan"
           value={formatRupiah(totalTunggakan)}
           icon={AlertTriangle}
@@ -129,7 +131,7 @@ export default async function IspDashboard() {
         />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid gap-4 sm:mt-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">

@@ -1,4 +1,4 @@
-import { Pencil, RefreshCw } from "lucide-react";
+import { Pencil, Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { TunnelhostServiceLinks } from "@/components/integrations/tunnelhost-service-links";
@@ -51,13 +51,25 @@ export default async function RouterPage({
     <>
       <PageHeader
         title="Router Mikrotik"
-        description={`Kelola perangkat & pantau status koneksi. Kuota: ${routerQuotaText}${
+        description={`Kelola perangkat. Kuota: ${routerQuotaText}${
           quota ? ` (Paket ${quota.paketNama})` : ""
         }`}
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <TunnelhostServiceLinks />
-            <RouterCreateDialog />
+            {(user.role === "owner" || user.role === "admin") && (
+              <>
+                <Button asChild size="sm" className="md:hidden">
+                  <Link href="/dashboard/router/tambah">
+                    <Plus />
+                    Tambah Router
+                  </Link>
+                </Button>
+                <div className="hidden md:contents">
+                  <RouterCreateDialog />
+                </div>
+              </>
+            )}
           </div>
         }
       />

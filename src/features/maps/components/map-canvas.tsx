@@ -279,7 +279,7 @@ export function MapCanvas({
   return (
     <div
       ref={containerRef}
-      className="h-[min(70vh,560px)] w-full overflow-hidden rounded-md border"
+      className="map-canvas-root h-[min(45vh,360px)] w-full overflow-hidden rounded-md border md:h-[min(70vh,560px)]"
     />
   );
 }
