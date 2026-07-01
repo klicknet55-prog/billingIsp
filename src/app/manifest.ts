@@ -17,13 +17,17 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     name,
     short_name: name.length > 12 ? name.slice(0, 12) : name,
     description,
-    start_url: "/",
+    start_url: "/login",
+    scope: "/",
     display: "standalone",
+    orientation: "portrait-primary",
     background_color: "#ffffff",
     theme_color: "#2563eb",
+    categories: ["business", "finance"],
     icons: [
       { src: "/icon.png", sizes: "64x64", type: "image/png", purpose: "any" },
-      { src: "/icon.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+      { src: "/icon.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icon.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

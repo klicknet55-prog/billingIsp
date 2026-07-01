@@ -24,7 +24,12 @@
     "messages:batch": "node --env-file=.env --import tsx scripts/send-message-batch.ts",
     "queue:worker": "node --env-file=.env --import tsx scripts/queue-worker.ts",
     "queue:failed": "node --env-file=.env --import tsx scripts/queue-failed.ts",
-    "map:cache-test": "node --env-file=.env --import tsx scripts/map-cache-load-test.ts"
+    "map:cache-test": "node --env-file=.env --import tsx scripts/map-cache-load-test.ts",
+    "mobile:admin:sync": "npm run sync --prefix mobile/admin",
+    "mobile:portal:sync": "npm run sync --prefix mobile/portal",
+    "mobile:admin:open": "npm run open --prefix mobile/admin",
+    "mobile:portal:open": "npm run open --prefix mobile/portal",
+    "mobile:sync": "npm run mobile:admin:sync && npm run mobile:portal:sync"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",

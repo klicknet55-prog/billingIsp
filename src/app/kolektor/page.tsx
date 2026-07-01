@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardContent } from "@/components/ui/card";
-import { PayTagihanPanel } from "@/features/billing/pay-tagihan-panel";
+import { KolektorTasksClient } from "@/features/kolektor/kolektor-tasks-client";
 import { getTagihanSummary } from "@/features/billing/tagihan-service";
 import { listOutstandingForKolektor } from "@/features/billing/tagihan-service";
 import { requireUser } from "@/lib/auth";
@@ -43,40 +44,32 @@ export default async function KolektorPage() {
     }))
   );
 
+  const tasks = summaries.map((p) => ({
+    pelangganId: p.pelangganId,
+    nama: p.nama,
+    wa: p.wa,
+    lat: p.lat,
+    lng: p.lng,
+    alamat: p.alamat,
+    bulanIniAmount: p.summary.bulanIni?.amount ?? 0,
+    tunggakanTotal: p.summary.totalTunggakan,
+    hasBulanIni: p.summary.hasBulanIni,
+    hasTunggakan: p.summary.tunggakan.length > 0,
+  }));
+
   return (
     <>
       <PageHeader
         title="Tugas Penagihan"
         description="Tagihan belum lunas pada pelanggan area Anda."
       />
-      <div className="space-y-4">
-        {summaries.map((p) => (
-          <Card key={p.pelangganId}>
-            <CardContent className="p-4">
-              <p className="mb-2 font-medium">{p.nama}</p>
-              <p className="mb-3 text-xs text-muted-foreground">{p.alamat ?? p.wa}</p>
-              <PayTagihanPanel
-                pelangganId={p.pelangganId}
-                pelangganNama={p.nama}
-                bulanIniAmount={p.summary.bulanIni?.amount ?? 0}
-                tunggakanTotal={p.summary.totalTunggakan}
-                hasBulanIni={p.summary.hasBulanIni}
-                hasTunggakan={p.summary.tunggakan.length > 0}
-              />
-            </CardContent>
-          </Card>
-        ))}
-        {summaries.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Tidak ada tagihan outstanding di area Anda.
-            </CardContent>
-          </Card>
-        )}
-      </div>
-      <p className="mt-4 text-xs text-muted-foreground">
-        {tenant?.namaUsaha ?? DEFAULT_BRAND_NAME} — Kolektor {user.nama}
-      </p>
+      <Suspense fallback={<Card><CardContent className="p-8 text-center text-muted-foreground">Memuat...</CardContent></Card>}>
+        <KolektorTasksClient
+          tasks={tasks}
+          namaUsaha={tenant?.namaUsaha ?? DEFAULT_BRAND_NAME}
+          kolektorNama={user.nama}
+        />
+      </Suspense>
     </>
   );
 }

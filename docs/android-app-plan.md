@@ -1,24 +1,59 @@
 # Rencana Build App Android (Hybrid)
 
-> Rencana hybrid untuk app Android (semua role: superadmin, ISP admin, kolektor, portal pelanggan): perkuat PWA + UX mobile di codebase Next.js existing, lalu wrap dengan Capacitor menjadi APK; fase lanjutan menambah REST API dan modul native bila diperlukan.
+> Rencana hybrid untuk **dua aplikasi Android** terpisah: **NetManage Admin** (owner, admin, kolektor, teknisi) dan **NetManage Portal** (pelanggan). Perkuat PWA + UX mobile di codebase Next.js existing, lalu wrap dengan Capacitor menjadi dua APK; superadmin tetap web desktop.
 
 **Status:** Draft — belum dieksekusi  
 **Pendekatan:** Hybrid (APK via Capacitor dulu, native nanti jika perlu)  
-**Scope:** Full app (semua role)  
-**Estimasi MVP APK:** ~1 minggu
+**Scope:** Dua APK (Admin + Portal), **bukan** satu APK full role  
+**Estimasi MVP:** ~1,5 minggu (dua shell + hardening web)
+
+Dokumen terkait:
+
+- [PRD Android v1](prd-android-v1.md) — scope produk, user stories, NFR
+- [Spesifikasi UI/UX](android-ui-ux-spec.md) — wireframe notes, bottom nav, komponen
+- [Riset UX](android-ux-research.md) — pain points audit web
+- [Checklist QA](android-qa-checklist.md) — pengujian device
+- [Folder desain](design/android/README.md) — wireframe & mockup export
+- [Wireframe ASCII](design/android/wireframes/SCREEN-WIREFRAMES.md) — detail per layar (starting point)
 
 ---
 
 ## Checklist implementasi
 
-- [ ] Audit & perbaiki responsive UI untuk `/kolektor`, `/portal`, `/isp`, login (touch target, tabel mobile)
-- [ ] Perkuat manifest (512 icon, start_url, viewport meta) dan perluas service worker offline kolektor
+### Fase 0b — Desain visual (sebelum coding)
+
+- [ ] Wireframe low-fi 5 layar prioritas per app (lihat [android-ui-ux-spec.md](android-ui-ux-spec.md))
+- [ ] Mockup hi-fi 360×800 di Figma
+- [ ] Adaptive icon + splash Admin vs Portal
+- [ ] Sign-off stakeholder (product, desain, dev)
+
+### Fase 1 — Web mobile hardening
+
+- [ ] Audit & perbaiki responsive UI: `/kolektor`, `/dashboard/*`, `/portal`, login (touch target, card view)
+- [ ] `MobileBottomNav` per role (owner/admin vs kolektor vs teknisi vs portal)
+- [ ] GPS sort + Maps/Waze satu ketuk di kolektor
+- [ ] Guard superadmin: tolak login di Admin app dengan pesan jelas
+- [ ] Guard staf: tolak login di Portal app, arahkan ke Admin app
+- [ ] Perkuat manifest (512 icon, start_url) dan perluas service worker offline kolektor
 - [ ] Tambah `GET /api/mobile/kolektor/tasks` (auth cookie) untuk cache offline
-- [ ] Buat folder `mobile/` Capacitor, config `server.url` production, permissions Android
-- [ ] Generate signed APK/AAB, splash screen, adaptive icon dari asset existing
-- [ ] QA di device nyata: auth semua role, GPS, Bluetooth print, Duitku redirect, session persist
-- [ ] Siapkan listing Play Store (privacy policy, screenshot) atau sideload APK internal
-- [ ] Fase lanjutan: REST API v1 + plugin native jika WebView blocker terbukti
+
+### Fase 2 — Dua project Capacitor
+
+- [x] `mobile/admin/` — entry `/login?nm_app=admin`, package `id.tunnelhost.netmanage.admin`
+- [x] `mobile/portal/` — entry `/portal/login?nm_app=portal`, package `id.tunnelhost.netmanage.portal`
+- [x] Config `server.url` production HTTPS, permissions Android (GPS, BT admin)
+- [ ] Signed APK internal per app (butuh Android Studio + keystore)
+- [ ] Splash & adaptive icon branded (default Capacitor icon masih)
+
+### Fase 3 — QA & distribusi
+
+- [ ] QA device nyata (lihat [android-qa-checklist.md](android-qa-checklist.md))
+- [ ] Sideload APK internal ke ISP / kolektor
+- [ ] Siapkan listing Play Store fase 2 (privacy policy, screenshot)
+
+### Fase 4 — Lanjutan (jika WebView blocker)
+
+- [ ] REST API v1 + plugin native (FCM, Bluetooth fallback)
 
 ---
 
@@ -42,25 +77,37 @@ PRD sudah mengarahkan kolektor & portal sebagai PWA/Android — selaras dengan p
 
 ```mermaid
 flowchart TB
+  subgraph phase0b [Fase 0b - Desain]
+    Wire[Wireframe]
+    Mock[Mockup Figma]
+    Assets[Icon dan Splash]
+  end
   subgraph phase1 [Fase 1 - PWA dan UX Mobile]
     Web[Next.js Web App]
     PWA[Manifest plus SW]
-    Responsive[Responsive UI audit]
+    Responsive[Mobile hardening]
+    Guards[App role guards]
   end
-  subgraph phase2 [Fase 2 - Capacitor APK]
-    Cap[Capacitor Android shell]
+  subgraph phase2 [Fase 2 - Dua Capacitor APK]
+    AdminCap[Admin shell /login]
+    PortalCap[Portal shell /portal/login]
     WV[WebView HTTPS production]
   end
   subgraph phase3 [Fase 3 - Distribusi]
-    APK[Signed APK or AAB]
-    Store[Google Play optional]
+    APKAdmin[APK Admin internal]
+    APKPortal[APK Portal internal]
+    Store[Google Play fase 2]
   end
   subgraph phase4 [Fase 4 - Native later]
     API[REST API layer]
     RN[Native plugins FCM Bluetooth]
   end
-  Web --> PWA --> Responsive
-  Responsive --> Cap --> WV --> APK --> Store
+  Wire --> Mock --> Assets
+  Assets --> Web --> PWA --> Responsive --> Guards
+  Guards --> AdminCap --> WV
+  Guards --> PortalCap --> WV
+  WV --> APKAdmin --> Store
+  WV --> APKPortal --> Store
   WV -.->|future| API --> RN
 ```
 
@@ -68,7 +115,14 @@ flowchart TB
 
 ## Rekomendasi arsitektur hybrid
 
-**Fase 1–2 (sekarang):** Capacitor + WebView → satu APK **full app** (login → routing ke role yang sesuai, sama seperti web).
+**Fase 1–2 (sekarang):** Dua shell Capacitor + WebView:
+
+| App | Entry URL | Role |
+|-----|-----------|------|
+| NetManage Admin | `/login` | owner, admin, kolektor, teknisi |
+| NetManage Portal | `/portal/login` | pelanggan |
+
+**Superadmin** tidak masuk scope mobile — tetap `https://…/superadmin` di browser desktop.
 
 **Fase 4 (nanti):** Ekstrak REST API + React Native/Expo **hanya jika** WebView tidak cukup (push notification, Bluetooth printer bermasalah, offline kompleks).
 
@@ -169,49 +223,67 @@ Jika Web Bluetooth gagal di WebView → fase 4: plugin `@capacitor-community/blu
 
 ---
 
-## Fase 2 — Capacitor Android shell
+## Fase 2 — Dua Capacitor Android shell
 
 ### 2.1 Struktur monorepo
 
 ```
 billingisp/
-├── src/                    # Next.js (existing)
-├── mobile/                 # NEW - Capacitor project
-│   ├── capacitor.config.ts
-│   ├── android/
-│   └── package.json
+├── src/                         # Next.js (existing)
+├── mobile/
+│   ├── admin/                   # NetManage Admin
+│   │   ├── capacitor.config.ts
+│   │   ├── android/
+│   │   └── package.json
+│   └── portal/                  # NetManage Portal
+│       ├── capacitor.config.ts
+│       ├── android/
+│       └── package.json
 ```
 
-Atau folder sibling `billingisp-mobile/` — pilih monorepo agar icon/version sinkron.
+Monorepo agar versi web + icon sinkron; dua `appId` berbeda untuk Play Store.
 
-### 2.2 Setup Capacitor
+### 2.2 Setup Capacitor (Admin)
 
 ```bash
-cd mobile
+cd mobile/admin
 npm init -y
 npm install @capacitor/core @capacitor/cli @capacitor/android
 npm install @capacitor/splash-screen @capacitor/status-bar @capacitor/geolocation
-npx cap init "BILLING RT-RW NET" com.klicknet.billingrt --web-dir=../out
+npx cap init "NetManage Admin" id.tunnelhost.netmanage.admin --web-dir=../out
 ```
 
 **Catatan Next.js:** App ini **SSR**, bukan static export penuh. Konfigurasi Capacitor untuk production:
 
 ```ts
-// capacitor.config.ts
+// mobile/admin/capacitor.config.ts
 const config = {
-  appId: "com.klicknet.billingrt",
-  appName: "BILLING RT-RW NET",
+  appId: "id.tunnelhost.netmanage.admin",
+  appName: "NetManage Admin",
   server: {
-    url: "https://isp.tunnelhost.my.id",
+    url: "https://isp.tunnelhost.my.id/login",
     cleartext: false,
   },
-  android: {
-    allowMixedContent: false,
-  },
+  android: { allowMixedContent: false },
 };
 ```
 
-Dev lokal: `server.url: "http://10.0.2.2:3000"` (emulator) atau IP LAN.
+```ts
+// mobile/portal/capacitor.config.ts
+const config = {
+  appId: "id.tunnelhost.netmanage.portal",
+  appName: "NetManage Portal",
+  server: {
+    url: "https://isp.tunnelhost.my.id/portal/login",
+    cleartext: false,
+  },
+  android: { allowMixedContent: false },
+};
+```
+
+Opsional: header `X-NetManage-App: admin|portal` via Capacitor config plugin agar web bisa deteksi shell.
+
+Dev lokal: `server.url: "http://10.0.2.2:3000/login"` (emulator) atau IP LAN.
 
 ### 2.3 Android permissions (`AndroidManifest.xml`)
 
@@ -225,21 +297,24 @@ Dev lokal: `server.url: "http://10.0.2.2:3000"` (emulator) atau IP LAN.
 
 ### 2.4 Branding native shell
 
-- Splash screen dari `src/app/icon.png` / adaptive icon
-- Status bar color = `theme_color` dari manifest (`#2563eb`)
-- App name: **BILLING RT-RW NET**
+| App | Splash | Ikon | Status bar |
+|-----|--------|------|------------|
+| Admin | Logo + "Admin ISP" | Badge operasional | `#2563eb` |
+| Portal | Logo + tagline pelanggan | Badge rumah/WiFi | `#2563eb` |
 
-### 2.5 Build APK
+Asset sumber: `docs/design/android/` → `mobile/*/assets/` saat build.
+
+### 2.5 Build APK (ulangi per app)
 
 ```bash
-cd mobile
+cd mobile/admin   # atau mobile/portal
 npx cap add android
 npx cap sync android
 npx cap open android   # Android Studio
 # Build > Generate Signed Bundle/APK
 ```
 
-Output: `app-release.apk` atau `.aab` untuk Play Store.
+Output: `admin-release.apk` + `portal-release.apk` (internal), atau `.aab` untuk Play Store fase 2.
 
 ### 2.6 Deep link (opsional)
 
@@ -251,14 +326,15 @@ Intent filter untuk `https://isp.tunnelhost.my.id/*` agar link Duitku/WhatsApp k
 
 ### 3.1 Testing checklist Android
 
-- [ ] Login owner/admin/kolektor/superadmin
-- [ ] Portal OTP + bayar Duitku (redirect & return)
-- [ ] Kolektor: GPS permission, sort jarak, mark paid
-- [ ] Cetak struk Bluetooth (printer thermal nyata)
-- [ ] Rotasi layar, back button Android
-- [ ] Session persist setelah app di-background
-- [ ] Offline: buka `/kolektor` tanpa jaringan (setelah fase 1.2)
-- [ ] Multi-tenant: tenant A tidak bocor ke tenant B
+Gunakan checklist lengkap: [android-qa-checklist.md](android-qa-checklist.md).
+
+Ringkasan kritikal:
+
+- [ ] Admin: owner/admin/kolektor/teknisi login; **superadmin ditolak**
+- [ ] Portal: pelanggan OTP; **staf ditolak** dengan arahan ke Admin app
+- [ ] Kolektor: GPS, sort jarak, bayar tunai, cetak Bluetooth
+- [ ] Portal: bayar Duitku redirect & return
+- [ ] Back button, session persist, offline kolektor
 
 ### 3.2 Distribusi
 
@@ -311,13 +387,14 @@ Auth: Bearer token (JWT) atau session cookie + CSRF — **paralel** dengan web, 
 
 | Fase | Scope | Estimasi |
 |------|-------|----------|
-| 1 | PWA + responsive audit full app | 3–5 hari |
+| 0b | Wireframe + mockup + asset icon | 2–3 hari |
+| 1 | PWA + mobile hardening + role guards | 3–5 hari |
 | 1.4 | API mobile read-only + SW offline | 1–2 hari |
-| 2 | Capacitor setup + APK signed | 1–2 hari |
-| 3 | QA perangkat nyata + Play Store prep | 2–3 hari |
+| 2 | Dua Capacitor project + APK signed | 2–3 hari |
+| 3 | QA perangkat nyata + sideload internal | 2–3 hari |
 | 4 | REST API + native (future) | 2–4 minggu |
 
-**MVP APK (fase 1–2 minimal):** ~1 minggu.
+**MVP dua APK (fase 0b–3 minimal):** ~1,5 minggu.
 
 ---
 
@@ -347,5 +424,10 @@ Auth: Bearer token (JWT) atau session cookie + CSRF — **paralel** dengan web, 
 
 ## Dokumen terkait
 
+- [`docs/prd-android-v1.md`](prd-android-v1.md) — PRD produk Android v1 (dua app)
+- [`docs/android-ui-ux-spec.md`](android-ui-ux-spec.md) — spesifikasi UI/UX & wireframe notes
+- [`docs/android-ux-research.md`](android-ux-research.md) — riset pain points mobile
+- [`docs/android-qa-checklist.md`](android-qa-checklist.md) — checklist QA device
+- [`docs/design/android/README.md`](design/android/README.md) — folder wireframe & mockup
 - [`docs/database-migration-plan.md`](database-migration-plan.md) — migrasi SQLite → PostgreSQL/MySQL
-- [`Product Requirements Document (PRD) — NetManage SaaS.md`](../Product%20Requirements%20Document%20(PRD)%20%E2%80%94%20NetManage%20SaaS.md) — spesifikasi PWA kolektor & portal Android
+- [`Product Requirements Document (PRD) — NetManage SaaS.md`](../Product%20Requirements%20Document%20(PRD)%20%E2%80%94%20NetManage%20SaaS.md) — PRD platform utama

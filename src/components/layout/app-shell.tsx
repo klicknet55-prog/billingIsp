@@ -26,19 +26,23 @@ import {
   UserCheck,
   UserCog,
   Users,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
+import { MobileMenuDrawer } from "@/components/layout/mobile-menu-drawer";
+import { MobileThemeToggle } from "@/components/layout/mobile-theme-toggle";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { Button } from "@/components/ui/button";
 import { SiteFooterContent } from "@/components/layout/site-footer-content";
 import { logoutAction } from "@/features/auth/actions";
 import { SUPERADMIN_PENGATURAN_HREF } from "@/lib/superadmin-pengaturan-nav";
+import { adminNavItems } from "@/lib/mobile/nav-config";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
+import { MobileBackHandler } from "@/components/layout/mobile-back-handler";
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 
 interface NavItem {
   href: string;
@@ -156,10 +160,34 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const hasMobileBottomNav = variant === "dashboard" || variant === "kolektor";
+  const mobileNavItems = hasMobileBottomNav ? adminNavItems(userRole) : [];
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [navReady, setNavReady] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const profileRef = useRef<HTMLDivElement>(null);
+  const slimMobileHeader = hasMobileBottomNav;
+  const dashboardHomeHref = variant === "kolektor" ? "/kolektor" : `/${variant === "dashboard" ? "dashboard" : variant}`;
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (profileRef.current?.contains(e.target as Node)) return;
+      setProfileOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [profileOpen]);
+
+  useEffect(() => {
+    if (!profileOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProfileOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [profileOpen]);
 
   useEffect(() => {
     setNavReady(true);
@@ -210,16 +238,11 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 -translate-x-full border-r bg-card transition-transform print:hidden",
-          "md:sticky md:top-0 md:z-30 md:h-screen md:shrink-0 md:translate-x-0",
-          open && "translate-x-0"
-        )}
-      >
+      <MobileBackHandler />
+      {/* Sidebar desktop — tidak di-render di mobile agar tidak menangkap tap */}
+      <aside className="hidden md:sticky md:top-0 md:z-30 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col border-r bg-card print:hidden">
         <div className="flex h-full flex-col">
-          <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
+          <div className="flex h-14 shrink-0 items-center border-b px-4">
             <Link href={`/${variant}`} className="flex items-center gap-2 font-semibold">
               {brandLogoUrl ? (
                 <BrandLogo logoUrl={brandLogoUrl} name={brandName} className="h-6 w-6 rounded-sm object-cover" />
@@ -228,14 +251,6 @@ export function AppShell({
               )}
               <span className="truncate">{brandName}</span>
             </Link>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setOpen(false)}
-            >
-              <X />
-            </Button>
           </div>
           <nav className="flex-1 space-y-1 overflow-y-auto p-3" suppressHydrationWarning>
             {variant === "dashboard"
@@ -308,89 +323,235 @@ export function AppShell({
         </div>
       </aside>
 
-      {open && (
-        <button
-          className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          aria-hidden
-          onClick={() => setOpen(false)}
-        />
-      )}
-
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur print:hidden supports-[backdrop-filter]:bg-background/80">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setOpen(true)}
-          >
-            <Menu />
-          </Button>
-          <div className="flex flex-1 items-center justify-end gap-3">
-            <div className="relative">
-              <button
-                type="button"
-                className="flex items-center gap-1 rounded-md px-2 py-1 text-right text-sm hover:bg-accent"
-                onClick={() => setProfileOpen((v) => !v)}
+        <header className="sticky top-0 z-[100] flex h-14 shrink-0 items-center border-b bg-background px-4 print:hidden md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
+          {slimMobileHeader && (
+            <div className="flex w-full items-center justify-between gap-3 md:hidden">
+              <Link
+                href={dashboardHomeHref}
+                className="flex min-h-11 min-w-0 flex-1 items-center gap-2 font-semibold"
+                style={{ touchAction: "manipulation" }}
               >
-                <div>
-                  <div className="font-medium leading-none">{userName}</div>
-                  <div className="text-xs capitalize text-muted-foreground">{userRole}</div>
-                </div>
-                <ChevronDown className="size-4 text-muted-foreground" />
-              </button>
-              {profileOpen && (
-                <div className="absolute right-0 top-11 z-50 w-72 rounded-md border bg-popover p-3 shadow-md">
-                  {variant === "dashboard" ? (
-                    <div className="space-y-3 text-sm">
-                      <div>
-                        <div className="text-xs uppercase text-muted-foreground">Status Paket SaaS</div>
-                        {subscriptionInfo ? (
-                          <div className="mt-1">
-                            <div className="font-medium">{subscriptionInfo.packageName}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {subscriptionInfo.status === "active" ? "Aktif" : "Expired"} • Berakhir{" "}
-                              {subscriptionInfo.expiresAt}
+                {brandLogoUrl ? (
+                  <BrandLogo
+                    logoUrl={brandLogoUrl}
+                    name={brandName}
+                    className="h-7 w-7 shrink-0 rounded-sm object-cover"
+                  />
+                ) : (
+                  <Network className="size-6 shrink-0 text-primary" />
+                )}
+                <span className="truncate">{brandName}</span>
+              </Link>
+              <MobileThemeToggle />
+            </div>
+          )}
+
+          <div
+            className={cn(
+              "flex w-full items-center justify-between",
+              slimMobileHeader && "hidden md:flex"
+            )}
+          >
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 touch-manipulation md:hidden"
+              onClick={() => setOpen(true)}
+            >
+              <Menu />
+            </Button>
+            <div className="flex flex-1 items-center justify-end gap-1 sm:gap-3">
+              <div className="relative hidden md:block" ref={profileRef}>
+                <button
+                  type="button"
+                  className="flex min-h-11 items-center gap-1 rounded-md px-2 py-1 text-right text-sm hover:bg-accent"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setProfileOpen((v) => !v);
+                  }}
+                >
+                  <div>
+                    <div className="font-medium leading-none">{userName}</div>
+                    <div className="text-xs capitalize text-muted-foreground">{userRole}</div>
+                  </div>
+                  <ChevronDown className="size-4 text-muted-foreground" />
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 top-11 z-[60] w-72 rounded-md border bg-popover p-3 shadow-md">
+                    {variant === "dashboard" ? (
+                      <div className="space-y-3 text-sm">
+                        <div>
+                          <div className="text-xs uppercase text-muted-foreground">Status Paket SaaS</div>
+                          {subscriptionInfo ? (
+                            <div className="mt-1">
+                              <div className="font-medium">{subscriptionInfo.packageName}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {subscriptionInfo.status === "active" ? "Aktif" : "Expired"} • Berakhir{" "}
+                                {subscriptionInfo.expiresAt}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="mt-1 text-xs text-muted-foreground">
-                            Belum ada paket langganan.
-                          </div>
+                          ) : (
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              Belum ada paket langganan.
+                            </div>
+                          )}
+                        </div>
+                        {(userRole === "owner" || userRole === "admin") && (
+                          <Link
+                            href="/dashboard/langganan"
+                            className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                            onClick={() => setProfileOpen(false)}
+                          >
+                            Upgrade Paket Berlangganan
+                          </Link>
                         )}
                       </div>
-                      {(userRole === "owner" || userRole === "admin") && (
-                        <Link
-                          href="/dashboard/langganan"
-                          className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                          onClick={() => setProfileOpen(false)}
-                        >
-                          Upgrade Paket Berlangganan
-                        </Link>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-muted-foreground">Tidak ada pengaturan paket.</div>
-                  )}
-                </div>
-              )}
+                    ) : (
+                      <div className="text-xs text-muted-foreground">Tidak ada pengaturan paket.</div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <ThemeSwitcher />
+              <form action={logoutAction} className="hidden md:block">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-11 touch-manipulation"
+                  title="Keluar"
+                  type="submit"
+                >
+                  <LogOut />
+                </Button>
+              </form>
             </div>
-            <ThemeSwitcher />
-            <form action={logoutAction}>
-              <Button variant="ghost" size="icon" title="Keluar" type="submit">
-                <LogOut />
-              </Button>
-            </form>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main
+          className={cn(
+            "flex-1 p-4 md:p-6",
+            hasMobileBottomNav && "max-md:pb-20"
+          )}
+        >
+          {children}
+        </main>
         <SiteFooterContent
           appOrigin={appOrigin}
           brandName={brandName}
-          className="print:hidden"
+          className={cn("print:hidden", hasMobileBottomNav && "max-md:hidden")}
         />
       </div>
+      {hasMobileBottomNav && (
+        <MobileBottomNav
+          items={mobileNavItems}
+          onAction={(id) => {
+            if (id === "menu") setOpen(true);
+          }}
+        />
+      )}
+      <MobileMenuDrawer open={open} onClose={() => setOpen(false)} title={brandName}>
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3" suppressHydrationWarning>
+          {variant === "dashboard"
+            ? dashboardEntries.map((entry) => {
+                if (!isNavGroup(entry)) {
+                  return (
+                    <Link
+                      key={entry.href}
+                      href={entry.href}
+                      onClick={() => setOpen(false)}
+                      className={navLinkClass(entry.href)}
+                    >
+                      <entry.icon className="size-4 shrink-0" />
+                      {entry.label}
+                    </Link>
+                  );
+                }
+
+                const expanded = expandedGroups[entry.id] ?? groupChildActive(entry);
+                return (
+                  <div key={entry.id} className="space-y-0.5">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(entry.id)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                        groupChildActive(entry)
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <entry.icon className="size-4 shrink-0" />
+                      <span className="flex-1 text-left">{entry.label}</span>
+                      {expanded ? (
+                        <ChevronDown className="size-4 shrink-0 opacity-70" />
+                      ) : (
+                        <ChevronRight className="size-4 shrink-0 opacity-70" />
+                      )}
+                    </button>
+                    {expanded && (
+                      <div className="space-y-0.5">
+                        {entry.children.map((child) => (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={() => setOpen(false)}
+                            className={navLinkClass(child.href, true)}
+                          >
+                            <child.icon className="size-4 shrink-0" />
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            : flatItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={navLinkClass(item.href)}
+                >
+                  <item.icon className="size-4 shrink-0" />
+                  {item.label}
+                </Link>
+              ))}
+        </nav>
+        {slimMobileHeader && (
+          <div className="shrink-0 border-t p-3">
+            <p className="font-medium leading-snug">{userName}</p>
+            <p className="text-xs capitalize text-muted-foreground">{userRole}</p>
+            {variant === "dashboard" && subscriptionInfo && (
+              <div className="mt-3 rounded-md border bg-muted/40 p-2 text-xs">
+                <p className="font-medium text-muted-foreground">Paket SaaS</p>
+                <p className="mt-0.5 font-medium">{subscriptionInfo.packageName}</p>
+                <p className="text-muted-foreground">
+                  {subscriptionInfo.status === "active" ? "Aktif" : "Expired"} ·{" "}
+                  {subscriptionInfo.expiresAt}
+                </p>
+              </div>
+            )}
+            {variant === "dashboard" && (userRole === "owner" || userRole === "admin") && (
+              <Link
+                href="/dashboard/langganan"
+                onClick={() => setOpen(false)}
+                className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Kelola langganan
+              </Link>
+            )}
+            <form action={logoutAction} className="mt-3">
+              <Button type="submit" variant="outline" className="w-full touch-manipulation">
+                <LogOut className="size-4" />
+                Keluar
+              </Button>
+            </form>
+          </div>
+        )}
+      </MobileMenuDrawer>
     </div>
   );
 }

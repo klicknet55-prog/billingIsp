@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { PwaRegister } from "@/components/pwa-register";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme-script";
@@ -14,14 +14,24 @@ export async function generateMetadata(): Promise<Metadata> {
     return {
       title: `${brand.name} — Manajemen ISP & RT-RW Net`,
       description: brand.tagline,
+      appleWebApp: { capable: true, statusBarStyle: "default" },
+      applicationName: brand.name,
     };
   } catch {
     return {
       title: `${DEFAULT_BRAND_NAME} — Manajemen ISP & RT-RW Net`,
       description: "Platform billing & manajemen jaringan untuk ISP dan RT-RW Net.",
+      appleWebApp: { capable: true, statusBarStyle: "default" },
+      applicationName: DEFAULT_BRAND_NAME,
     };
   }
 }
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export default async function RootLayout({
   children,

@@ -1,6 +1,6 @@
 // Service worker NetManage: cache app shell + network-first untuk halaman.
 // Mendukung kebutuhan offline dasar kolektor (lihat daftar tugas terakhir).
-const CACHE = "netmanage-v2";
+const CACHE = "netmanage-v3";
 const SHELL = ["/", "/kolektor", "/offline"];
 
 self.addEventListener("install", (event) => {

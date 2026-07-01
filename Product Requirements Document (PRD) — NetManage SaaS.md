@@ -55,6 +55,19 @@ Menjadi “otak” bisnis ISP yang mengotomasi seluruh siklus: akuisisi pelangga
 - **Self‑Diagnostic**: Speed test bawaan, cek koneksi ke server lokal vs internet.
 - **Pengaduan Mandiri**: Form laporan gangguan + foto kondisi modem/kabel.
 
+### Aplikasi Android v1 (dua APK hybrid)
+
+Rilis mobile v1 memakai **dua aplikasi Android terpisah** (Capacitor + WebView ke production HTTPS), bukan satu APK untuk semua role:
+
+| Aplikasi | Persona | Entry web |
+|----------|---------|-----------|
+| **NetManage Admin** | owner, admin, kolektor, teknisi | `/login` |
+| **NetManage Portal** | pelanggan | `/portal/login` |
+
+**Superadmin** tidak didukung di app mobile — tetap via browser desktop.
+
+Distribusi: APK internal (fase 1) → Google Play (fase 2). Spesifikasi lengkap: [`docs/prd-android-v1.md`](docs/prd-android-v1.md).
+
 ## 4. User Flow
 
 ### Alur Pendaftaran Tenant Baru (Self‑Service)
@@ -346,3 +359,16 @@ erDiagram
 | **Hosting** | Vercel + Docker | Next.js di Vercel, background worker bisa di Railway atau server terpisah. |
 
 Semua bagian telah disesuaikan dengan kebutuhan NetManage, memaksimalkan produktivitas tim dan skalabilitas. Pendaftaran tenant kini bersifat self‑service dengan pemilihan paket dan pembayaran instan melalui QRIS, mengurangi hambatan masuk bagi calon ISP.
+
+## 8. Dokumentasi Aplikasi Android v1
+
+Dokumen implementasi mobile (baseline web `v1.0.0`):
+
+| Dokumen | Isi |
+|---------|-----|
+| [`docs/prd-android-v1.md`](docs/prd-android-v1.md) | PRD produk: scope dua app, user stories, NFR |
+| [`docs/android-app-plan.md`](docs/android-app-plan.md) | Rencana teknis hybrid, fase Capacitor |
+| [`docs/android-ui-ux-spec.md`](docs/android-ui-ux-spec.md) | Spesifikasi UI/UX, wireframe notes, komponen |
+| [`docs/android-ux-research.md`](docs/android-ux-research.md) | Riset pain points audit web mobile |
+| [`docs/android-qa-checklist.md`](docs/android-qa-checklist.md) | Checklist QA device sebelum rilis APK |
+| [`docs/design/android/`](docs/design/android/) | Folder export wireframe, mockup, icon |

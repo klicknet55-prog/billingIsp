@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { MobileDataCard } from "@/components/layout/mobile-data-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,7 +86,50 @@ export function TagihanListClient({
         className="mb-4 border-b-0 pb-0"
       />
 
-      <Card>
+      <div className="space-y-3 md:hidden">
+        {filtered.map((r) => {
+          const canPay = r.status === "open" || r.status === "tunggakan";
+          return (
+            <MobileDataCard
+              key={r.pelangganId}
+              title={r.nama}
+              badge={STATUS_LABEL[r.status]}
+              badgeVariant={STATUS_VARIANT[r.status]}
+              meta={
+                <>
+                  <p>{r.paketNama ?? "-"}</p>
+                  <p>Jatuh tempo: {formatDate(r.activeDueDate)}</p>
+                  {r.tunggakanCount > 0 && (
+                    <p className="text-destructive">
+                      Tunggakan: {formatRupiah(r.tunggakanTotal)}
+                    </p>
+                  )}
+                </>
+              }
+              footer={
+                canPay ? (
+                  <Button asChild size="sm">
+                    <Link href={`/dashboard/tagihan/${r.pelangganId}`}>Bayar</Link>
+                  </Button>
+                ) : (
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/dashboard/tagihan/${r.pelangganId}`}>Detail</Link>
+                  </Button>
+                )
+              }
+            />
+          );
+        })}
+        {filtered.length === 0 && (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Tidak ada data tagihan untuk filter ini.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>

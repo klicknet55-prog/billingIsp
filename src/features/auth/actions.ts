@@ -36,6 +36,13 @@ export async function loginStaffAction(
     };
   }
   if (!user) return { error: "Email atau kata sandi salah." };
+  if (user.role === "superadmin") {
+    await logout();
+    return {
+      error:
+        "Akun Super Admin tidak didukung di aplikasi ini. Gunakan browser desktop untuk mengelola platform.",
+    };
+  }
   redirect(dashboardPathForRole(user.role));
 }
 

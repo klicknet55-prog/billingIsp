@@ -20,3 +20,13 @@ data/deploy/**
 data/install/**
 !data/install/.gitkeep
 *.db.bak
+
+# Capacitor Android build artifacts
+mobile/**/node_modules/
+mobile/**/android/.gradle/
+mobile/**/android/build/
+mobile/**/android/app/build/
+mobile/**/android/local.properties
+mobile/**/android/.idea/
+mobile/**/android/capacitor-cordova-android-plugins/build/
+tsconfig.tsbuildinfo

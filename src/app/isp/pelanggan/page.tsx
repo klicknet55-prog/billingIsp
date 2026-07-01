@@ -1,5 +1,6 @@
 import { MapPin, Pencil } from "lucide-react";
 import Link from "next/link";
+import { MobileDataCard } from "@/components/layout/mobile-data-card";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,7 +102,38 @@ export default async function PelangganPage({
         </Card>
       )}
 
-      <Card>
+      <div className="space-y-3 md:hidden">
+        {rows.map((p) => (
+          <MobileDataCard
+            key={p.id}
+            title={p.nama}
+            badge={p.isIsolated ? "Isolir" : "Aktif"}
+            badgeVariant={p.isIsolated ? "destructive" : "success"}
+            meta={
+              <>
+                <p>{p.noWa}</p>
+                <p>
+                  {p.paketNama ?? "-"} · {p.connectionType}
+                </p>
+              </>
+            }
+            footer={
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/dashboard/pelanggan/${p.id}`}>Lihat detail</Link>
+              </Button>
+            }
+          />
+        ))}
+        {rows.length === 0 && (
+          <Card>
+            <CardContent className="py-8 text-center text-muted-foreground">
+              Belum ada pelanggan.
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      <Card className="hidden md:block">
         <CardContent className="p-0">
           <Table>
             <TableHeader>

@@ -18,7 +18,11 @@ export function BrandLogo({
     <img
       src={logoUrl}
       alt={name}
+      width={28}
+      height={28}
       className={className}
+      loading="eager"
+      decoding="async"
       onError={() => setFailed(true)}
     />
   );

@@ -107,6 +107,19 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-feature-settings: "rlig" 1, "calt" 1;
+  touch-action: manipulation;
+}
+
+/* Bottom nav mobile — tampil via CSS (tidak bergantung portal/JS mount) */
+@media (max-width: 767px) {
+  .nm-bottom-nav {
+    display: block;
+  }
+}
+@media (min-width: 768px) {
+  .nm-bottom-nav {
+    display: none !important;
+  }
 }
 
 /* Scrollbar halus */

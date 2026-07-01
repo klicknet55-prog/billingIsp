@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ["better-sqlite3", "node-routeros"],
+  devIndicators: false,
   async redirects() {
     return [
       { source: "/isp", destination: "/dashboard", permanent: true },

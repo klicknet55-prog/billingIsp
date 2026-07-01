@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
-import { AlertTriangle, CalendarClock, Package, Wifi } from "lucide-react";
 import Link from "next/link";
+import { eq } from "drizzle-orm";
+import { Activity, AlertTriangle, CalendarClock, ChevronRight, Package, Wifi } from "lucide-react";
 import { StatCard } from "@/components/layout/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,6 +104,31 @@ export default async function PortalHome() {
           <Link href="/portal/tagihan">Lihat Semua Tagihan</Link>
         </Button>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Butuh bantuan?</CardTitle>
+        </CardHeader>
+        <CardContent className="divide-y p-0">
+          <Link
+            href="/portal/lapor"
+            className="flex items-center justify-between px-4 py-3 text-sm hover:bg-accent"
+          >
+            Laporkan gangguan
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
+          <Link
+            href="/portal/diagnostik"
+            className="flex items-center justify-between px-4 py-3 text-sm hover:bg-accent"
+          >
+            <span className="flex items-center gap-2">
+              <Activity className="size-4 text-muted-foreground" />
+              Cek koneksi
+            </span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

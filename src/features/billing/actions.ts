@@ -54,10 +54,25 @@ export async function payTagihanAction(formData: FormData) {
     revalidatePath("/dashboard/pelanggan");
     revalidatePath("/kolektor");
     revalidatePath("/portal/tagihan");
+    const redirectTo = String(formData.get("redirectTo") ?? "").trim();
+    const pelangganNama = String(formData.get("pelangganNama") ?? "").trim();
+    if (redirectTo === "/kolektor") {
+      const params = new URLSearchParams({
+        paid: "1",
+        noNota: result.noNota,
+        total: String(result.total),
+      });
+      if (pelangganNama) params.set("pelanggan", pelangganNama);
+      redirect(`${redirectTo}?${params.toString()}`);
+    }
     redirect(`/dashboard/nota/${result.receiptId}?success=1`);
   } catch (err) {
     if (isNextRedirectError(err)) throw err;
     const msg = err instanceof Error ? err.message : "Pembayaran gagal.";
+    const redirectTo = String(formData.get("redirectTo") ?? "").trim();
+    if (redirectTo === "/kolektor") {
+      redirect(`/kolektor?error=${encodeURIComponent(msg)}`);
+    }
     redirect(`/dashboard/tagihan/${pelangganId}?error=${encodeURIComponent(msg)}`);
   }
 }

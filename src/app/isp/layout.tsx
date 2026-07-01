@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
+import { WrongAppScreen } from "@/components/layout/wrong-app-screen";
 import { Card, CardContent } from "@/components/ui/card";
 import { startOfDay } from "@/features/jobs/billing";
 import { getTenantSubscriptionStatus } from "@/features/tenants/service";
-import { requireUser } from "@/lib/auth";
+import { getCurrentActor, requireUser } from "@/lib/auth";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getAppOrigin } from "@/lib/site-server";
 import { getCurrentTenant } from "@/lib/tenant";
@@ -16,6 +17,15 @@ function daysUntilExpiry(akhir: Date): number {
 }
 
 export default async function IspLayout({ children }: { children: React.ReactNode }) {
+  const actor = await getCurrentActor();
+  if (actor?.type === "pelanggan") {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <WrongAppScreen variant="admin-for-pelanggan" />
+      </div>
+    );
+  }
+
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const [tenant, subscription, appOrigin] = await Promise.all([
     getCurrentTenant(),
