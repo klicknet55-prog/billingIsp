@@ -12,7 +12,9 @@ next-env.d.ts
 *.db-shm
 drizzle/meta
 .DS_Store
-public/uploads/
+public/uploads/**
+!public/uploads/.gitkeep
+!public/uploads/**/.gitkeep
 data/backups/**
 !data/backups/.gitkeep
 data/deploy/**

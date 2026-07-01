@@ -98,7 +98,7 @@ export function LogoBrandForm({
   }, [state.ok, state.error, toast]);
 
   return (
-    <form action={action} className="space-y-4">
+    <form action={action} encType="multipart/form-data" className="space-y-4">
       <Field id="logoFile" label="Upload logo">
         <input
           id="logoFile"

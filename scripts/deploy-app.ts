@@ -271,6 +271,9 @@ async function main() {
 
     await setStep(state, "db_ensure_schema", "ok");
 
+    run("npm run uploads:ensure-dirs", { allowFail: true });
+    await log("uploads:ensure-dirs selesai");
+
     await setStep(state, "npm_build", "running");
     run("npm run build");
     await setStep(state, "npm_build", "ok");

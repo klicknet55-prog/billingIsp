@@ -15,6 +15,7 @@
     "db:migrate:pg": "node --env-file=.env ./node_modules/drizzle-kit/bin.cjs migrate --config=drizzle.config.postgres.ts",
     "db:migrate-sqlite-to-pg": "node --env-file=.env --import tsx scripts/migrate-sqlite-to-pg.ts",
     "db:ensure-schema": "node --env-file=.env --import tsx src/lib/db/ensure-schema.ts",
+    "uploads:ensure-dirs": "node --import tsx scripts/ensure-upload-dirs.ts",
     "db:migrate-tagihan": "node --env-file=.env --import tsx scripts/migrate-invoice-to-tagihan.ts",
     "db:seed": "node --env-file=.env --import tsx src/lib/db/seed.ts",
     "db:backfill-integrations": "node --env-file=.env --import tsx src/lib/db/backfill-tenant-integrations.ts",

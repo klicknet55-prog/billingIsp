@@ -2,6 +2,11 @@
 const nextConfig = {
   serverExternalPackages: ["better-sqlite3", "node-routeros"],
   devIndicators: false,
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "3mb",
+    },
+  },
   async redirects() {
     return [
       { source: "/isp", destination: "/dashboard", permanent: true },

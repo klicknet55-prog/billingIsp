@@ -2,14 +2,13 @@
 
 import { and, eq, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { hashPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import { tenants, users } from "@/lib/db/schema";
+import { saveLogoUpload } from "@/lib/uploads";
 import { parseForm } from "@/lib/validation";
 
 const adminProfileSchema = z.object({
@@ -73,21 +72,11 @@ export async function saveCompanyProfileAction(
   let logoUrl: string | null | undefined = undefined;
   const file = formData.get("logoFile");
   if (file instanceof File && file.size > 0) {
-    const allowed = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
-    if (!allowed.includes(file.type)) {
-      return { error: "Format logo tidak didukung. Gunakan PNG/JPG/WEBP/SVG." };
+    try {
+      logoUrl = await saveLogoUpload("tenant-logos", file, user.tenantId);
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Gagal mengunggah logo." };
     }
-    if (file.size > 2 * 1024 * 1024) {
-      return { error: "Ukuran logo maksimal 2MB." };
-    }
-    const ext = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1] || "png";
-    const filename = `${user.tenantId}-${Date.now()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "tenant-logos");
-    await mkdir(uploadDir, { recursive: true });
-    const output = path.join(uploadDir, filename);
-    const bytes = await file.arrayBuffer();
-    await writeFile(output, Buffer.from(bytes));
-    logoUrl = `/uploads/tenant-logos/${filename}`;
   }
 
   const removeLogo = String(formData.get("removeLogo") ?? "") === "on";

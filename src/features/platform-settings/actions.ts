@@ -1,11 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { z } from "zod";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
+import { saveLogoUpload } from "@/lib/uploads";
 import { PLATFORM_REVALIDATE_PATHS } from "@/lib/superadmin-pengaturan-nav";
 import { parseForm } from "@/lib/validation";
 import { patchPlatformSettings } from "./service";
@@ -95,19 +94,11 @@ export async function saveLogoBrandAction(
 
   const file = formData.get("logoFile");
   if (file instanceof File && file.size > 0) {
-    const allowed = ["image/png", "image/jpeg", "image/webp", "image/svg+xml"];
-    if (!allowed.includes(file.type)) {
-      return { error: "Format logo tidak didukung. Gunakan PNG/JPG/WEBP/SVG." };
+    try {
+      logoUrl = await saveLogoUpload("platform-logo", file, "platform");
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Gagal mengunggah logo." };
     }
-    if (file.size > 2 * 1024 * 1024) {
-      return { error: "Ukuran logo maksimal 2MB." };
-    }
-    const ext = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1] || "png";
-    const filename = `platform-${Date.now()}.${ext}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "platform-logo");
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, filename), Buffer.from(await file.arrayBuffer()));
-    logoUrl = `/uploads/platform-logo/${filename}`;
   }
 
   if (removeLogo) {

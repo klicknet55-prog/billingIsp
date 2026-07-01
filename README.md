@@ -314,6 +314,7 @@ Ringkas:
 | **PM2 reboot** | Wajib `pm2 startup` (sudo) + `pm2 save`; jalankan PM2 sebagai user pemilik repo, bukan root. |
 | **Cron** | Wajib di production — lihat [Pasang Cron (Background Worker)](#pasang-cron-background-worker). |
 | **Duitku** | `DUITKU_CALLBACK_URL` harus URL publik server, bukan localhost. |
+| **Upload logo/foto** | Folder `public/uploads/` harus bisa ditulis user PM2. Jalankan `npm run uploads:ensure-dirs` setelah deploy. Form upload wajib `multipart/form-data` (sudah di kode). Nginx: `client_max_body_size 3m;` |
 
 ## Integrasi Mikrotik
 
