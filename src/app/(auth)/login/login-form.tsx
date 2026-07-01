@@ -1,19 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { loginStaffAction, type ActionState } from "@/features/auth/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getNetManageApp } from "@/lib/mobile/use-mobile-shell";
 
 const initial: ActionState = {};
 
 export function LoginForm() {
   const [state, action, pending] = useActionState(loginStaffAction, initial);
+  const [nmApp, setNmApp] = useState("");
+
+  useEffect(() => {
+    setNmApp(getNetManageApp() ?? "");
+  }, []);
 
   return (
     <form action={action} className="space-y-4">
+      {nmApp ? <input type="hidden" name="nm_app" value={nmApp} readOnly /> : null}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" placeholder="owner@isp.net" required />

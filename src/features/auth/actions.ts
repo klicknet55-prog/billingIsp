@@ -36,11 +36,12 @@ export async function loginStaffAction(
     };
   }
   if (!user) return { error: "Email atau kata sandi salah." };
-  if (user.role === "superadmin") {
+  const nmApp = String(formData.get("nm_app") ?? "");
+  if (user.role === "superadmin" && nmApp === "admin") {
     await logout();
     return {
       error:
-        "Akun Super Admin tidak didukung di aplikasi ini. Gunakan browser desktop untuk mengelola platform.",
+        "Akun Super Admin tidak didukung di aplikasi mobile. Gunakan browser desktop untuk mengelola platform.",
     };
   }
   redirect(dashboardPathForRole(user.role));
