@@ -10,6 +10,17 @@ export function persistNetManageAppFromUrl(): void {
   const app = new URLSearchParams(window.location.search).get("nm_app");
   if (app === "admin" || app === "portal") {
     sessionStorage.setItem(NM_APP_KEY, app);
+    return;
+  }
+  persistNetManageAppFromPath();
+}
+
+/** Deteksi rute portal / link bayar saat dibuka lewat App Link (tanpa query nm_app). */
+export function persistNetManageAppFromPath(): void {
+  if (typeof window === "undefined") return;
+  const path = window.location.pathname;
+  if (path.startsWith("/portal") || path.startsWith("/p/")) {
+    sessionStorage.setItem(NM_APP_KEY, "portal");
   }
 }
 

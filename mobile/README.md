@@ -104,6 +104,22 @@ npm run mobile:portal:open
 
 Parameter `?nm_app=admin|portal` disimpan di `sessionStorage` agar bottom nav & layout mobile aktif di APK.
 
+Rute `/p/*` dan `/portal/*` juga otomatis dikenali sebagai shell portal (App Link bayar).
+
+---
+
+## Link bayar → APK MyWiFi
+
+1. **Pesan WhatsApp** memakai URL intent Android (buka MyWiFi jika terinstall, fallback browser).
+2. **Android App Links** (`/p/*`, `/portal/*`) di `AndroidManifest.xml` — host default `isp.tunnelhost.my.id` (sesuaikan jika domain beda).
+3. **Verifikasi domain**: set `ANDROID_APP_LINK_SHA256` di `.env` production (fingerprint keystore release), lalu cek `https://DOMAIN/.well-known/assetlinks.json`.
+
+Setelah ubah manifest, rebuild APK portal:
+
+```powershell
+npm run mobile:apk -- --portal-only
+```
+
 ---
 
 ## Troubleshooting

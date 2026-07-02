@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { and, eq, gt, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { portalAccessCodes } from "@/lib/db/schema";
+import { wrapPortalPayUrlForMessaging } from "@/lib/mobile/portal-apk-link";
 
 const LINK_DAYS = Number(process.env.PORTAL_MAGIC_LINK_DAYS ?? 14);
 const CODE_LENGTH = Math.min(
@@ -40,6 +41,11 @@ export function buildPortalAccessUrl(code: string): string {
   return base ? `${base}${path}` : path;
 }
 
+/** Link bayar untuk WA/SMS — APK MyWiFi dulu, fallback browser. */
+export function buildPortalPayMessagingUrl(code: string): string {
+  return wrapPortalPayUrlForMessaging(buildPortalAccessUrl(code));
+}
+
 /** Buat atau pakai ulang kode pendek multi-hari untuk link bayar WA. */
 export async function createPortalPayLink(
   tenantId: string,
@@ -55,7 +61,7 @@ export async function createPortalPayLink(
       gt(portalAccessCodes.expiresAt, now)
     ),
   });
-  if (existing) return buildPortalAccessUrl(existing.code);
+  if (existing) return buildPortalPayMessagingUrl(existing.code);
 
   const expiresAt = new Date(now.getTime() + LINK_DAYS * 24 * 60 * 60 * 1000);
   const code = await generateUniqueCode();
@@ -66,7 +72,7 @@ export async function createPortalPayLink(
     redirect: redirectPath,
     expiresAt,
   });
-  return buildPortalAccessUrl(code);
+  return buildPortalPayMessagingUrl(code);
 }
 
 export async function resolvePortalAccessCode(code: string): Promise<{

@@ -7,12 +7,20 @@ import { db } from "@/lib/db";
 import { pelanggan } from "@/lib/db/schema";
 import { getAppOrigin } from "@/lib/site-server";
 
+function withPortalShellParam(path: string): string {
+  const url = new URL(path, "https://placeholder.local");
+  if (url.pathname.startsWith("/portal") || url.pathname.startsWith("/p/")) {
+    url.searchParams.set("nm_app", "portal");
+  }
+  return `${url.pathname}${url.search}`;
+}
+
 async function redirectTo(path: string, req: NextRequest) {
   const origin =
     (await getAppOrigin()) ||
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
     new URL(req.url).origin;
-  return NextResponse.redirect(new URL(path, `${origin}/`));
+  return NextResponse.redirect(new URL(withPortalShellParam(path), `${origin}/`));
 }
 
 /** Magic link signed token (/p/m, /portal/masuk) — legacy. */
