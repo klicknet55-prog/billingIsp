@@ -57,7 +57,7 @@ export function MapPlaceSearch({
   }
 
   return (
-    <div ref={wrapRef} className="relative min-w-0 flex-1 sm:max-w-md">
+    <div ref={wrapRef} className="relative w-full md:max-w-md">
       <label className="mb-1 block text-xs text-muted-foreground">
         Cari tempat <span className="text-[10px]">({providerLabel})</span>
       </label>
@@ -72,9 +72,15 @@ export function MapPlaceSearch({
             }
           }}
           placeholder="Desa, kecamatan, kabupaten…"
-          className="min-w-0"
+          className="h-11 min-h-11 flex-1 text-base md:h-9 md:min-h-9 md:text-sm"
         />
-        <Button type="button" variant="outline" size="sm" disabled={pending} onClick={runSearch}>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 shrink-0 px-3 md:h-9"
+          disabled={pending}
+          onClick={runSearch}
+        >
           <Search className="size-4" />
           <span className="sr-only">Cari</span>
         </Button>

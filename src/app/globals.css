@@ -161,19 +161,9 @@ html.nm-capacitor-shell .nm-page-safe-bottom {
   z-index: 0 !important;
   font: inherit;
 }
-.map-canvas-root .leaflet-pane,
-.map-canvas-root .leaflet-map-pane,
-.map-canvas-root .leaflet-tile-pane,
-.map-canvas-root .leaflet-overlay-pane,
-.map-canvas-root .leaflet-shadow-pane,
-.map-canvas-root .leaflet-marker-pane,
-.map-canvas-root .leaflet-tooltip-pane,
-.map-canvas-root .leaflet-popup-pane {
-  z-index: auto !important;
-}
 .map-canvas-root .leaflet-top,
 .map-canvas-root .leaflet-bottom {
-  z-index: 5 !important;
+  z-index: 300 !important;
 }
 
 /* Scrollbar halus */

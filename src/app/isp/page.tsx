@@ -34,7 +34,7 @@ function OutstandingList({
 
   return (
     <div className="space-y-2">
-      {rows.slice(0, 8).map((row) => {
+      {rows.slice(0, 5).map((row) => {
         const canPay = row.status === "open" || row.status === "tunggakan";
         return (
           <div key={row.id} className="flex items-center justify-between gap-2 text-sm">
@@ -134,10 +134,15 @@ export default async function IspDashboard() {
       <div className="mt-4 grid gap-4 sm:mt-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              Tagihan Bulan Ini
-              <Badge variant="warning">{bulanIniRows.length}</Badge>
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                Tagihan Bulan Ini
+                <Badge variant="warning">{bulanIniRows.length}</Badge>
+              </CardTitle>
+              <HintButton asChild size="sm" variant="outline">
+                <Link href="/dashboard/tagihan?filter=belum-lunas">Kelola Tagihan</Link>
+              </HintButton>
+            </div>
           </CardHeader>
           <CardContent>
             <OutstandingList rows={bulanIniRows} emptyLabel="Tidak ada tagihan bulan ini." />
@@ -146,10 +151,15 @@ export default async function IspDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              Tunggakan
-              <Badge variant="destructive">{tunggakanRows.length}</Badge>
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                Tunggakan
+                <Badge variant="destructive">{tunggakanRows.length}</Badge>
+              </CardTitle>
+              <HintButton asChild size="sm" variant="outline">
+                <Link href="/dashboard/tagihan?filter=tunggakan">Kelola Tagihan</Link>
+              </HintButton>
+            </div>
           </CardHeader>
           <CardContent>
             <OutstandingList rows={tunggakanRows} emptyLabel="Tidak ada tunggakan." />

@@ -6,6 +6,7 @@ import { MobileDataCard } from "@/components/layout/mobile-data-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -57,6 +58,18 @@ function filterRows(rows: TagihanPelangganRow[], filter: FilterId) {
   );
 }
 
+function searchRows(rows: TagihanPelangganRow[], query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return rows;
+  return rows.filter((r) => {
+    return (
+      r.nama.toLowerCase().includes(q) ||
+      r.noWa.toLowerCase().includes(q) ||
+      (r.paketNama ?? "").toLowerCase().includes(q)
+    );
+  });
+}
+
 export function TagihanListClient({
   initialFilter,
   rows,
@@ -70,8 +83,12 @@ export function TagihanListClient({
     ? (initialFilter as FilterId)
     : "belum-lunas";
   const [filter, setFilter] = useState<FilterId>(validFilter);
+  const [query, setQuery] = useState("");
 
-  const filtered = useMemo(() => filterRows(rows, filter), [rows, filter]);
+  const filtered = useMemo(
+    () => searchRows(filterRows(rows, filter), query),
+    [rows, filter, query]
+  );
 
   return (
     <>
@@ -84,6 +101,13 @@ export function TagihanListClient({
         mode="client"
         onTabChange={(id) => setFilter(id as FilterId)}
         className="mb-4 border-b-0 pb-0"
+      />
+      <Input
+        type="search"
+        placeholder="Cari pelanggan, WhatsApp, paket..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        className="mb-4 h-11 md:h-9"
       />
 
       <div className="space-y-3 md:hidden">

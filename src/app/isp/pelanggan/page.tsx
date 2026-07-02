@@ -1,22 +1,10 @@
-import { MapPin, Pencil, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
-import { MobileDataCard } from "@/components/layout/mobile-data-card";
 import { PageHeader } from "@/components/layout/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { toggleIsolasiAction } from "@/features/customers/actions";
 import { PelangganCreateDialog } from "@/features/customers/components/pelanggan-create-dialog";
 import { PelangganImportDialog } from "@/features/customers/components/pelanggan-import-dialog";
-import { PelangganDeleteDialog } from "@/features/customers/components/pelanggan-delete-dialog";
 import { listPelanggan } from "@/features/customers/service";
 import { listOdpFormOptions } from "@/features/odp/service";
 import { listPaket } from "@/features/packages/service";
@@ -24,6 +12,7 @@ import { listRouters } from "@/features/routers/service";
 import { getTenantQuotaSnapshot } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
 import { getMapsClient } from "@/lib/integrations/maps";
+import { PelangganListClient } from "./pelanggan-list-client";
 
 export default async function PelangganPage({
   searchParams,
@@ -114,106 +103,12 @@ export default async function PelangganPage({
         </Card>
       )}
 
-      <div className="space-y-3 md:hidden">
-        {rows.map((p) => (
-          <MobileDataCard
-            key={p.id}
-            title={p.nama}
-            badge={p.isIsolated ? "Isolir" : "Aktif"}
-            badgeVariant={p.isIsolated ? "destructive" : "success"}
-            meta={
-              <>
-                <p>{p.noWa}</p>
-                <p>
-                  {p.paketNama ?? "-"} · {p.connectionType}
-                </p>
-              </>
-            }
-            footer={
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/dashboard/pelanggan/${p.id}`}>Lihat detail</Link>
-              </Button>
-            }
-          />
-        ))}
-        {rows.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Belum ada pelanggan.
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      <Card className="hidden md:block">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead className="hidden md:table-cell">WhatsApp</TableHead>
-                <TableHead>Tipe</TableHead>
-                <TableHead className="hidden md:table-cell">Username</TableHead>
-                <TableHead>Paket</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((p) => {
-                const nav = maps.navigationUrl({ latitude: p.latitude, longitude: p.longitude });
-                return (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.nama}</TableCell>
-                    <TableCell className="hidden text-muted-foreground md:table-cell">{p.noWa}</TableCell>
-                    <TableCell className="uppercase">{p.connectionType}</TableCell>
-                    <TableCell className="hidden font-mono text-xs md:table-cell">
-                      {p.connectionUsername ?? "-"}
-                    </TableCell>
-                    <TableCell>{p.paketNama ?? "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={p.isIsolated ? "destructive" : "success"}>
-                        {p.isIsolated ? "Terisolir" : "Aktif"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center justify-end gap-1">
-                        {nav && (
-                          <Button asChild variant="ghost" size="icon" title="Navigasi">
-                            <a href={nav} target="_blank" rel="noreferrer">
-                              <MapPin />
-                            </a>
-                          </Button>
-                        )}
-                        <Button asChild variant="ghost" size="icon" title="Edit">
-                          <Link href={`/dashboard/pelanggan/${p.id}`}>
-                            <Pencil />
-                          </Link>
-                        </Button>
-                        <form action={toggleIsolasiAction}>
-                          <input type="hidden" name="id" value={p.id} />
-                          <input type="hidden" name="isolated" value={String(!p.isIsolated)} />
-                          <Button variant="outline" size="sm" type="submit">
-                            {p.isIsolated ? "Aktifkan" : "Isolir"}
-                          </Button>
-                        </form>
-                        <PelangganDeleteDialog pelangganId={p.id} pelangganNama={p.nama} />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {rows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                    Belum ada pelanggan.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <PelangganListClient
+        rows={rows.map((p) => ({
+          ...p,
+          navUrl: maps.navigationUrl({ latitude: p.latitude, longitude: p.longitude }),
+        }))}
+      />
     </>
   );
 }

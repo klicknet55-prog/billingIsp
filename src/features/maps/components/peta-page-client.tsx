@@ -131,14 +131,16 @@ export function PetaPageClient({
 
       {tab === "peta" ? (
         <div className="relative z-0 space-y-4">
+          <MapPlaceSearch
+            providerLabel={geocodingProviderLabel}
+            onSelect={handlePlaceSelect}
+          />
+
           <div className="flex flex-wrap items-end gap-3">
-            <MapPlaceSearch
-              providerLabel={geocodingProviderLabel}
-              onSelect={handlePlaceSelect}
-            />
-            <div className="space-y-1">
+            <div className="min-w-[9rem] flex-1 space-y-1 sm:flex-none">
               <label className="text-xs text-muted-foreground">Status modem</label>
               <Select
+                className="w-full"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as ModemMapStatus | "all")}
               >
@@ -149,9 +151,9 @@ export function PetaPageClient({
                 ))}
               </Select>
             </div>
-            <div className="space-y-1">
+            <div className="min-w-[9rem] flex-1 space-y-1 sm:flex-none">
               <label className="text-xs text-muted-foreground">ODP</label>
-              <Select value={odpFilter} onChange={(e) => setOdpFilter(e.target.value)}>
+              <Select className="w-full" value={odpFilter} onChange={(e) => setOdpFilter(e.target.value)}>
                 <option value="all">Semua ODP</option>
                 {mapData.odps.map((o) => (
                   <option key={o.id} value={o.id}>
