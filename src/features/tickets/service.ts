@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/schema";
 import { newId } from "@/lib/utils";
 import { autoAssignNearestTeknisi } from "./auto-assign";
+import { notifyTicketEvent } from "@/features/notifications/push-sender";
 
 export interface TicketRow extends Ticket {
   pelangganNama: string;
@@ -60,6 +61,17 @@ export async function createTicket(
   if (input.autoAssign !== false) {
     await autoAssignNearestTeknisi(tenantId, ticketId, input.pelangganId);
   }
+  const cust = await db.query.pelanggan.findFirst({
+    where: and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, input.pelangganId)),
+    columns: { nama: true },
+  });
+  void notifyTicketEvent({
+    tenantId,
+    pelangganNama: cust?.nama ?? "Pelanggan",
+    ticketId,
+    title: "Tiket gangguan baru",
+    body: input.judul,
+  });
   return ticketId;
 }
 
@@ -84,11 +96,45 @@ export async function updateTicketStatus(
     .update(tickets)
     .set({ status })
     .where(and(eq(tickets.tenantId, tenantId), eq(tickets.id, id)));
+  const row = await db
+    .select({ pelangganNama: pelanggan.nama, judul: tickets.judul })
+    .from(tickets)
+    .innerJoin(pelanggan, eq(tickets.pelangganId, pelanggan.id))
+    .where(and(eq(tickets.tenantId, tenantId), eq(tickets.id, id)))
+    .limit(1);
+  const item = row[0];
+  if (!item) return;
+  void notifyTicketEvent({
+    tenantId,
+    pelangganNama: item.pelangganNama,
+    ticketId: id,
+    title: "Update tiket gangguan",
+    body: `${item.judul} (${status})`,
+  });
 }
 
 export async function assignTicket(ticketId: string, userId: string) {
   await db.delete(ticketAssignments).where(eq(ticketAssignments.ticketId, ticketId));
   await db.insert(ticketAssignments).values({ id: newId("asg"), ticketId, userId });
+  const row = await db
+    .select({
+      tenantId: tickets.tenantId,
+      pelangganNama: pelanggan.nama,
+      judul: tickets.judul,
+    })
+    .from(tickets)
+    .innerJoin(pelanggan, eq(tickets.pelangganId, pelanggan.id))
+    .where(eq(tickets.id, ticketId))
+    .limit(1);
+  const item = row[0];
+  if (!item) return;
+  void notifyTicketEvent({
+    tenantId: item.tenantId,
+    pelangganNama: item.pelangganNama,
+    ticketId,
+    title: "Assignment tiket",
+    body: item.judul,
+  });
 }
 
 export async function listTeknisi(tenantId: string) {

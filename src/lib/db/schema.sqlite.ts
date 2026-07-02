@@ -463,6 +463,37 @@ export const platformWhatsAppConfigs = sqliteTable("platform_whatsapp_config", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
 });
 
+export const devicePushTokens = sqliteTable("device_push_token", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  subjectType: text("subject_type", { enum: ["user", "pelanggan"] }).notNull(),
+  subjectId: text("subject_id").notNull(),
+  app: text("app", { enum: ["admin", "portal"] }).notNull(),
+  platform: text("platform", { enum: ["android"] }).notNull().default("android"),
+  token: text("token").notNull().unique(),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp" }).notNull().default(now),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const pushNotificationLogs = sqliteTable("push_notification_log", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  subjectType: text("subject_type", { enum: ["user", "pelanggan"] }).notNull(),
+  subjectId: text("subject_id").notNull(),
+  app: text("app", { enum: ["admin", "portal"] }).notNull(),
+  eventType: text("event_type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  token: text("token").notNull(),
+  status: text("status", { enum: ["sent", "failed", "skipped"] }).notNull(),
+  attemptCount: integer("attempt_count").notNull().default(1),
+  response: text("response"),
+  error: text("error"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
 // ---------------------------------------------------------------------------
 // Auth: session & OTP (mendukung password staf + OTP pelanggan)
 // ---------------------------------------------------------------------------
@@ -631,3 +662,5 @@ export type PlatformSettings = typeof platformSettings.$inferSelect;
 export type MessageTemplate = typeof messageTemplates.$inferSelect;
 export type MessageSendLog = typeof messageSendLogs.$inferSelect;
 export type MessageBatch = typeof messageBatches.$inferSelect;
+export type DevicePushToken = typeof devicePushTokens.$inferSelect;
+export type PushNotificationLog = typeof pushNotificationLogs.$inferSelect;

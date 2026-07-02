@@ -91,6 +91,53 @@ export function applyAppSchemaMigrations(
     if (log) console.log("[ok]   tabel platform_whatsapp_config dibuat");
   }
 
+  if (!hasDbTable(db, "device_push_token")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS device_push_token (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT REFERENCES tenant(id),
+        subject_type TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        app TEXT NOT NULL,
+        platform TEXT NOT NULL DEFAULT 'android',
+        token TEXT NOT NULL UNIQUE,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        last_seen_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE INDEX IF NOT EXISTS device_push_token_subject_idx
+        ON device_push_token(tenant_id, subject_type, subject_id, app);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel device_push_token dibuat");
+  }
+
+  if (!hasDbTable(db, "push_notification_log")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS push_notification_log (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT REFERENCES tenant(id),
+        subject_type TEXT NOT NULL,
+        subject_id TEXT NOT NULL,
+        app TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        token TEXT NOT NULL,
+        status TEXT NOT NULL,
+        attempt_count INTEGER NOT NULL DEFAULT 1,
+        response TEXT,
+        error TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE INDEX IF NOT EXISTS push_notification_log_tenant_idx
+        ON push_notification_log(tenant_id, created_at);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel push_notification_log dibuat");
+  }
+
   if (!hasDbTable(db, "portal_access_code")) {
     db.exec(`
       CREATE TABLE portal_access_code (

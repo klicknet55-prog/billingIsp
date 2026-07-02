@@ -40,6 +40,9 @@ export const pelangganImportBatches =
   active.pelangganImportBatches as typeof sqlite.pelangganImportBatches;
 export const platformWhatsAppConfigs =
   active.platformWhatsAppConfigs as typeof sqlite.platformWhatsAppConfigs;
+export const devicePushTokens = active.devicePushTokens as typeof sqlite.devicePushTokens;
+export const pushNotificationLogs =
+  active.pushNotificationLogs as typeof sqlite.pushNotificationLogs;
 export const sessions = active.sessions as typeof sqlite.sessions;
 export const otpCodes = active.otpCodes as typeof sqlite.otpCodes;
 export const passwordResets = active.passwordResets as typeof sqlite.passwordResets;
@@ -78,3 +81,5 @@ export type PlatformSettings = typeof sqlite.platformSettings.$inferSelect;
 export type MessageTemplate = typeof sqlite.messageTemplates.$inferSelect;
 export type MessageSendLog = typeof sqlite.messageSendLogs.$inferSelect;
 export type MessageBatch = typeof sqlite.messageBatches.$inferSelect;
+export type DevicePushToken = typeof sqlite.devicePushTokens.$inferSelect;
+export type PushNotificationLog = typeof sqlite.pushNotificationLogs.$inferSelect;

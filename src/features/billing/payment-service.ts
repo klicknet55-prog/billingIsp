@@ -25,6 +25,7 @@ import { emitWebhookEvent } from "@/features/webhooks/dispatch";
 import { startOfDay } from "@/features/jobs/due-date";
 import { createLogger } from "@/lib/logger";
 import { newId } from "@/lib/utils";
+import { notifyPaymentSuccess } from "@/features/notifications/push-sender";
 
 const log = createLogger("billing:payment");
 
@@ -355,6 +356,17 @@ async function executeTagihanPayments(input: {
     }
 
     const kind = input.partial ? "sebagian" : "lunas";
+    const cust = await db.query.pelanggan.findFirst({
+      where: and(eq(pelanggan.tenantId, input.tenantId), eq(pelanggan.id, input.pelangganId)),
+      columns: { nama: true },
+    });
+    void notifyPaymentSuccess({
+      tenantId: input.tenantId,
+      pelangganId: input.pelangganId,
+      pelangganNama: cust?.nama ?? "Pelanggan",
+      noNota,
+      total,
+    });
     log.info(`Pembayaran ${noNota} ${kind} Rp${total} via ${input.metode}`);
     return { receiptId, noNota, total, partial: input.partial };
   } catch (err) {

@@ -18,6 +18,18 @@ import { renderTemplate } from "@/features/messages/render";
 import { getTemplateBody } from "@/features/messages/templates";
 import { paceAfterSend, waitBeforeSend } from "@/features/messages/throttle";
 import type { MessageScope, MessageType } from "@/features/messages/types";
+import { notifyWhatsAppIntegrationError } from "@/features/notifications/push-sender";
+
+function isLikelyWhatsAppIntegrationError(msg: string): boolean {
+  const s = msg.toLowerCase();
+  return (
+    s.includes("whatsapp") ||
+    s.includes("klicknet") ||
+    s.includes("gowa") ||
+    s.includes("gateway wa") ||
+    s.includes("wa ")
+  );
+}
 
 function isWhatsAppConfigured(): boolean {
   if (process.env.WHATSAPP_DRIVER !== "real") return true;
@@ -150,6 +162,9 @@ export async function sendSinglePelanggan(input: {
       status: "failed",
       error,
     });
+    if (isLikelyWhatsAppIntegrationError(error)) {
+      void notifyWhatsAppIntegrationError({ tenantId: input.tenantId, message: error });
+    }
     throw new Error(error);
   }
 }
@@ -204,6 +219,9 @@ export async function sendSingleTenantOwner(input: {
       status: "failed",
       error,
     });
+    if (isLikelyWhatsAppIntegrationError(error)) {
+      void notifyWhatsAppIntegrationError({ tenantId: input.tenantId, message: error });
+    }
     throw new Error(error);
   }
 }
@@ -346,6 +364,9 @@ export async function runBatchSend(batchId: string) {
           status: "failed",
           error,
         });
+        if (batch.tenantId && isLikelyWhatsAppIntegrationError(error)) {
+          void notifyWhatsAppIntegrationError({ tenantId: batch.tenantId, message: error });
+        }
       }
 
       await db

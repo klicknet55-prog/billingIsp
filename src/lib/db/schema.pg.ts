@@ -420,6 +420,37 @@ export const platformWhatsAppConfigs = pgTable("platform_whatsapp_config", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const devicePushTokens = pgTable("device_push_token", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  subjectType: text("subject_type", { enum: ["user", "pelanggan"] }).notNull(),
+  subjectId: text("subject_id").notNull(),
+  app: text("app", { enum: ["admin", "portal"] }).notNull(),
+  platform: text("platform", { enum: ["android"] }).notNull().default("android"),
+  token: text("token").notNull().unique(),
+  isActive: boolean("is_active").notNull().default(true),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const pushNotificationLogs = pgTable("push_notification_log", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id").references(() => tenants.id),
+  subjectType: text("subject_type", { enum: ["user", "pelanggan"] }).notNull(),
+  subjectId: text("subject_id").notNull(),
+  app: text("app", { enum: ["admin", "portal"] }).notNull(),
+  eventType: text("event_type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  token: text("token").notNull(),
+  status: text("status", { enum: ["sent", "failed", "skipped"] }).notNull(),
+  attemptCount: integer("attempt_count").notNull().default(1),
+  response: text("response"),
+  error: text("error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const sessions = pgTable("session", {
   id: text("id").primaryKey(),
   subjectType: text("subject_type", { enum: ["user", "pelanggan"] }).notNull(),
@@ -573,6 +604,8 @@ export const pgSchema = {
   webhookDeliveryLogs,
   pelangganImportBatches,
   platformWhatsAppConfigs,
+  devicePushTokens,
+  pushNotificationLogs,
   sessions,
   otpCodes,
   passwordResets,

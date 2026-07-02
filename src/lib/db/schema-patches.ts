@@ -163,6 +163,11 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     column: "community_telegram_url",
     sql: "ALTER TABLE platform_settings ADD COLUMN community_telegram_url TEXT",
   },
+  {
+    table: "device_push_token",
+    column: "platform",
+    sql: "ALTER TABLE device_push_token ADD COLUMN platform TEXT NOT NULL DEFAULT 'android'",
+  },
 ];
 
 function hasColumn(db: Database.Database, table: string, column: string) {
