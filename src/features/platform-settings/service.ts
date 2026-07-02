@@ -123,6 +123,8 @@ export type PlatformSettingsPatch = Partial<{
   kontakWhatsapp: string | null;
   tcTitle: string;
   tcContent: string;
+  mapGeocodingProvider: "nominatim" | "google";
+  googleGeocodingApiKeyEncrypted: string | null;
 }>;
 
 export async function patchPlatformSettings(

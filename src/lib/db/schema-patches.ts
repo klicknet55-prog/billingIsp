@@ -123,6 +123,16 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     column: "dunning_final_at",
     sql: "ALTER TABLE tagihan ADD COLUMN dunning_final_at INTEGER",
   },
+  {
+    table: "platform_settings",
+    column: "map_geocoding_provider",
+    sql: "ALTER TABLE platform_settings ADD COLUMN map_geocoding_provider TEXT NOT NULL DEFAULT 'nominatim'",
+  },
+  {
+    table: "platform_settings",
+    column: "google_geocoding_api_key_encrypted",
+    sql: "ALTER TABLE platform_settings ADD COLUMN google_geocoding_api_key_encrypted TEXT",
+  },
 ];
 
 function hasColumn(db: Database.Database, table: string, column: string) {

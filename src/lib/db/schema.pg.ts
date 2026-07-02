@@ -481,6 +481,10 @@ export const platformSettings = pgTable("platform_settings", {
   tcContent: text("tc_content").notNull(),
   cronLastRunAt: timestamp("cron_last_run_at", { withTimezone: true }),
   cronLastResult: text("cron_last_result"),
+  mapGeocodingProvider: text("map_geocoding_provider", { enum: ["nominatim", "google"] })
+    .notNull()
+    .default("nominatim"),
+  googleGeocodingApiKeyEncrypted: text("google_geocoding_api_key_encrypted"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

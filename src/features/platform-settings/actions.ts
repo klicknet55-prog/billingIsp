@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
+import { encryptSecret } from "@/lib/crypto";
 import { saveLogoUpload } from "@/lib/uploads";
 import { PLATFORM_REVALIDATE_PATHS } from "@/lib/superadmin-pengaturan-nav";
 import { parseForm } from "@/lib/validation";
@@ -67,6 +68,34 @@ const staticPagesSchema = z.object({
   tcTitle: z.string().trim().min(1, "Judul Syarat & Ketentuan wajib diisi"),
   tcContent: z.string().trim().min(1, "Isi Syarat & Ketentuan wajib diisi"),
 });
+
+const mapGeocodingSchema = z.object({
+  mapGeocodingProvider: z.enum(["nominatim", "google"]),
+  googleGeocodingApiKey: z.string().optional(),
+});
+
+export async function saveMapGeocodingAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requireUser(["superadmin"]);
+  const parsed = parseForm(mapGeocodingSchema, formData);
+  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+
+  const keyRaw = parsed.data.googleGeocodingApiKey?.trim() ?? "";
+  const patch: Parameters<typeof patchPlatformSettings>[0] = {
+    mapGeocodingProvider: parsed.data.mapGeocodingProvider,
+  };
+
+  if (keyRaw) {
+    patch.googleGeocodingApiKeyEncrypted = encryptSecret(keyRaw);
+  }
+
+  await patchPlatformSettings(patch);
+  revalidatePath("/superadmin/integrasi");
+  revalidatePath("/dashboard/peta");
+  return { ok: true };
+}
 
 export async function saveProfilAppAction(
   _prev: ActionState,

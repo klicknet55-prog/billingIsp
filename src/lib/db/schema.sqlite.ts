@@ -539,6 +539,11 @@ export const platformSettings = sqliteTable("platform_settings", {
   tcContent: text("tc_content").notNull(),
   cronLastRunAt: integer("cron_last_run_at", { mode: "timestamp" }),
   cronLastResult: text("cron_last_result"),
+  /** Pencarian tempat di peta: nominatim (default) atau google — diatur superadmin. */
+  mapGeocodingProvider: text("map_geocoding_provider", { enum: ["nominatim", "google"] })
+    .notNull()
+    .default("nominatim"),
+  googleGeocodingApiKeyEncrypted: text("google_geocoding_api_key_encrypted"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
 });
 

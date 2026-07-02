@@ -9,7 +9,9 @@ import { Select } from "@/components/ui/select";
 import { refreshMapStatusAction } from "@/features/maps/actions";
 import { MODEM_STATUS_COLOR, MODEM_STATUS_LABEL } from "@/features/maps/modem-labels";
 import type { MapPageData } from "@/features/maps/service";
+import type { MapPlaceResult } from "@/lib/integrations/maps/geocoding/types";
 import type { ModemMapStatus } from "@/lib/integrations/mikrotik/types";
+import { MapPlaceSearch } from "./map-place-search";
 import type { OdpRow } from "@/features/odp/service";
 import type { RouterMapRow } from "@/features/routers/service";
 import type { Router } from "@/lib/db/schema";
@@ -50,17 +52,25 @@ export function PetaPageClient({
   routerRows,
   routers,
   initialTab = "peta",
+  geocodingProviderLabel,
 }: {
   mapData: MapPageData;
   odpRows: OdpRow[];
   routerRows: RouterMapRow[];
   routers: Router[];
   initialTab?: string;
+  geocodingProviderLabel: string;
 }) {
   const [tab, setTab] = useState<PetaTab>(parseInitialTab(initialTab));
   const [statusFilter, setStatusFilter] = useState<ModemMapStatus | "all">("all");
   const [odpFilter, setOdpFilter] = useState<string | "all">("all");
   const [showLines, setShowLines] = useState(false);
+  const [mapFocus, setMapFocus] = useState<{
+    latitude: number;
+    longitude: number;
+    zoom?: number;
+    token: number;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -78,6 +88,15 @@ export function PetaPageClient({
   function refresh() {
     startTransition(async () => {
       await refreshMapStatusAction();
+    });
+  }
+
+  function handlePlaceSelect(place: MapPlaceResult) {
+    setMapFocus({
+      latitude: place.latitude,
+      longitude: place.longitude,
+      zoom: 14,
+      token: Date.now(),
     });
   }
 
@@ -113,6 +132,10 @@ export function PetaPageClient({
       {tab === "peta" ? (
         <div className="relative z-0 space-y-4">
           <div className="flex flex-wrap items-end gap-3">
+            <MapPlaceSearch
+              providerLabel={geocodingProviderLabel}
+              onSelect={handlePlaceSelect}
+            />
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Status modem</label>
               <Select
@@ -182,6 +205,7 @@ export function PetaPageClient({
             statusFilter={statusFilter}
             odpFilter={odpFilter}
             showLines={showLines}
+            focusPoint={mapFocus}
           />
         </div>
       ) : tab === "odp" ? (

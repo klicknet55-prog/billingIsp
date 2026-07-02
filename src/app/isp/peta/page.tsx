@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { PetaPageClient } from "@/features/maps/components/peta-page-client";
 import { getMapPageData } from "@/features/maps/service";
+import { getMapGeocodingProviderLabel } from "@/lib/integrations/maps/geocoding";
 import { listOdp } from "@/features/odp/service";
 import { listRouters, listRoutersForMap } from "@/features/routers/service";
 import { requireUser } from "@/lib/auth";
@@ -15,11 +16,12 @@ export default async function PetaPage({
   const initialTab = qs.tab ?? "peta";
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
-  const [mapData, odpRows, routerRows, routers] = await Promise.all([
+  const [mapData, odpRows, routerRows, routers, geocodingProviderLabel] = await Promise.all([
     getMapPageData(tenantId),
     listOdp(tenantId),
     listRoutersForMap(tenantId),
     listRouters(tenantId),
+    getMapGeocodingProviderLabel(),
   ]);
 
   return (
@@ -36,6 +38,7 @@ export default async function PetaPage({
         routerRows={routerRows}
         routers={routers}
         initialTab={initialTab}
+        geocodingProviderLabel={geocodingProviderLabel}
       />
     </>
   );

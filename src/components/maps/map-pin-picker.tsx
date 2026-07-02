@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { MapPlaceSearch } from "@/features/maps/components/map-place-search";
+import { getMapGeocodingProviderLabelAction } from "@/features/maps/actions";
+import type { MapPlaceResult } from "@/lib/integrations/maps/geocoding/types";
 import { DEFAULT_MAP_CENTER, getMapTileUrl } from "@/lib/maps/tile-url";
 import { fixLeafletDefaultIcons, mapPinDivIcon } from "@/lib/maps/leaflet-icons";
 
@@ -31,6 +34,11 @@ export function MapPinPicker({
   const [lng, setLng] = useState<number | "">(longitude ?? "");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [gpsError, setGpsError] = useState("");
+  const [providerLabel, setProviderLabel] = useState("Nominatim (OSM)");
+
+  useEffect(() => {
+    void getMapGeocodingProviderLabelAction().then(setProviderLabel);
+  }, []);
 
   function setPosition(nextLat: number, nextLng: number) {
     setLat(nextLat);
@@ -112,6 +120,10 @@ export function MapPinPicker({
     );
   }
 
+  function handlePlaceSelect(place: MapPlaceResult) {
+    setPosition(place.latitude, place.longitude);
+  }
+
   return (
     <div className="space-y-2 sm:col-span-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -121,7 +133,10 @@ export function MapPinPicker({
           Lokasi saya
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">Klik peta untuk menentukan titik lokasi.</p>
+      <MapPlaceSearch providerLabel={providerLabel} onSelect={handlePlaceSelect} />
+      <p className="text-xs text-muted-foreground">
+        Cari tempat atau klik peta untuk menentukan titik lokasi.
+      </p>
       {gpsError && <p className="text-xs text-destructive">{gpsError}</p>}
       <div
         ref={containerRef}

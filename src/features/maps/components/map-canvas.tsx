@@ -103,6 +103,12 @@ export interface MapCanvasProps {
   statusFilter?: ModemMapStatus | "all";
   odpFilter?: string | "all";
   showLines?: boolean;
+  focusPoint?: {
+    latitude: number;
+    longitude: number;
+    zoom?: number;
+    token?: number;
+  } | null;
 }
 
 function filteredPelanggan(
@@ -128,6 +134,7 @@ export function MapCanvas({
   statusFilter = "all",
   odpFilter = "all",
   showLines = false,
+  focusPoint = null,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -135,6 +142,7 @@ export function MapCanvas({
   const odpLayerRef = useRef<L.LayerGroup | null>(null);
   const routerLayerRef = useRef<L.LayerGroup | null>(null);
   const linesLayerRef = useRef<L.LayerGroup | null>(null);
+  const searchMarkerRef = useRef<L.Marker | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -167,8 +175,34 @@ export function MapCanvas({
       odpLayerRef.current = null;
       routerLayerRef.current = null;
       linesLayerRef.current = null;
+      searchMarkerRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusPoint) return;
+
+    map.flyTo([focusPoint.latitude, focusPoint.longitude], focusPoint.zoom ?? 14, {
+      duration: 0.8,
+    });
+
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.remove();
+    }
+
+    const marker = L.marker([focusPoint.latitude, focusPoint.longitude], {
+      icon: L.divIcon({
+        className: "",
+        html: `<div style="width:20px;height:20px;border-radius:50%;background:#ea580c;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35)"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+      }),
+      zIndexOffset: 1000,
+    }).addTo(map);
+
+    searchMarkerRef.current = marker;
+  }, [focusPoint?.latitude, focusPoint?.longitude, focusPoint?.zoom, focusPoint?.token]);
 
   useEffect(() => {
     const map = mapRef.current;
