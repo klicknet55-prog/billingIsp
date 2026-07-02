@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { PwaRegister } from "@/components/pwa-register";
+import { CapacitorSystemChrome } from "@/components/mobile/capacitor-system-chrome";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme-script";
 import { ToastProvider } from "@/components/ui/toast";
@@ -54,6 +55,7 @@ export default async function RootLayout({
           defaultPreset={tenant?.themePreset ?? "default"}
           defaultMode={tenant?.themeMode ?? "light"}
         >
+          <CapacitorSystemChrome />
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
         <PwaRegister />

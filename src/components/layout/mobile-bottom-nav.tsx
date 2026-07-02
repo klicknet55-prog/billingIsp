@@ -25,7 +25,7 @@ export function MobileBottomNav({
 
   return (
     <nav
-      className="nm-bottom-nav nm-mobile-chrome fixed inset-x-0 bottom-0 z-[800] border-t bg-background pb-[env(safe-area-inset-bottom)] shadow-[0_-1px_3px_rgba(0,0,0,0.08)] print:hidden"
+      className="nm-bottom-nav nm-mobile-chrome fixed inset-x-0 bottom-0 z-[800] border-t bg-background pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-1px_3px_rgba(0,0,0,0.08)] print:hidden"
       aria-label="Navigasi utama"
       style={{ touchAction: "manipulation" }}
     >

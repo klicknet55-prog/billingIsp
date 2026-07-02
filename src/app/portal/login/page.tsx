@@ -37,11 +37,11 @@ export default async function PortalLoginPage({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between px-6 py-4">
+      <header className="nm-mobile-chrome-top flex items-center justify-between px-6 py-4">
         <SiteBrand />
         <ThemeSwitcher />
       </header>
-      <main className="flex flex-1 items-center justify-center p-6">
+      <main className="nm-page-safe-bottom flex flex-1 items-center justify-center p-6">
         <Card className="w-full max-w-sm">
           <CardHeader>
             <CardTitle className="text-xl">Portal Pelanggan</CardTitle>

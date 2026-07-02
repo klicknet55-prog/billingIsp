@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { MOBILE_APP_NAMES } from "@/lib/mobile/app-names";
 
 export function WrongAppScreen({
   variant,
@@ -15,18 +16,18 @@ export function WrongAppScreen({
       </div>
       <h1 className="text-xl font-semibold">
         {isAdmin
-          ? "Akun pelanggan tidak bisa digunakan di NetManage Admin"
-          : "Akun staf tidak bisa digunakan di NetManage Portal"}
+          ? `Akun pelanggan tidak bisa digunakan di ${MOBILE_APP_NAMES.admin}`
+          : `Akun staf tidak bisa digunakan di ${MOBILE_APP_NAMES.portal}`}
       </h1>
       <p className="mt-2 max-w-sm text-sm text-muted-foreground">
         {isAdmin
-          ? "Unduh atau buka aplikasi NetManage Portal untuk cek tagihan dan bayar."
-          : "Untuk mengelola ISP, gunakan aplikasi NetManage Admin atau dashboard web."}
+          ? `Unduh atau buka aplikasi ${MOBILE_APP_NAMES.portal} untuk cek tagihan dan bayar.`
+          : `Untuk mengelola ISP, gunakan aplikasi ${MOBILE_APP_NAMES.admin} atau dashboard web.`}
       </p>
       <div className="mt-6 flex w-full max-w-xs flex-col gap-2">
         <Button asChild>
           <Link href={isAdmin ? "/portal/login" : "/login"}>
-            {isAdmin ? "Buka NetManage Portal" : "Buka NetManage Admin"}
+            {isAdmin ? `Buka ${MOBILE_APP_NAMES.portal}` : `Buka ${MOBILE_APP_NAMES.admin}`}
           </Link>
         </Button>
         <Button asChild variant="outline">

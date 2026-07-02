@@ -30,7 +30,7 @@ export function PortalShell({
   return (
     <div className="flex min-h-screen flex-col">
       <MobileBackHandler />
-      <header className="sticky top-0 z-[100] border-b bg-background md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
+      <header className="nm-mobile-chrome-top sticky top-0 z-[100] border-b bg-background md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3 md:py-3">
           <div className="flex min-h-11 min-w-0 flex-1 items-center gap-2 font-semibold">
             <Network className="size-6 shrink-0 text-primary" />
@@ -83,7 +83,7 @@ export function PortalShell({
           </Link>
         </nav>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 p-4 max-md:pb-20">{children}</main>
+      <main className="mx-auto w-full max-w-3xl flex-1 p-4 max-md:pb-20 nm-main-with-bottom-nav">{children}</main>
       <MobileBottomNav items={PORTAL_NAV_ITEMS} />
     </div>
   );

@@ -325,7 +325,7 @@ export function AppShell({
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="nm-mobile-chrome sticky top-0 z-[400] flex h-14 shrink-0 items-center border-b bg-background px-4 print:hidden md:z-[100] md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
+        <header className="nm-mobile-chrome nm-mobile-chrome-top sticky top-0 z-[400] flex h-14 shrink-0 items-center border-b bg-background px-4 print:hidden md:z-[100] md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
           {slimMobileHeader && (
             <div className="flex w-full items-center justify-between gap-3 md:hidden">
               <Link
@@ -432,7 +432,7 @@ export function AppShell({
         <main
           className={cn(
             "flex-1 p-4 md:p-6",
-            hasMobileBottomNav && "max-md:pb-20"
+            hasMobileBottomNav && "max-md:pb-20 nm-main-with-bottom-nav"
           )}
         >
           {children}

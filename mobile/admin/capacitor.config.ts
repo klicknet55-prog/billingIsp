@@ -6,7 +6,7 @@ const base = (
 
 const config: CapacitorConfig = {
   appId: "id.tunnelhost.netmanage.admin",
-  appName: "NetManage Admin",
+  appName: "Admin.net",
   webDir: "www",
   server: {
     url: `${base}/login?nm_app=admin`,
@@ -25,7 +25,8 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: "DARK",
-      backgroundColor: "#2563eb",
+      backgroundColor: "#00000000",
+      overlaysWebView: true,
     },
   },
 };

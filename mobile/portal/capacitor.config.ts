@@ -6,7 +6,7 @@ const base = (
 
 const config: CapacitorConfig = {
   appId: "id.tunnelhost.netmanage.portal",
-  appName: "NetManage Portal",
+  appName: "MyWiFi",
   webDir: "www",
   server: {
     url: `${base}/portal/login?nm_app=portal`,
@@ -25,7 +25,8 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: "DARK",
-      backgroundColor: "#2563eb",
+      backgroundColor: "#00000000",
+      overlaysWebView: true,
     },
   },
 };

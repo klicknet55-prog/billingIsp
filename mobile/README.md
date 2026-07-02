@@ -4,8 +4,8 @@ Dua shell Android hybrid yang memuat web production via WebView HTTPS.
 
 | Folder | App | Package | Entry URL |
 |--------|-----|---------|-----------|
-| `mobile/admin/` | NetManage Admin | `id.tunnelhost.netmanage.admin` | `/login?nm_app=admin` |
-| `mobile/portal/` | NetManage Portal | `id.tunnelhost.netmanage.portal` | `/portal/login?nm_app=portal` |
+| `mobile/admin/` | **Admin.net** | `id.tunnelhost.netmanage.admin` | `/login?nm_app=admin` |
+| `mobile/portal/` | **MyWiFi** | `id.tunnelhost.netmanage.portal` | `/portal/login?nm_app=portal` |
 
 Dokumen terkait: [../docs/android-app-plan.md](../docs/android-app-plan.md)
 
@@ -15,84 +15,88 @@ Dokumen terkait: [../docs/android-app-plan.md](../docs/android-app-plan.md)
 
 1. **Web production HTTPS** sudah jalan (mis. `https://isp.tunnelhost.my.id`)
 2. **Node.js** 20+
-3. **Android Studio** + Android SDK (API 34 disarankan)
-4. `JAVA_HOME` dan `ANDROID_HOME` terkonfigurasi
+3. **Android Studio** + Android SDK (API 34+)
+4. `ANDROID_HOME` → SDK (mis. `%LOCALAPPDATA%\Android\Sdk`)
+5. `JAVA_HOME` → JBR Android Studio (disarankan, bukan JDK sistem)
 
 ---
 
-## URL server
+## Branding (ikon & splash)
 
-Default di `capacitor.config.ts`: `https://isp.tunnelhost.my.id`
+Sumber ikon: `public/icon.png`. Script generate per app:
 
-Override saat sync/build:
+| App | Latar ikon | Badge |
+|-----|------------|-------|
+| Admin | Biru gelap `#1e40af` | **ADM** (amber) |
+| Portal | Biru `#2563eb` | **WiFi** (hijau) |
 
 ```powershell
-# PowerShell
+npm run mobile:assets
+npm run mobile:assets:generate
+```
+
+File sumber: `mobile/admin/assets/`, `mobile/portal/assets/`  
+Output Android: `android/app/src/main/res/mipmap-*` dan `drawable-*`.
+
+---
+
+## Build APK (otomatis)
+
+Satu perintah — generate asset, sync, signed release, salin ke `mobile/dist/`:
+
+```powershell
+$env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
+$env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
+npm run mobile:apk
+```
+
+Output:
+
+- `mobile/dist/Admin.net-release.apk`
+- `mobile/dist/MyWiFi-release.apk`
+
+Keystore internal (auto dibuat, **gitignored**): `mobile/*/android/netmanage-release.jks`  
+Password default: `netmanage2026` — ganti sebelum Play Store.
+
+Opsi:
+
+```powershell
+npm run mobile:apk -- --skip-assets      # rebuild cepat
+npm run mobile:apk -- --admin-only
+npm run mobile:apk -- --portal-only
+```
+
+---
+
+## Workflow manual (Android Studio)
+
+### 1. Sync
+
+```powershell
 $env:CAPACITOR_SERVER_URL="https://isp.tunnelhost.my.id"
-npm run mobile:admin:sync
+npm run mobile:sync
 ```
 
-Dev lokal (emulator, HTTP):
+### 2. Buka project
 
 ```powershell
-$env:CAPACITOR_SERVER_URL="http://10.0.2.2:3000"
-```
-
-> Untuk HTTP lokal perlu `cleartext: true` di config + network security — production selalu HTTPS.
-
----
-
-## Workflow build APK
-
-### 1. Sync web config ke project Android
-
-```bash
-npm run mobile:sync
-# atau per app:
-npm run mobile:admin:sync
-npm run mobile:portal:sync
-```
-
-### 2. Buka di Android Studio
-
-```bash
 npm run mobile:admin:open
 # atau
 npm run mobile:portal:open
 ```
 
-### 3. Generate signed APK
+### 3. Signed APK
 
-Di Android Studio:
-
-1. **Build → Generate Signed Bundle / APK**
-2. Pilih **APK** (internal) atau **AAB** (Play Store)
-3. Buat/gunakan keystore
-4. Output: `android/app/release/app-release.apk`
-
-Ulangi untuk app kedua (`mobile/portal`).
+**Build → Generate Signed Bundle / APK** → APK atau AAB (Play Store).
 
 ---
 
-## Izin Android (Admin)
+## Izin Android
 
-- Internet
-- GPS (kolektor sort jarak)
-- Bluetooth (cetak struk thermal)
-
-Portal hanya membutuhkan Internet.
-
----
-
-## Ikon & splash
-
-Default masih ikon Capacitor. Untuk branding:
-
-1. Siapkan PNG 1024×1024 dari `public/icon.png`
-2. Gunakan [Capacitor Assets](https://github.com/ionic-team/capacitor-assets) atau ganti manual di:
-   - `android/app/src/main/res/mipmap-*`
-
-Splash: background `#2563eb` (sudah di `capacitor.config.ts`).
+| App | Izin |
+|-----|------|
+| Admin | Internet, GPS, Bluetooth |
+| Portal | Internet |
 
 ---
 
@@ -107,15 +111,17 @@ Parameter `?nm_app=admin|portal` disimpan di `sessionStorage` agar bottom nav & 
 | Masalah | Solusi |
 |---------|--------|
 | Layar putih | Cek `CAPACITOR_SERVER_URL`, pastikan HTTPS valid |
-| Cookie login hilang | Jangan clear WebView storage; pastikan same-origin |
+| Cookie login hilang | Jangan clear WebView storage |
 | GPS tidak jalan | Izin lokasi di pengaturan Android |
-| Bluetooth gagal | Uji printer; mungkin perlu plugin native fase 4 |
+| `keytool` tidak ditemukan | Set `JAVA_HOME` ke JBR Android Studio |
+| Gradle gagal | Pastikan `ANDROID_HOME` benar; jalankan ulang dengan `--stacktrace` |
 
 ---
 
 ## Checklist rilis internal
 
-- [ ] Web Fase 1 sudah di-deploy ke production
-- [ ] `CAPACITOR_SERVER_URL` mengarah ke production
-- [ ] Build signed APK Admin + Portal
-- [ ] QA dengan [android-qa-checklist.md](../docs/android-qa-checklist.md)
+- [x] Branding ikon + splash Admin vs Portal
+- [x] Script build signed APK
+- [ ] Web production deploy terbaru
+- [ ] QA device: [android-qa-checklist.md](../docs/android-qa-checklist.md)
+- [ ] Sideload ke kolektor / pelanggan uji

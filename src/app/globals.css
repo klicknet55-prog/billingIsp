@@ -110,6 +110,30 @@ body {
   touch-action: manipulation;
 }
 
+/* Safe-area dinamis — shell Capacitor Android (immersive system bars) */
+:root {
+  --nm-safe-top: env(safe-area-inset-top, 0px);
+  --nm-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --nm-mobile-nav-h: 3.5rem;
+}
+
+html.nm-capacitor-shell .nm-mobile-chrome-top {
+  padding-top: var(--nm-safe-top);
+}
+
+html.nm-capacitor-shell .nm-bottom-nav {
+  bottom: var(--nm-safe-bottom);
+  padding-bottom: 0;
+}
+
+html.nm-capacitor-shell .nm-main-with-bottom-nav {
+  padding-bottom: calc(var(--nm-mobile-nav-h) + var(--nm-safe-bottom) + 1rem) !important;
+}
+
+html.nm-capacitor-shell .nm-page-safe-bottom {
+  padding-bottom: calc(1.5rem + var(--nm-safe-bottom)) !important;
+}
+
 /* Bottom nav mobile — tetap di atas peta Leaflet (pane z-index 400+) */
 @media (max-width: 767px) {
   .nm-bottom-nav {
