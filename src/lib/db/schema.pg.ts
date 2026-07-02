@@ -479,6 +479,12 @@ export const platformSettings = pgTable("platform_settings", {
   kontakWhatsapp: text("kontak_whatsapp"),
   tcTitle: text("tc_title").notNull(),
   tcContent: text("tc_content").notNull(),
+  communityDescription: text("community_description"),
+  communityDonationImageUrl: text("community_donation_image_url"),
+  communityApkAdminUrl: text("community_apk_admin_url"),
+  communityApkPortalUrl: text("community_apk_portal_url"),
+  communityWhatsappSuperadmin: text("community_whatsapp_superadmin"),
+  communityTelegramUrl: text("community_telegram_url"),
   cronLastRunAt: timestamp("cron_last_run_at", { withTimezone: true }),
   cronLastResult: text("cron_last_result"),
   mapGeocodingProvider: text("map_geocoding_provider", { enum: ["nominatim", "google"] })

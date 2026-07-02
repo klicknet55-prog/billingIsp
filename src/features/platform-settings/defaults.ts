@@ -25,6 +25,13 @@ export const DEFAULT_PLATFORM_SETTINGS: Omit<PlatformSettings, "updatedAt"> & {
   tcTitle: "Syarat & Ketentuan",
   tcContent:
     "1. Pengguna wajib menjaga kerahasiaan akun dashboard.\n2. Data pelanggan menjadi tanggung jawab masing-masing tenant ISP.\n3. Pembayaran langganan SaaS mengikuti paket yang dipilih saat pendaftaran.\n4. Platform dapat menangguhkan akun yang melanggar ketentuan atau menunggak langganan.\n5. Ketentuan dapat diperbarui; perubahan akan diinformasikan melalui dashboard.",
+  communityDescription:
+    "Gabung komunitas pengguna Admin.net & MyWiFi untuk berbagi update, tips operasional ISP, dan bantuan teknis.",
+  communityDonationImageUrl: null,
+  communityApkAdminUrl: null,
+  communityApkPortalUrl: null,
+  communityWhatsappSuperadmin: "6281234567890",
+  communityTelegramUrl: null,
   cronLastRunAt: null,
   cronLastResult: null,
   mapGeocodingProvider: "nominatim",

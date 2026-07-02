@@ -133,6 +133,36 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     column: "google_geocoding_api_key_encrypted",
     sql: "ALTER TABLE platform_settings ADD COLUMN google_geocoding_api_key_encrypted TEXT",
   },
+  {
+    table: "platform_settings",
+    column: "community_description",
+    sql: "ALTER TABLE platform_settings ADD COLUMN community_description TEXT",
+  },
+  {
+    table: "platform_settings",
+    column: "community_donation_image_url",
+    sql: "ALTER TABLE platform_settings ADD COLUMN community_donation_image_url TEXT",
+  },
+  {
+    table: "platform_settings",
+    column: "community_apk_admin_url",
+    sql: "ALTER TABLE platform_settings ADD COLUMN community_apk_admin_url TEXT",
+  },
+  {
+    table: "platform_settings",
+    column: "community_apk_portal_url",
+    sql: "ALTER TABLE platform_settings ADD COLUMN community_apk_portal_url TEXT",
+  },
+  {
+    table: "platform_settings",
+    column: "community_whatsapp_superadmin",
+    sql: "ALTER TABLE platform_settings ADD COLUMN community_whatsapp_superadmin TEXT",
+  },
+  {
+    table: "platform_settings",
+    column: "community_telegram_url",
+    sql: "ALTER TABLE platform_settings ADD COLUMN community_telegram_url TEXT",
+  },
 ];
 
 function hasColumn(db: Database.Database, table: string, column: string) {

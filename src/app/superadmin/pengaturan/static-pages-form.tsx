@@ -143,6 +143,82 @@ export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
         </p>
       </section>
 
+      <section className="space-y-4 rounded-lg border p-4">
+        <h3 className="font-semibold">Halaman Community (Internal)</h3>
+        <Field id="communityDescription" label="Deskripsi komunitas" error={fe.communityDescription}>
+          <Textarea
+            id="communityDescription"
+            name="communityDescription"
+            defaultValue={defaults.communityDescription ?? ""}
+            rows={4}
+            className="text-sm"
+          />
+        </Field>
+        <Field
+          id="communityDonationImageUrl"
+          label="URL gambar donasi (QRIS)"
+          error={fe.communityDonationImageUrl}
+        >
+          <input
+            id="communityDonationImageUrl"
+            name="communityDonationImageUrl"
+            type="url"
+            defaultValue={defaults.communityDonationImageUrl ?? ""}
+            placeholder="https://.../qris.png"
+            className="h-9 w-full rounded-md border px-3 text-sm"
+          />
+        </Field>
+        <Field id="communityApkAdminUrl" label="URL download APK Admin.net" error={fe.communityApkAdminUrl}>
+          <input
+            id="communityApkAdminUrl"
+            name="communityApkAdminUrl"
+            type="url"
+            defaultValue={defaults.communityApkAdminUrl ?? ""}
+            placeholder="https://.../Admin.net-release.apk"
+            className="h-9 w-full rounded-md border px-3 text-sm"
+          />
+        </Field>
+        <Field id="communityApkPortalUrl" label="URL download APK MyWiFi" error={fe.communityApkPortalUrl}>
+          <input
+            id="communityApkPortalUrl"
+            name="communityApkPortalUrl"
+            type="url"
+            defaultValue={defaults.communityApkPortalUrl ?? ""}
+            placeholder="https://.../MyWiFi-release.apk"
+            className="h-9 w-full rounded-md border px-3 text-sm"
+          />
+        </Field>
+        <Field
+          id="communityWhatsappSuperadmin"
+          label="WhatsApp superadmin"
+          error={fe.communityWhatsappSuperadmin}
+        >
+          <input
+            id="communityWhatsappSuperadmin"
+            name="communityWhatsappSuperadmin"
+            defaultValue={defaults.communityWhatsappSuperadmin ?? ""}
+            placeholder="6281234567890"
+            className="h-9 w-full rounded-md border px-3 text-sm"
+          />
+        </Field>
+        <Field id="communityTelegramUrl" label="Link group Telegram" error={fe.communityTelegramUrl}>
+          <input
+            id="communityTelegramUrl"
+            name="communityTelegramUrl"
+            type="url"
+            defaultValue={defaults.communityTelegramUrl ?? ""}
+            placeholder="https://t.me/..."
+            className="h-9 w-full rounded-md border px-3 text-sm"
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          Pratinjau internal:{" "}
+          <a href="/dashboard/community" target="_blank" rel="noopener noreferrer" className="underline">
+            /dashboard/community
+          </a>
+        </p>
+      </section>
+
       <SubmitButton>Simpan Halaman Statis</SubmitButton>
     </form>
   );

@@ -3,6 +3,7 @@
 import {
   BarChart3,
   Building2,
+  HandCoins,
   ChevronDown,
   ChevronRight,
   CreditCard,
@@ -75,8 +76,12 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/superadmin/deploy", label: "Update App", icon: Rocket },
     { href: "/superadmin/integrasi", label: "Integrasi", icon: Plug },
     { href: "/superadmin/pesan", label: "Pesan", icon: MessageSquare },
+    { href: "/superadmin/community", label: "Community", icon: HandCoins },
   ],
-  kolektor: [{ href: "/kolektor", label: "Tugas Penagihan", icon: ListChecks }],
+  kolektor: [
+    { href: "/kolektor", label: "Tugas Penagihan", icon: ListChecks },
+    { href: "/kolektor/community", label: "Community", icon: HandCoins },
+  ],
 };
 
 const DASHBOARD_NAV: DashboardNavEntry[] = [
@@ -116,6 +121,7 @@ const DASHBOARD_NAV: DashboardNavEntry[] = [
     icon: Settings,
     roles: ["owner", "admin"],
   },
+  { href: "/dashboard/community", label: "Community", icon: HandCoins },
 ];
 
 function canSeeNavItem(item: NavItem, userRole: string): boolean {

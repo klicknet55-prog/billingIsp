@@ -59,6 +59,12 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
         kontakWhatsapp: DEFAULT_PLATFORM_SETTINGS.kontakWhatsapp,
         tcTitle: DEFAULT_PLATFORM_SETTINGS.tcTitle,
         tcContent: DEFAULT_PLATFORM_SETTINGS.tcContent,
+        communityDescription: DEFAULT_PLATFORM_SETTINGS.communityDescription,
+        communityDonationImageUrl: DEFAULT_PLATFORM_SETTINGS.communityDonationImageUrl,
+        communityApkAdminUrl: DEFAULT_PLATFORM_SETTINGS.communityApkAdminUrl,
+        communityApkPortalUrl: DEFAULT_PLATFORM_SETTINGS.communityApkPortalUrl,
+        communityWhatsappSuperadmin: DEFAULT_PLATFORM_SETTINGS.communityWhatsappSuperadmin,
+        communityTelegramUrl: DEFAULT_PLATFORM_SETTINGS.communityTelegramUrl,
       })
       .onConflictDoNothing({ target: platformSettings.id });
 
@@ -123,6 +129,12 @@ export type PlatformSettingsPatch = Partial<{
   kontakWhatsapp: string | null;
   tcTitle: string;
   tcContent: string;
+  communityDescription: string | null;
+  communityDonationImageUrl: string | null;
+  communityApkAdminUrl: string | null;
+  communityApkPortalUrl: string | null;
+  communityWhatsappSuperadmin: string | null;
+  communityTelegramUrl: string | null;
   mapGeocodingProvider: "nominatim" | "google";
   googleGeocodingApiKeyEncrypted: string | null;
 }>;

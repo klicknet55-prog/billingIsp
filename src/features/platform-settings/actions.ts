@@ -67,6 +67,35 @@ const staticPagesSchema = z.object({
     ),
   tcTitle: z.string().trim().min(1, "Judul Syarat & Ketentuan wajib diisi"),
   tcContent: z.string().trim().min(1, "Isi Syarat & Ketentuan wajib diisi"),
+  communityDescription: z.string().trim().optional(),
+  communityDonationImageUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || z.string().url().safeParse(v).success, "URL gambar donasi tidak valid"),
+  communityApkAdminUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || z.string().url().safeParse(v).success, "URL download Admin.net tidak valid"),
+  communityApkPortalUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => !v || z.string().url().safeParse(v).success, "URL download MyWiFi tidak valid"),
+  communityWhatsappSuperadmin: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (v) => !v || normalizeWhatsappNumber(v).length >= 10,
+      "Nomor WhatsApp superadmin tidak valid"
+    ),
+  communityTelegramUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine((v) => isValidTelegramGroupUrl(v ?? ""), "Link Telegram community tidak valid"),
 });
 
 const mapGeocodingSchema = z.object({
@@ -198,6 +227,8 @@ export async function saveStaticPagesAction(
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
 
   const waRaw = parsed.data.kontakWhatsapp?.trim() ?? "";
+  const communityWaRaw = parsed.data.communityWhatsappSuperadmin?.trim() ?? "";
+  const communityTelegramRaw = parsed.data.communityTelegramUrl?.trim() ?? "";
   await patchPlatformSettings({
     tentangTitle: parsed.data.tentangTitle,
     tentangContent: parsed.data.tentangContent,
@@ -206,6 +237,12 @@ export async function saveStaticPagesAction(
     kontakWhatsapp: waRaw ? normalizeWhatsappNumber(waRaw) : null,
     tcTitle: parsed.data.tcTitle,
     tcContent: parsed.data.tcContent,
+    communityDescription: parsed.data.communityDescription?.trim() || null,
+    communityDonationImageUrl: parsed.data.communityDonationImageUrl?.trim() || null,
+    communityApkAdminUrl: parsed.data.communityApkAdminUrl?.trim() || null,
+    communityApkPortalUrl: parsed.data.communityApkPortalUrl?.trim() || null,
+    communityWhatsappSuperadmin: communityWaRaw ? normalizeWhatsappNumber(communityWaRaw) : null,
+    communityTelegramUrl: communityTelegramRaw ? normalizeTelegramGroupUrl(communityTelegramRaw) : null,
   });
   revalidatePlatform();
   return { ok: true };

@@ -41,6 +41,9 @@ export const PLATFORM_REVALIDATE_PATHS = [
   "/tentang",
   "/kontak",
   "/syarat-ketentuan",
+  "/dashboard/community",
+  "/kolektor/community",
+  "/superadmin/community",
   SUPERADMIN_PENGATURAN_HREF,
   ...SUPERADMIN_PENGATURAN_NAV.map((item) => item.href),
 ] as const;

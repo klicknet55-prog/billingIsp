@@ -17,8 +17,8 @@ export default async function HalamanStatisPage() {
       <CardHeader>
         <CardTitle>Halaman Statis</CardTitle>
         <CardDescription>
-          Kelola halaman publik Tentang, Kontak, dan Syarat & Ketentuan. Konten
-          ditampilkan di footer situs. Terakhir diperbarui:{" "}
+          Kelola halaman publik Tentang, Kontak, Syarat & Ketentuan, serta halaman Community
+          internal. Konten ditampilkan di footer situs dan dashboard. Terakhir diperbarui:{" "}
           {formatDate(settings.updatedAt)}.
         </CardDescription>
       </CardHeader>
