@@ -16,24 +16,28 @@ export function getPortalAppLinkHost(): string | null {
   }
 }
 
-/** URL intent Android: buka MyWiFi jika terinstall, fallback ke browser HTTPS. */
-export function buildMyWifiAndroidIntentUrl(browserUrl: string): string {
-  const absolute = browserUrl.startsWith("http")
-    ? browserUrl
-    : `${appOrigin() || "https://localhost"}${browserUrl.startsWith("/") ? browserUrl : `/${browserUrl}`}`;
+function toAbsoluteUrl(url: string): string {
+  if (url.startsWith("http")) return url;
+  const origin = appOrigin() || "https://localhost";
+  return `${origin}${url.startsWith("/") ? url : `/${url}`}`;
+}
 
+/** URL intent Android: buka MyWiFi jika terinstall. Fallback WAJIB ke URL login browser (?browser=1). */
+export function buildMyWifiAndroidIntentUrl(targetUrl: string, browserFallbackUrl: string): string {
   let parsed: URL;
+  let fallbackParsed: URL;
   try {
-    parsed = new URL(absolute);
+    parsed = new URL(toAbsoluteUrl(targetUrl));
+    fallbackParsed = new URL(toAbsoluteUrl(browserFallbackUrl));
   } catch {
-    return browserUrl;
+    return targetUrl;
   }
 
   if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-    return absolute;
+    return parsed.toString();
   }
 
-  const fallback = encodeURIComponent(parsed.toString());
+  const fallback = encodeURIComponent(fallbackParsed.toString());
   const intentPath = `${parsed.host}${parsed.pathname}${parsed.search}`;
 
   return (

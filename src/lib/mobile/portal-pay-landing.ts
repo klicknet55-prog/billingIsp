@@ -9,15 +9,25 @@ export function isAndroidExternalBrowser(userAgent: string): boolean {
   return true;
 }
 
+export function shouldShowPortalPayLanding(
+  userAgent: string,
+  searchParams: URLSearchParams
+): boolean {
+  if (searchParams.has("browser") || searchParams.get("skip_app") === "1") return false;
+  // Sudah dibuka dari shell MyWiFi (intent / App Link) — langsung login.
+  if (searchParams.get("nm_app") === "portal") return false;
+  return isAndroidExternalBrowser(userAgent);
+}
+
 export function buildPortalPayLandingHtml(input: {
   appOpenUrl: string;
   browserContinueUrl: string;
   appName?: string;
 }): string {
   const appName = input.appName ?? MOBILE_APP_NAMES.portal;
-  const intentUrl = buildMyWifiAndroidIntentUrl(input.appOpenUrl);
+  const intentUrl = buildMyWifiAndroidIntentUrl(input.appOpenUrl, input.browserContinueUrl);
   const continueUrl = input.browserContinueUrl;
-  const fallbackMs = 2800;
+  const fallbackMs = 4000;
 
   return `<!DOCTYPE html>
 <html lang="id">
@@ -38,29 +48,42 @@ export function buildPortalPayLandingHtml(input: {
 </head>
 <body>
   <div class="card">
-    <h1>Membuka ${appName}…</h1>
-    <p>Jika aplikasi tidak terbuka otomatis, gunakan tombol di bawah.</p>
+    <h1>Bayar tagihan</h1>
+    <p>Buka aplikasi ${appName} atau lanjutkan di browser untuk masuk otomatis.</p>
     <a class="btn primary" id="open-app" href="${escapeAttr(intentUrl)}">Buka di ${appName}</a>
     <a class="btn secondary" id="open-browser" href="${escapeAttr(continueUrl)}">Lanjut di browser</a>
-    <p class="hint">Anda akan masuk otomatis ke halaman tagihan.</p>
+    <p class="hint">Tanpa ${appName}, pilih &quot;Lanjut di browser&quot;.</p>
   </div>
   <script>
     (function () {
       var intentUrl = ${JSON.stringify(intentUrl)};
       var continueUrl = ${JSON.stringify(continueUrl)};
+      var storageKey = "nm_pay_landing_done:" + continueUrl;
+      if (sessionStorage.getItem(storageKey) === "1") {
+        window.location.replace(continueUrl);
+        return;
+      }
       var cancelled = false;
       document.addEventListener("visibilitychange", function () {
         if (document.hidden) cancelled = true;
       });
       window.addEventListener("pagehide", function () { cancelled = true; });
-      try { window.location.href = intentUrl; } catch (e) {}
-      setTimeout(function () {
-        if (!cancelled) window.location.replace(continueUrl);
-      }, ${fallbackMs});
-      document.getElementById("open-app").addEventListener("click", function (e) {
-        e.preventDefault();
-        window.location.href = intentUrl;
+      document.getElementById("open-browser").addEventListener("click", function () {
+        sessionStorage.setItem(storageKey, "1");
+        cancelled = true;
       });
+      document.getElementById("open-app").addEventListener("click", function () {
+        cancelled = true;
+      });
+      setTimeout(function () {
+        if (cancelled) return;
+        try { window.location.href = intentUrl; } catch (e) {}
+      }, 600);
+      setTimeout(function () {
+        if (cancelled) return;
+        sessionStorage.setItem(storageKey, "1");
+        window.location.replace(continueUrl);
+      }, ${fallbackMs});
     })();
   </script>
 </body>

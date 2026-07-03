@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { PwaRegister } from "@/components/pwa-register";
 import { CapacitorSystemChrome } from "@/components/mobile/capacitor-system-chrome";
+import { PortalDeepLinkBootstrap } from "@/components/mobile/portal-deep-link-bootstrap";
 import { PushNotificationBootstrap } from "@/components/mobile/push-notification-bootstrap";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { THEME_INIT_SCRIPT } from "@/components/theme/theme-script";
@@ -57,6 +58,7 @@ export default async function RootLayout({
           defaultMode={tenant?.themeMode ?? "light"}
         >
           <CapacitorSystemChrome />
+          <PortalDeepLinkBootstrap />
           <PushNotificationBootstrap />
           <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>

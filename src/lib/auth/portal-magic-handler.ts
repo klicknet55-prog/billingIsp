@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { pelanggan } from "@/lib/db/schema";
 import {
   buildPortalPayLandingHtml,
-  isAndroidExternalBrowser,
+  shouldShowPortalPayLanding,
 } from "@/lib/mobile/portal-pay-landing";
 import { getAppOrigin } from "@/lib/site-server";
 
@@ -71,12 +71,9 @@ export async function handlePortalAccessCodeRequest(req: NextRequest, code: stri
     return redirectTo("/portal/login?error=expired", req);
   }
 
-  const skipLanding =
-    req.nextUrl.searchParams.has("browser") ||
-    req.nextUrl.searchParams.get("skip_app") === "1";
   const userAgent = req.headers.get("user-agent") ?? "";
 
-  if (!skipLanding && isAndroidExternalBrowser(userAgent)) {
+  if (shouldShowPortalPayLanding(userAgent, req.nextUrl.searchParams)) {
     const origin = await resolveAppOrigin(req);
     const normalizedCode = code.trim().toLowerCase();
     const appOpenUrl = `${origin}/p/${normalizedCode}?nm_app=portal`;
