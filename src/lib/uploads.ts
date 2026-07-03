@@ -13,7 +13,7 @@ const EXT_TO_MIME: Record<string, string> = {
   svg: "image/svg+xml",
 };
 
-export const UPLOAD_SUBDIRS = ["tenant-logos", "platform-logo", "tickets"] as const;
+export const UPLOAD_SUBDIRS = ["tenant-logos", "platform-logo", "tickets", "mobile-apk"] as const;
 
 function extensionFromName(name: string): string | null {
   const ext = name.split(".").pop()?.toLowerCase();
@@ -117,4 +117,26 @@ export async function saveLogoUpload(
     throw formatUploadError(err);
   }
   return `/uploads/${subdir}/${name}`;
+}
+
+const APK_MAX_BYTES = 80 * 1024 * 1024;
+
+/** APK Android — simpan ke public/uploads/mobile-apk dengan nama file tetap (overwrite). */
+export async function saveApkUpload(file: File, filename: string): Promise<string> {
+  if (!file.name.toLowerCase().endsWith(".apk")) {
+    throw new Error("File harus berformat .apk");
+  }
+  if (file.size > APK_MAX_BYTES) {
+    throw new Error("Ukuran APK maksimal 80 MB.");
+  }
+
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-");
+  await ensureUploadDirs();
+  const dir = path.join(process.cwd(), "public", "uploads", "mobile-apk");
+  try {
+    await writeFile(path.join(dir, safeName), Buffer.from(await file.arrayBuffer()));
+  } catch (err) {
+    throw formatUploadError(err);
+  }
+  return `/uploads/mobile-apk/${safeName}`;
 }

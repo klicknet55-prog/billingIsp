@@ -49,6 +49,7 @@ export const PLATFORM_REVALIDATE_PATHS = [
   "/dashboard/community",
   "/kolektor/community",
   "/superadmin/community",
+  "/superadmin/mobile-apk",
   SUPERADMIN_PENGATURAN_HREF,
   ...SUPERADMIN_PENGATURAN_NAV.map((item) => item.href),
 ] as const;

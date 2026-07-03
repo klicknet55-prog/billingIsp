@@ -4,7 +4,8 @@ const nextConfig = {
   devIndicators: false,
   experimental: {
     serverActions: {
-      bodySizeLimit: "3mb",
+      // APK upload (saveApkUpload) allows up to 80 MB; multipart adds small overhead.
+      bodySizeLimit: "85mb",
     },
   },
   async redirects() {

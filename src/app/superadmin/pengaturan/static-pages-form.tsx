@@ -174,9 +174,12 @@ export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
             name="communityApkAdminUrl"
             type="url"
             defaultValue={defaults.communityApkAdminUrl ?? ""}
-            placeholder="https://.../Admin.net-release.apk"
+            placeholder="https://.../uploads/mobile-apk/..."
             className="h-9 w-full rounded-md border px-3 text-sm"
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Otomatis terisi saat unggah di Superadmin → Upload APK.
+          </p>
         </Field>
         <Field id="communityApkPortalUrl" label="URL download APK MyWiFi" error={fe.communityApkPortalUrl}>
           <input
@@ -184,9 +187,12 @@ export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
             name="communityApkPortalUrl"
             type="url"
             defaultValue={defaults.communityApkPortalUrl ?? ""}
-            placeholder="https://.../MyWiFi-release.apk"
+            placeholder="https://.../uploads/mobile-apk/..."
             className="h-9 w-full rounded-md border px-3 text-sm"
           />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Otomatis terisi saat unggah di Superadmin → Upload APK.
+          </p>
         </Field>
         <Field
           id="communityWhatsappSuperadmin"

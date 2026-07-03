@@ -12,6 +12,7 @@ import {
 } from "@/lib/db/schema";
 import { getTagihanSummary } from "@/features/billing/tagihan-service";
 import { formatTagihanPeriode } from "@/features/billing/format-periode";
+import { getPlatformSettings } from "@/features/platform-settings/service";
 import { portalPayLink } from "@/features/jobs/billing";
 import { formatDate, formatRupiah } from "@/lib/utils";
 import { getTenantSubscriptionStatus } from "@/features/tenants/service";
@@ -71,6 +72,7 @@ export async function buildPelangganContext(
   }
 
   const dueDate = focus?.dueDate ?? cust.tglJatuhTempo ?? new Date();
+  const platform = await getPlatformSettings();
 
   return {
     nama_pelanggan: cust.nama,
@@ -82,6 +84,7 @@ export async function buildPelangganContext(
     tunggakan: formatTunggakanLabel(summary.tunggakan),
     jatuh_tempo: formatDate(dueDate),
     link_bayar: await portalPayLink(tenantId, pelangganId),
+    link_apkportal: platform.communityApkPortalUrl?.trim() || "-",
     nama_usaha: tenant?.namaUsaha ?? "",
     paket: paket?.nama ?? "",
     router: router?.nama ?? "",

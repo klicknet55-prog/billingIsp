@@ -1,6 +1,8 @@
 import { Download, HandCoins, MessageCircle, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { apkDisplayLabelFromUrl } from "@/lib/mobile/apk-filename";
+import { MOBILE_APP_NAMES } from "@/lib/mobile/app-names";
 import type { PlatformSettings } from "@/lib/db/schema";
 import { whatsappUrl } from "@/features/platform-settings/whatsapp";
 
@@ -51,7 +53,10 @@ export function CommunityPageContent({
               <Button asChild variant="outline">
                 <a href={settings.communityApkAdminUrl} target="_blank" rel="noreferrer">
                   <Download className="mr-1 h-4 w-4" />
-                  Admin.net
+                  {apkDisplayLabelFromUrl(
+                    settings.communityApkAdminUrl,
+                    MOBILE_APP_NAMES.admin
+                  )}
                 </a>
               </Button>
             )}
@@ -59,7 +64,10 @@ export function CommunityPageContent({
               <Button asChild variant="outline">
                 <a href={settings.communityApkPortalUrl} target="_blank" rel="noreferrer">
                   <Download className="mr-1 h-4 w-4" />
-                  MyWiFi
+                  {apkDisplayLabelFromUrl(
+                    settings.communityApkPortalUrl,
+                    MOBILE_APP_NAMES.portal
+                  )}
                 </a>
               </Button>
             )}
