@@ -1,6 +1,11 @@
 /** Submenu Pengaturan superadmin — tab di halaman Pengaturan. */
 export const SUPERADMIN_PENGATURAN_NAV = [
   {
+    href: "/superadmin/pengaturan/akun",
+    label: "Akun Saya",
+    description: "Profil & kata sandi superadmin",
+  },
+  {
     href: "/superadmin/pengaturan/profil-app",
     label: "Profil App",
     description: "Nama aplikasi & tagline",

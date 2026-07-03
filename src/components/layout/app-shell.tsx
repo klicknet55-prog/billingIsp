@@ -414,6 +414,16 @@ export function AppShell({
                           </Link>
                         )}
                       </div>
+                    ) : variant === "superadmin" ? (
+                      <div className="space-y-2 text-sm">
+                        <Link
+                          href="/superadmin/pengaturan/akun"
+                          className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                          onClick={() => setProfileOpen(false)}
+                        >
+                          Akun & Kata Sandi
+                        </Link>
+                      </div>
                     ) : (
                       <div className="text-xs text-muted-foreground">Tidak ada pengaturan paket.</div>
                     )}

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
-import { hashPassword } from "@/lib/auth/password";
+import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { db } from "@/lib/db";
 import { tenants, users } from "@/lib/db/schema";
 import { saveLogoUpload } from "@/lib/uploads";
@@ -51,6 +51,65 @@ export async function saveAdminProfileAction(
   await db.update(users).set(patch).where(eq(users.id, user.id));
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/pengaturan");
+  return { ok: true };
+}
+
+const superadminProfileSchema = z.object({
+  nama: z.string().trim().min(1, "Nama wajib diisi"),
+  email: z.string().trim().email("Email tidak valid"),
+  phone: z.string().trim().optional(),
+  currentPassword: z.string().optional(),
+  newPassword: z.string().optional(),
+  confirmPassword: z.string().optional(),
+});
+
+export async function saveSuperadminProfileAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser(["superadmin"]);
+  const parsed = parseForm(superadminProfileSchema, formData);
+  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+
+  const email = parsed.data.email.toLowerCase();
+  const duplicate = await db.query.users.findFirst({
+    where: and(eq(users.email, email), ne(users.id, user.id)),
+  });
+  if (duplicate) return { error: "Email sudah dipakai akun lain." };
+
+  const newPassword = parsed.data.newPassword?.trim() ?? "";
+  const currentPassword = parsed.data.currentPassword?.trim() ?? "";
+  const confirmPassword = parsed.data.confirmPassword?.trim() ?? "";
+
+  if (newPassword.length > 0) {
+    if (currentPassword.length === 0) {
+      return { fieldErrors: { currentPassword: "Masukkan kata sandi saat ini" } };
+    }
+    if (!verifyPassword(currentPassword, user.passwordHash)) {
+      return { fieldErrors: { currentPassword: "Kata sandi saat ini salah" } };
+    }
+    if (newPassword.length < 8) {
+      return { fieldErrors: { newPassword: "Kata sandi baru minimal 8 karakter" } };
+    }
+    if (newPassword !== confirmPassword) {
+      return { fieldErrors: { confirmPassword: "Konfirmasi kata sandi tidak cocok" } };
+    }
+  } else if (confirmPassword.length > 0 || currentPassword.length > 0) {
+    return { fieldErrors: { newPassword: "Isi kata sandi baru jika ingin mengganti" } };
+  }
+
+  const patch: Partial<typeof users.$inferInsert> = {
+    nama: parsed.data.nama,
+    email,
+    phone: parsed.data.phone || null,
+  };
+  if (newPassword.length > 0) {
+    patch.passwordHash = hashPassword(newPassword);
+  }
+
+  await db.update(users).set(patch).where(eq(users.id, user.id));
+  revalidatePath("/superadmin");
+  revalidatePath("/superadmin/pengaturan/akun");
   return { ok: true };
 }
 
