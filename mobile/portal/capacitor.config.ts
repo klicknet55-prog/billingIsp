@@ -12,9 +12,11 @@ const config: CapacitorConfig = {
     url: `${base}/portal/login?nm_app=portal`,
     cleartext: false,
     androidScheme: "https",
+    errorPath: "error.html",
   },
   android: {
     allowMixedContent: false,
+    appendUserAgent: "MyWiFiCapacitorShell/1",
   },
   plugins: {
     SplashScreen: {

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>MyWiFi — Tidak dapat terhubung</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 1.5rem;
+        text-align: center;
+      }
+      .card {
+        max-width: 22rem;
+      }
+      h1 {
+        font-size: 1.125rem;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        font-size: 0.875rem;
+        color: #94a3b8;
+        line-height: 1.5;
+      }
+      button {
+        margin-top: 1rem;
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-size: 0.9375rem;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Tidak dapat terhubung</h1>
+      <p>Periksa koneksi internet Anda, lalu coba lagi.</p>
+      <button type="button" onclick="window.location.reload()">Coba lagi</button>
+    </div>
+  </body>
+</html>

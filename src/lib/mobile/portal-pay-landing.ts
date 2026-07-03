@@ -1,12 +1,16 @@
 import { MOBILE_APP_NAMES } from "@/lib/mobile/app-names";
 import { buildMyWifiAndroidIntentUrl } from "@/lib/mobile/portal-apk-link";
 
-/** Browser Android eksternal (bukan WebView MyWiFi/Capacitor). */
-export function isAndroidExternalBrowser(userAgent: string): boolean {
+const CAPACITOR_SHELL_MARKER = "mywificapacitorshell";
+
+/** Browser Android eksternal (Chrome/WA) — bukan WebView MyWiFi/Capacitor. */
+export function isCapacitorPortalShell(userAgent: string): boolean {
   const ua = userAgent.toLowerCase();
-  if (!ua.includes("android")) return false;
-  if (ua.includes("wv)") || ua.includes("capacitor")) return false;
-  return true;
+  return (
+    ua.includes(CAPACITOR_SHELL_MARKER) ||
+    ua.includes("wv)") ||
+    ua.includes("capacitor")
+  );
 }
 
 export function shouldShowPortalPayLanding(
@@ -14,9 +18,9 @@ export function shouldShowPortalPayLanding(
   searchParams: URLSearchParams
 ): boolean {
   if (searchParams.has("browser") || searchParams.get("skip_app") === "1") return false;
-  // Sudah dibuka dari shell MyWiFi (intent / App Link) — langsung login.
   if (searchParams.get("nm_app") === "portal") return false;
-  return isAndroidExternalBrowser(userAgent);
+  if (isCapacitorPortalShell(userAgent)) return false;
+  return userAgent.toLowerCase().includes("android");
 }
 
 export function buildPortalPayLandingHtml(input: {
@@ -27,7 +31,7 @@ export function buildPortalPayLandingHtml(input: {
   const appName = input.appName ?? MOBILE_APP_NAMES.portal;
   const intentUrl = buildMyWifiAndroidIntentUrl(input.appOpenUrl, input.browserContinueUrl);
   const continueUrl = input.browserContinueUrl;
-  const fallbackMs = 4000;
+  const fallbackMs = 5000;
 
   return `<!DOCTYPE html>
 <html lang="id">
@@ -63,24 +67,10 @@ export function buildPortalPayLandingHtml(input: {
         window.location.replace(continueUrl);
         return;
       }
-      var cancelled = false;
-      document.addEventListener("visibilitychange", function () {
-        if (document.hidden) cancelled = true;
-      });
-      window.addEventListener("pagehide", function () { cancelled = true; });
       document.getElementById("open-browser").addEventListener("click", function () {
         sessionStorage.setItem(storageKey, "1");
-        cancelled = true;
-      });
-      document.getElementById("open-app").addEventListener("click", function () {
-        cancelled = true;
       });
       setTimeout(function () {
-        if (cancelled) return;
-        try { window.location.href = intentUrl; } catch (e) {}
-      }, 600);
-      setTimeout(function () {
-        if (cancelled) return;
         sessionStorage.setItem(storageKey, "1");
         window.location.replace(continueUrl);
       }, ${fallbackMs});

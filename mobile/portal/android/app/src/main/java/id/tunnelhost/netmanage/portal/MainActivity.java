@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        clearLauncherIntentDataIfNeeded();
         super.onCreate(savedInstanceState);
         applyImmersiveEdgeToEdge();
     }
@@ -27,6 +28,16 @@ public class MainActivity extends BridgeActivity {
         if (hasFocus) {
             applyImmersiveEdgeToEdge();
         }
+    }
+
+    /** Launcher icon tidak boleh membawa data deep-link lama (bisa gagal load WebView). */
+    private void clearLauncherIntentDataIfNeeded() {
+        Intent intent = getIntent();
+        if (intent == null) return;
+        if (!Intent.ACTION_MAIN.equals(intent.getAction())) return;
+        if (!intent.hasCategory(Intent.CATEGORY_LAUNCHER)) return;
+        intent.setData(null);
+        intent.setDataAndType(null, null);
     }
 
     /** Edge-to-edge + nav/status bar tersembunyi; muncul sementara saat swipe dari tepi. */

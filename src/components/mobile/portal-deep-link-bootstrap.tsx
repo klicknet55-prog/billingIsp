@@ -12,12 +12,13 @@ type AppPlugin = {
 };
 
 function navigateToPortalDeepLink(rawUrl: string) {
+  if (rawUrl.startsWith("intent:")) return;
   try {
     const parsed = new URL(rawUrl);
-    const path = `${parsed.pathname}${parsed.search}`;
-    if (!path.startsWith("/p/") && !path.startsWith("/portal")) return;
-    if (window.location.pathname + window.location.search === path) return;
-    window.location.replace(path);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return;
+    if (!parsed.pathname.startsWith("/p/")) return;
+    if (window.location.href === parsed.href) return;
+    window.location.replace(parsed.href);
   } catch {
     /* ignore malformed url */
   }
