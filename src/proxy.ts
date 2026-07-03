@@ -16,7 +16,8 @@ export function proxy(req: NextRequest) {
   const isPortalArea =
     pathname.startsWith("/portal") &&
     pathname !== "/portal/login" &&
-    pathname !== "/portal/masuk";
+    pathname !== "/portal/masuk" &&
+    pathname !== "/portal/mobile-bootstrap";
 
   if (!hasSession && isStaffArea) {
     const url = req.nextUrl.clone();

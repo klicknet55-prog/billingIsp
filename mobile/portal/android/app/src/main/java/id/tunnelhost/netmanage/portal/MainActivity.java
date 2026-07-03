@@ -31,12 +31,6 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        loadAppLinkTargetIfNeeded();
-    }
-
-    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) {
@@ -54,7 +48,7 @@ public class MainActivity extends BridgeActivity {
         intent.setDataAndType(null, null);
     }
 
-    /** App Link /p/* langsung ke WebView — hindari race bootstrap vs login page. */
+    /** App Link saat app sudah berjalan (onNewIntent) — cold start ditangani bootstrap HTML. */
     private void loadAppLinkTargetIfNeeded() {
         if (appLinkHandled) return;
 
