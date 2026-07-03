@@ -131,6 +131,7 @@ npm run mobile:apk -- --portal-only
 | APK dev tidak load | `MyWiFi-debug-dev.apk` butuh PC + `npm run dev` satu WiFi |
 | App crash saat izin notifikasi | Push FCM butuh `google-services.json` + `NEXT_PUBLIC_MOBILE_PUSH_ENABLED=true`. Tanpa itu, push dimatikan sengaja |
 | `404` di `/.well-known/assetlinks.json` | Nginx/certbot menangkap `/.well-known/` sebelum Next.js. Tambah `location = /.well-known/assetlinks.json { proxy_pass ... }` (lihat README utama bagian Nginx) |
+| Link bayar tidak auto-buka MyWiFi | (1) Landing page sekarang auto-coba intent. (2) App Links penuh butuh `ANDROID_APP_LINK_SHA256` di `.env`, nginx assetlinks OK, dan APK **release** terinstall |
 | Cookie login hilang | Jangan clear WebView storage |
 | GPS tidak jalan | Izin lokasi di pengaturan Android |
 | `keytool` tidak ditemukan | Set `JAVA_HOME` ke JBR Android Studio |

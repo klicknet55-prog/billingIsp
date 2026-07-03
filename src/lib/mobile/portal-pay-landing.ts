@@ -67,6 +67,24 @@ export function buildPortalPayLandingHtml(input: {
         window.location.replace(continueUrl);
         return;
       }
+
+      function openApp() {
+        try {
+          window.location.href = intentUrl;
+        } catch (e) {
+          /* ignore */
+        }
+      }
+
+      // Browser eksternal (WA/Chrome) — coba buka MyWiFi otomatis.
+      // Halaman ini tidak tampil di WebView app (nm_app=portal / Capacitor UA).
+      openApp();
+      setTimeout(openApp, 120);
+
+      document.getElementById("open-app").addEventListener("click", function (e) {
+        e.preventDefault();
+        openApp();
+      });
       document.getElementById("open-browser").addEventListener("click", function () {
         sessionStorage.setItem(storageKey, "1");
       });
