@@ -19,14 +19,19 @@ export function hostnameFromOrigin(origin: string): string {
   }
 }
 
-/** Contoh: isp-tunnelhost-my-id-MyWiFi-release.apk */
+/** Nama file aman URL (tanpa titik di tengah): Admin.net → Admin-net */
+function appNameForFilename(app: MobileApkApp): string {
+  return MOBILE_APP_NAMES[app].replace(/\./g, "-");
+}
+
+/** Contoh: isp-tunnelhost-my-id-Admin-net-release.apk */
 export function buildApkReleaseFilename(input: {
   origin: string;
   app: MobileApkApp;
   variant?: "release" | "debug";
 }): string {
   const slug = domainSlugFromOrigin(input.origin);
-  const appName = MOBILE_APP_NAMES[input.app];
+  const appName = appNameForFilename(input.app);
   const variant = input.variant ?? "release";
   return `${slug}-${appName}-${variant}.apk`;
 }
