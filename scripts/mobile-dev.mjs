@@ -123,6 +123,10 @@ async function main() {
     const androidDir = join(mobileDir, "android");
     ensureLocalProperties(androidDir);
 
+    if (app === "portal") {
+      run("node", ["scripts/generate-portal-www.mjs"], root, env);
+    }
+
     run("npm", ["run", "sync", "--prefix", `mobile/${app}`], root, env);
 
     const hasDevice = hasAndroidTarget();

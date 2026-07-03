@@ -1,4 +1,21 @@
-<!DOCTYPE html>
+/**
+ * Generate mobile/portal/www/index.html — shell lokal yang redirect ke production.
+ * Production APK tidak memakai server.url (hindari WebView gagal load remote langsung).
+ */
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const root = join(__dirname, "..");
+const base = (process.env.CAPACITOR_SERVER_URL || "https://isp.tunnelhost.my.id").replace(
+  /\/$/,
+  ""
+);
+const origin = base;
+const loginUrl = `${origin}/portal/login?nm_app=portal`;
+
+const html = `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="utf-8" />
@@ -13,8 +30,8 @@
   <p>Memuat MyWiFi…</p>
   <script>
     (function () {
-      var origin = "https://isp.tunnelhost.my.id";
-      var loginUrl = "https://isp.tunnelhost.my.id/portal/login?nm_app=portal";
+      var origin = ${JSON.stringify(origin)};
+      var loginUrl = ${JSON.stringify(loginUrl)};
       var tries = 0;
       var maxTries = 60;
 
@@ -77,3 +94,9 @@
   </script>
 </body>
 </html>
+`;
+
+const outDir = join(root, "mobile", "portal", "www");
+mkdirSync(outDir, { recursive: true });
+writeFileSync(join(outDir, "index.html"), html, "utf8");
+console.log(`✓ portal www shell → ${origin}`);

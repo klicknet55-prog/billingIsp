@@ -5,22 +5,40 @@ const base = (
 ).replace(/\/$/, "");
 const isDevServer = base.startsWith("http://");
 
+let appHost = "isp.tunnelhost.my.id";
+try {
+  appHost = new URL(base).hostname;
+} catch {
+  /* default production host */
+}
+
+/**
+ * Dev (http LAN): load langsung dari dev server.
+ * Production: shell lokal www/index.html → redirect HTTPS (hindari WebView gagal load remote).
+ */
+const server: CapacitorConfig["server"] = isDevServer
+  ? {
+      url: `${base}/portal/login?nm_app=portal`,
+      cleartext: true,
+      androidScheme: "http",
+    }
+  : {
+      androidScheme: "https",
+      allowNavigation: [appHost, "*.tunnelhost.my.id", "*.tunnelhost.netmanage.portal"],
+    };
+
 const config: CapacitorConfig = {
   appId: "id.tunnelhost.netmanage.portal",
   appName: "MyWiFi",
   webDir: "www",
-  server: {
-    url: `${base}/portal/mobile-bootstrap?nm_app=portal`,
-    cleartext: isDevServer,
-    androidScheme: isDevServer ? "http" : "https",
-  },
+  server,
   android: {
     allowMixedContent: false,
     appendUserAgent: "MyWiFiCapacitorShell/1",
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 2000,
+      launchShowDuration: 800,
       backgroundColor: "#2563eb",
       showSpinner: true,
       spinnerColor: "#ffffff",

@@ -156,6 +156,10 @@ async function main() {
     run("npm", ["run", "mobile:assets:generate"], root, env);
   }
 
+  if (apps.includes("portal")) {
+    run("node", ["scripts/generate-portal-www.mjs"], root, env);
+  }
+
   for (const app of apps) {
     if (!isDebug) ensureKeystore(app);
     const androidDir = join(root, "mobile", app, "android");

@@ -12,17 +12,36 @@ type AppPlugin = {
   ) => Promise<{ remove: () => Promise<void> }>;
 };
 
+function isPortalDeepLinkPath(pathname: string): boolean {
+  if (pathname.startsWith("/p/") && pathname.length > 3) return true;
+  if (
+    pathname.startsWith("/portal/") &&
+    pathname !== "/portal/login" &&
+    pathname !== "/portal/mobile-bootstrap" &&
+    pathname !== "/portal/masuk"
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function navigateToPortalDeepLink(rawUrl: string) {
   if (rawUrl.startsWith("intent:")) return;
   try {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return;
-    if (!parsed.pathname.startsWith("/p/")) return;
+    if (!isPortalDeepLinkPath(parsed.pathname)) return;
+
     const path = window.location.pathname;
     if (path.startsWith("/p/")) return;
-    if (path.startsWith("/portal/") && !path.startsWith("/portal/login") && !path.startsWith("/portal/mobile-bootstrap")) {
+    if (
+      path.startsWith("/portal/") &&
+      path !== "/portal/login" &&
+      path !== "/portal/mobile-bootstrap"
+    ) {
       return;
     }
+
     if (!parsed.searchParams.has("nm_app")) parsed.searchParams.set("nm_app", "portal");
     const target = toCapacitorAbsoluteUrl(`${parsed.pathname}${parsed.search}${parsed.hash}`);
     if (window.location.href === target) return;
@@ -43,6 +62,10 @@ export function PortalDeepLinkBootstrap() {
     if (!app) return;
 
     let removeOpen: (() => Promise<void>) | undefined;
+
+    void app.getLaunchUrl?.().then((launch) => {
+      if (launch?.url) navigateToPortalDeepLink(launch.url);
+    });
 
     void app.addListener?.("appUrlOpen", (payload) => {
       if (payload?.url) navigateToPortalDeepLink(payload.url);

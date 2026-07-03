@@ -2,6 +2,7 @@ package id.tunnelhost.netmanage.portal;
 
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import com.getcapacitor.Bridge;
@@ -19,19 +20,32 @@ public class PortalBridgeWebViewClient extends BridgeWebViewClient {
 
     @Override
     public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-        if (request.isForMainFrame() && isAbortedNavigation(error)) {
+        if (request.isForMainFrame() && isBenignLoadFailure(error)) {
             return;
         }
         super.onReceivedError(view, request, error);
     }
 
-    private static boolean isAbortedNavigation(WebResourceError error) {
+    @Override
+    public void onReceivedHttpError(
+            WebView view,
+            WebResourceRequest request,
+            WebResourceResponse errorResponse) {
+        if (request.isForMainFrame() && errorResponse != null && errorResponse.getStatusCode() == 0) {
+            return;
+        }
+        super.onReceivedHttpError(view, request, errorResponse);
+    }
+
+    private static boolean isBenignLoadFailure(WebResourceError error) {
         if (error == null) return false;
         CharSequence desc = error.getDescription();
-        if (desc != null && desc.toString().toUpperCase().contains("ERR_ABORTED")) {
-            return true;
+        if (desc != null) {
+            String upper = desc.toString().toUpperCase();
+            if (upper.contains("ERR_ABORTED") || upper.contains("ERR_FAILED")) {
+                return true;
+            }
         }
-        // Beberapa WebView Android memakai kode -1 untuk load dibatalkan.
         return error.getErrorCode() == WebViewClient.ERROR_UNKNOWN
                 && desc != null
                 && desc.toString().toUpperCase().contains("ABORT");
