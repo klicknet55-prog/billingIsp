@@ -17,8 +17,15 @@ function navigateToPortalDeepLink(rawUrl: string) {
     const parsed = new URL(rawUrl);
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return;
     if (!parsed.pathname.startsWith("/p/")) return;
-    if (window.location.href === parsed.href) return;
-    window.location.replace(parsed.href);
+    const path = window.location.pathname;
+    if (path.startsWith("/p/")) return;
+    if (path.startsWith("/portal/") && !path.startsWith("/portal/login") && !path.startsWith("/portal/mobile-bootstrap")) {
+      return;
+    }
+    if (!parsed.searchParams.has("nm_app")) parsed.searchParams.set("nm_app", "portal");
+    const target = `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    if (`${window.location.pathname}${window.location.search}` === target) return;
+    window.location.replace(target);
   } catch {
     /* ignore malformed url */
   }
@@ -35,10 +42,6 @@ export function PortalDeepLinkBootstrap() {
     if (!app) return;
 
     let removeOpen: (() => Promise<void>) | undefined;
-
-    void app.getLaunchUrl?.().then((launch) => {
-      if (launch?.url) navigateToPortalDeepLink(launch.url);
-    });
 
     void app.addListener?.("appUrlOpen", (payload) => {
       if (payload?.url) navigateToPortalDeepLink(payload.url);

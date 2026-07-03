@@ -9,10 +9,9 @@ const config: CapacitorConfig = {
   appName: "MyWiFi",
   webDir: "www",
   server: {
-    url: `${base}/portal/login?nm_app=portal`,
+    url: `${base}/portal/mobile-bootstrap?nm_app=portal`,
     cleartext: false,
     androidScheme: "https",
-    errorPath: "error.html",
   },
   android: {
     allowMixedContent: false,
