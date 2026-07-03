@@ -16,10 +16,7 @@ export function getPortalAppLinkHost(): string | null {
   }
 }
 
-/**
- * URL intent Android: buka MyWiFi jika terinstall, fallback ke browser HTTPS.
- * Dipakai di pesan WhatsApp (pelanggan Android).
- */
+/** URL intent Android: buka MyWiFi jika terinstall, fallback ke browser HTTPS. */
 export function buildMyWifiAndroidIntentUrl(browserUrl: string): string {
   const absolute = browserUrl.startsWith("http")
     ? browserUrl
@@ -46,10 +43,4 @@ export function buildMyWifiAndroidIntentUrl(browserUrl: string): string {
     `S.browser_fallback_url=${fallback};` +
     `end`
   );
-}
-
-/** Bungkus link bayar portal untuk pengiriman pesan (APK-first di Android). */
-export function wrapPortalPayUrlForMessaging(browserUrl: string): string {
-  if (!browserUrl.startsWith("http")) return browserUrl;
-  return buildMyWifiAndroidIntentUrl(browserUrl);
 }

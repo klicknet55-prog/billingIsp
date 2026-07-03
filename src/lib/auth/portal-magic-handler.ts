@@ -5,6 +5,10 @@ import { resolvePortalAccessCode } from "@/lib/auth/portal-access-code";
 import { verifyPortalMagicToken } from "@/lib/auth/portal-link";
 import { db } from "@/lib/db";
 import { pelanggan } from "@/lib/db/schema";
+import {
+  buildPortalPayLandingHtml,
+  isAndroidExternalBrowser,
+} from "@/lib/mobile/portal-pay-landing";
 import { getAppOrigin } from "@/lib/site-server";
 
 function withPortalShellParam(path: string): string {
@@ -52,11 +56,38 @@ export async function handlePortalMagicLinkRequest(req: NextRequest) {
   return redirectTo(claims.redirect, req);
 }
 
+async function resolveAppOrigin(req: NextRequest): Promise<string> {
+  return (
+    (await getAppOrigin()) ||
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
+    new URL(req.url).origin
+  );
+}
+
 /** Kode pendek DB (/p/{code}) — link bayar WA utama. */
 export async function handlePortalAccessCodeRequest(req: NextRequest, code: string) {
   const claims = await resolvePortalAccessCode(code);
   if (!claims) {
     return redirectTo("/portal/login?error=expired", req);
+  }
+
+  const skipLanding =
+    req.nextUrl.searchParams.has("browser") ||
+    req.nextUrl.searchParams.get("skip_app") === "1";
+  const userAgent = req.headers.get("user-agent") ?? "";
+
+  if (!skipLanding && isAndroidExternalBrowser(userAgent)) {
+    const origin = await resolveAppOrigin(req);
+    const normalizedCode = code.trim().toLowerCase();
+    const appOpenUrl = `${origin}/p/${normalizedCode}?nm_app=portal`;
+    const browserContinueUrl = `${origin}/p/${normalizedCode}?browser=1`;
+    const html = buildPortalPayLandingHtml({ appOpenUrl, browserContinueUrl });
+    return new NextResponse(html, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
+    });
   }
 
   const cust = await db.query.pelanggan.findFirst({

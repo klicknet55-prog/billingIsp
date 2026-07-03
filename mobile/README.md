@@ -110,9 +110,10 @@ Rute `/p/*` dan `/portal/*` juga otomatis dikenali sebagai shell portal (App Lin
 
 ## Link bayar → APK MyWiFi
 
-1. **Pesan WhatsApp** memakai URL intent Android (buka MyWiFi jika terinstall, fallback browser).
-2. **Android App Links** (`/p/*`, `/portal/*`) di `AndroidManifest.xml` — host default `isp.tunnelhost.my.id` (sesuaikan jika domain beda).
-3. **Verifikasi domain**: set `ANDROID_APP_LINK_SHA256` di `.env` production (fingerprint keystore release), lalu cek `https://DOMAIN/.well-known/assetlinks.json`.
+1. **Pesan WhatsApp** memakai URL HTTPS biasa (`/p/{code}`).
+2. Di **browser Android**, halaman landing mencoba buka MyWiFi via intent, lalu fallback auto-login di browser.
+3. **Android App Links** (`/p/*`, `/portal/*`) — host default `isp.tunnelhost.my.id` (sesuaikan jika domain beda).
+4. **Verifikasi domain**: set `ANDROID_APP_LINK_SHA256` di `.env` production, cek `https://DOMAIN/.well-known/assetlinks.json`.
 
 Setelah ubah manifest, rebuild APK portal:
 
