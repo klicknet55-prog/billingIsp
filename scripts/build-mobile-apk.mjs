@@ -2,7 +2,7 @@
  * Build signed release APK for Admin + Portal (internal distribution).
  */
 import { spawnSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,6 +18,45 @@ const jbr = "C:\\Program Files\\Android\\Android Studio\\jbr";
 const javaHome = existsSync(jbr) ? jbr : process.env.JAVA_HOME;
 
 const isDebug = process.argv.includes("--debug");
+
+function resolveServerUrl() {
+  const urlArg = process.argv.find((a) => a.startsWith("--url="));
+  if (urlArg) return urlArg.slice("--url=".length).replace(/\/$/, "");
+  const fromEnv = process.env.CAPACITOR_SERVER_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  return "https://isp.tunnelhost.my.id";
+}
+
+function hostnameFromUrl(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return "isp.tunnelhost.my.id";
+  }
+}
+
+function patchPortalAppLinkHost(host) {
+  const manifestPath = join(
+    root,
+    "mobile",
+    "portal",
+    "android",
+    "app",
+    "src",
+    "main",
+    "AndroidManifest.xml"
+  );
+  if (!existsSync(manifestPath)) return;
+  const original = readFileSync(manifestPath, "utf8");
+  const updated = original.replace(
+    /android:host="[^"]+"/g,
+    `android:host="${host}"`
+  );
+  if (updated !== original) {
+    writeFileSync(manifestPath, updated, "utf8");
+    console.log(`✓ AndroidManifest App Links → ${host}`);
+  }
+}
 
 const APK_FILE_NAMES = {
   admin: isDebug ? "Admin.net-debug.apk" : "Admin.net-release.apk",
@@ -143,13 +182,17 @@ async function main() {
     process.exit(1);
   }
 
+  const serverUrl = resolveServerUrl();
+  const appHost = hostnameFromUrl(serverUrl);
+
   const env = {
     ANDROID_HOME: sdk,
     ANDROID_SDK_ROOT: sdk,
-    // Release build selalu production — jangan pakai URL dev dari shell sebelumnya.
-    CAPACITOR_SERVER_URL: "https://isp.tunnelhost.my.id",
+    CAPACITOR_SERVER_URL: serverUrl,
   };
   if (javaHome) env.JAVA_HOME = javaHome;
+
+  console.log(`\nBuild APK untuk: ${serverUrl}`);
 
   if (!process.argv.includes("--skip-assets")) {
     run("npm", ["run", "mobile:assets"], root, env);
@@ -157,6 +200,7 @@ async function main() {
   }
 
   if (apps.includes("portal")) {
+    patchPortalAppLinkHost(appHost);
     run("node", ["scripts/generate-portal-www.mjs"], root, env);
   }
 

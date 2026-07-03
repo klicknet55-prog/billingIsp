@@ -64,7 +64,10 @@ Opsi:
 npm run mobile:apk -- --skip-assets      # rebuild cepat
 npm run mobile:apk -- --admin-only
 npm run mobile:apk -- --portal-only
+npm run mobile:apk -- --url=https://billisp.tunnelhost.my.id   # domain production lain
 ```
+
+`--url=` mengatur `CAPACITOR_SERVER_URL`, shell MyWiFi, dan host App Links di `AndroidManifest.xml`.
 
 ---
 
