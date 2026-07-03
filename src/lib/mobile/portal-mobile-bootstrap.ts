@@ -1,5 +1,8 @@
 /** HTML ringan — entry point shell MyWiFi; redirect sebelum React/hydration. */
-export function buildPortalMobileBootstrapHtml(): string {
+export function buildPortalMobileBootstrapHtml(appOrigin: string): string {
+  const origin = appOrigin.replace(/\/$/, "");
+  const loginUrl = `${origin}/portal/login?nm_app=portal`;
+
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
@@ -15,16 +18,17 @@ export function buildPortalMobileBootstrapHtml(): string {
   <p>Memuat MyWiFi…</p>
   <script>
     (function () {
-      var loginUrl = "/portal/login?nm_app=portal";
+      var origin = ${JSON.stringify(origin)};
+      var loginUrl = ${JSON.stringify(loginUrl)};
       var tries = 0;
       var maxTries = 80;
 
       function withPortalParam(url) {
         try {
-          var parsed = new URL(url, window.location.origin);
+          var parsed = new URL(url, origin + "/");
           if (!parsed.pathname.startsWith("/p/") && !parsed.pathname.startsWith("/portal/")) return loginUrl;
           if (!parsed.searchParams.has("nm_app")) parsed.searchParams.set("nm_app", "portal");
-          return parsed.pathname + parsed.search + parsed.hash;
+          return parsed.href;
         } catch (e) {
           return loginUrl;
         }

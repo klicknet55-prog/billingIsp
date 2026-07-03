@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { toCapacitorAbsoluteUrl } from "@/lib/mobile/capacitor-runtime";
 import { getNetManageApp, persistNetManageAppFromUrl } from "@/lib/mobile/use-mobile-shell";
 
 type AppPlugin = {
@@ -23,8 +24,8 @@ function navigateToPortalDeepLink(rawUrl: string) {
       return;
     }
     if (!parsed.searchParams.has("nm_app")) parsed.searchParams.set("nm_app", "portal");
-    const target = `${parsed.pathname}${parsed.search}${parsed.hash}`;
-    if (`${window.location.pathname}${window.location.search}` === target) return;
+    const target = toCapacitorAbsoluteUrl(`${parsed.pathname}${parsed.search}${parsed.hash}`);
+    if (window.location.href === target) return;
     window.location.replace(target);
   } catch {
     /* ignore malformed url */

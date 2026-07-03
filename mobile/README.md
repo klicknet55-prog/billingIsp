@@ -127,7 +127,9 @@ npm run mobile:apk -- --portal-only
 
 | Masalah | Solusi |
 |---------|--------|
-| Layar putih | Cek `CAPACITOR_SERVER_URL`, pastikan HTTPS valid |
+| Layar putih / "This page couldn't load" | Pastikan APK **release** (bukan `*-debug-dev.apk`). Jangan build release setelah `mobile:portal:dev` tanpa `npm run mobile:apk` ulang |
+| APK dev tidak load | `MyWiFi-debug-dev.apk` butuh PC + `npm run dev` satu WiFi |
+| App crash saat izin notifikasi | Push FCM butuh `google-services.json` + `NEXT_PUBLIC_MOBILE_PUSH_ENABLED=true`. Tanpa itu, push dimatikan sengaja |
 | Cookie login hilang | Jangan clear WebView storage |
 | GPS tidak jalan | Izin lokasi di pengaturan Android |
 | `keytool` tidak ditemukan | Set `JAVA_HOME` ke JBR Android Studio |

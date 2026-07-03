@@ -143,8 +143,8 @@ async function main() {
   const env = {
     ANDROID_HOME: sdk,
     ANDROID_SDK_ROOT: sdk,
-    CAPACITOR_SERVER_URL:
-      process.env.CAPACITOR_SERVER_URL || "https://isp.tunnelhost.my.id",
+    // Release build selalu production — jangan pakai URL dev dari shell sebelumnya.
+    CAPACITOR_SERVER_URL: "https://isp.tunnelhost.my.id",
   };
   if (javaHome) env.JAVA_HOME = javaHome;
 

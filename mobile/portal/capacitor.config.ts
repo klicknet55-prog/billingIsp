@@ -3,6 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const base = (
   process.env.CAPACITOR_SERVER_URL || "https://isp.tunnelhost.my.id"
 ).replace(/\/$/, "");
+const isDevServer = base.startsWith("http://");
 
 const config: CapacitorConfig = {
   appId: "id.tunnelhost.netmanage.portal",
@@ -10,8 +11,8 @@ const config: CapacitorConfig = {
   webDir: "www",
   server: {
     url: `${base}/portal/mobile-bootstrap?nm_app=portal`,
-    cleartext: false,
-    androidScheme: "https",
+    cleartext: isDevServer,
+    androidScheme: isDevServer ? "http" : "https",
   },
   android: {
     allowMixedContent: false,

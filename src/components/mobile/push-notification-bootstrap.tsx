@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { registerDevicePushTokenAction } from "@/features/notifications/actions";
+import { isMobilePushEnabled, isNativeCapacitor } from "@/lib/mobile/capacitor-runtime";
 import { resolvePushNavigationPath } from "@/lib/mobile/push-navigation";
 import { getNetManageApp, persistNetManageAppFromUrl } from "@/lib/mobile/use-mobile-shell";
 
@@ -34,6 +35,8 @@ function navigateFromPushData(
 }
 
 async function initPushRegistration(navigate: (path: string) => void) {
+  if (!isNativeCapacitor() || !isMobilePushEnabled()) return () => {};
+
   persistNetManageAppFromUrl();
   const app = getNetManageApp();
   if (!app) return () => {};
@@ -44,33 +47,41 @@ async function initPushRegistration(navigate: (path: string) => void) {
 
   const listeners: Array<{ remove: () => Promise<void> }> = [];
 
-  const registrationHandle = await push.addListener?.("registration", async (payload) => {
-    const token = (payload as PushRegistration | null)?.value?.trim();
-    if (!token) return;
-    await registerDevicePushTokenAction({
-      token,
-      app,
-      platform: "android",
+  try {
+    const registrationHandle = await push.addListener?.("registration", async (payload) => {
+      try {
+        const token = (payload as PushRegistration | null)?.value?.trim();
+        if (!token) return;
+        await registerDevicePushTokenAction({
+          token,
+          app,
+          platform: "android",
+        });
+      } catch (err) {
+        console.warn("[push] token registration failed", err);
+      }
     });
-  });
-  if (registrationHandle) listeners.push(registrationHandle);
+    if (registrationHandle) listeners.push(registrationHandle);
 
-  const errorHandle = await push.addListener?.("registrationError", (err) => {
-    console.warn("[push] registrationError", err);
-  });
-  if (errorHandle) listeners.push(errorHandle);
+    const errorHandle = await push.addListener?.("registrationError", (err) => {
+      console.warn("[push] registrationError", err);
+    });
+    if (errorHandle) listeners.push(errorHandle);
 
-  const actionHandle = await push.addListener?.("pushNotificationActionPerformed", (payload) => {
-    const action = payload as PushActionPerformed;
-    navigateFromPushData(action.notification?.data, navigate);
-  });
-  if (actionHandle) listeners.push(actionHandle);
+    const actionHandle = await push.addListener?.("pushNotificationActionPerformed", (payload) => {
+      const action = payload as PushActionPerformed;
+      navigateFromPushData(action.notification?.data, navigate);
+    });
+    if (actionHandle) listeners.push(actionHandle);
 
-  const currentPerm = await push.checkPermissions?.();
-  const permission =
-    currentPerm?.receive === "granted" ? currentPerm : await push.requestPermissions?.();
-  if (permission?.receive === "granted") {
-    await push.register?.();
+    const currentPerm = await push.checkPermissions?.();
+    const permission =
+      currentPerm?.receive === "granted" ? currentPerm : await push.requestPermissions?.();
+    if (permission?.receive === "granted") {
+      await push.register?.();
+    }
+  } catch (err) {
+    console.warn("[push] init skipped", err);
   }
 
   return () => {
@@ -84,13 +95,19 @@ export function PushNotificationBootstrap() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!isNativeCapacitor() || !isMobilePushEnabled()) return;
+
     let clean = () => {};
-    void initPushRegistration((path) => {
-      router.push(path);
-    }).then((fn) => {
-      clean = fn;
-    });
+    const timer = window.setTimeout(() => {
+      void initPushRegistration((path) => {
+        router.push(path);
+      }).then((fn) => {
+        clean = fn;
+      });
+    }, 1500);
+
     return () => {
+      window.clearTimeout(timer);
       clean();
     };
   }, [router]);
