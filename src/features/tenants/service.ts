@@ -1,27 +1,17 @@
 import "server-only";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { normalizePhone } from "@/lib/auth/otp";
 import { assertTenantRegisterPhoneAvailable } from "./register-phone";
 import { db } from "@/lib/db";
 import {
-  invoices,
-  kategoriPengeluaran,
-  odp,
   packageTenants,
   pelanggan,
-  pengeluaran,
-  paketInternet,
   paymentGatewayLogs,
   routers,
-  ticketAssignments,
-  tickets,
   subscriptions,
-  tenantDuitkuConfigs,
-  tenantWhatsAppConfigs,
   tenants,
   users,
-  sessions,
   type PackageTenant,
   type Tenant,
   type User,
@@ -29,6 +19,7 @@ import {
 import { getDuitkuClient } from "@/lib/integrations/duitku";
 import { createLogger } from "@/lib/logger";
 import { notifyNewTenantWelcome } from "./welcome";
+import { deleteTenantRelatedData } from "./delete-cascade";
 import { newId } from "@/lib/utils";
 
 const log = createLogger("tenants");
@@ -97,39 +88,7 @@ export async function deleteTenantIfInactive(id: string) {
   }
 
   await db.transaction(async (tx) => {
-    const tenantUsers = await tx.query.users.findMany({
-      where: eq(users.tenantId, id),
-      columns: { id: true },
-    });
-    const userIds = tenantUsers.map((u) => u.id);
-
-    const tenantTickets = await tx.query.tickets.findMany({
-      where: eq(tickets.tenantId, id),
-      columns: { id: true },
-    });
-    const ticketIds = tenantTickets.map((t) => t.id);
-
-    if (ticketIds.length > 0) {
-      await tx.delete(ticketAssignments).where(inArray(ticketAssignments.ticketId, ticketIds));
-    }
-    if (userIds.length > 0) {
-      await tx.delete(ticketAssignments).where(inArray(ticketAssignments.userId, userIds));
-    }
-
-    await tx.delete(tickets).where(eq(tickets.tenantId, id));
-    await tx.delete(invoices).where(eq(invoices.tenantId, id));
-    await tx.delete(pelanggan).where(eq(pelanggan.tenantId, id));
-    await tx.delete(odp).where(eq(odp.tenantId, id));
-    await tx.delete(pengeluaran).where(eq(pengeluaran.tenantId, id));
-    await tx.delete(kategoriPengeluaran).where(eq(kategoriPengeluaran.tenantId, id));
-    await tx.delete(routers).where(eq(routers.tenantId, id));
-    await tx.delete(paketInternet).where(eq(paketInternet.tenantId, id));
-    await tx.delete(subscriptions).where(eq(subscriptions.tenantId, id));
-    await tx.delete(paymentGatewayLogs).where(eq(paymentGatewayLogs.tenantId, id));
-    await tx.delete(tenantDuitkuConfigs).where(eq(tenantDuitkuConfigs.tenantId, id));
-    await tx.delete(tenantWhatsAppConfigs).where(eq(tenantWhatsAppConfigs.tenantId, id));
-    await tx.delete(sessions).where(eq(sessions.tenantId, id));
-    await tx.delete(users).where(eq(users.tenantId, id));
+    await deleteTenantRelatedData(tx, id);
     await tx.delete(tenants).where(eq(tenants.id, id));
   });
 
