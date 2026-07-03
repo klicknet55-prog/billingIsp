@@ -1,10 +1,7 @@
 package id.tunnelhost.netmanage.portal;
 
 import android.content.Intent;
-import android.net.Uri;
 import android.os.Bundle;
-import android.text.TextUtils;
-import android.webkit.WebView;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
@@ -12,8 +9,6 @@ import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
-
-    private boolean appLinkHandled;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -23,11 +18,9 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        appLinkHandled = false;
-        loadAppLinkTargetIfNeeded();
+    public void onStart() {
+        super.onStart();
+        installPortalWebViewClient();
     }
 
     @Override
@@ -48,38 +41,11 @@ public class MainActivity extends BridgeActivity {
         intent.setDataAndType(null, null);
     }
 
-    /** App Link saat app sudah berjalan (onNewIntent) — cold start ditangani bootstrap HTML. */
-    private void loadAppLinkTargetIfNeeded() {
-        if (appLinkHandled) return;
-
-        Intent intent = getIntent();
-        if (intent == null) return;
-        if (!Intent.ACTION_VIEW.equals(intent.getAction())) return;
-
-        Uri data = intent.getData();
-        if (data == null) return;
-
-        String path = data.getPath();
-        if (path == null) return;
-        if (!path.startsWith("/p/") && !path.startsWith("/portal/")) return;
-
+    /** Deep link warm/cold start ditangani JS (bootstrap + PortalDeepLinkBootstrap), bukan loadUrl native. */
+    private void installPortalWebViewClient() {
         Bridge bridge = getBridge();
         if (bridge == null) return;
-        WebView webView = bridge.getWebView();
-        if (webView == null) return;
-
-        String current = webView.getUrl();
-        if (current != null && current.contains(path) && current.contains("nm_app=portal")) {
-            appLinkHandled = true;
-            return;
-        }
-
-        Uri.Builder target = data.buildUpon();
-        if (TextUtils.isEmpty(data.getQueryParameter("nm_app"))) {
-            target.appendQueryParameter("nm_app", "portal");
-        }
-        webView.loadUrl(target.build().toString());
-        appLinkHandled = true;
+        bridge.setWebViewClient(new PortalBridgeWebViewClient(bridge));
     }
 
     /** Edge-to-edge + nav/status bar tersembunyi; muncul sementara saat swipe dari tepi. */

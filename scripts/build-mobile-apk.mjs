@@ -17,9 +17,11 @@ const sdk =
 const jbr = "C:\\Program Files\\Android\\Android Studio\\jbr";
 const javaHome = existsSync(jbr) ? jbr : process.env.JAVA_HOME;
 
+const isDebug = process.argv.includes("--debug");
+
 const APK_FILE_NAMES = {
-  admin: "Admin.net-release.apk",
-  portal: "MyWiFi-release.apk",
+  admin: isDebug ? "Admin.net-debug.apk" : "Admin.net-release.apk",
+  portal: isDebug ? "MyWiFi-debug.apk" : "MyWiFi-release.apk",
 };
 
 const apps = process.argv.includes("--portal-only")
@@ -111,6 +113,7 @@ function ensureKeystore(app) {
 }
 
 function copyApk(app) {
+  const variant = isDebug ? "debug" : "release";
   const src = join(
     root,
     "mobile",
@@ -120,8 +123,8 @@ function copyApk(app) {
     "build",
     "outputs",
     "apk",
-    "release",
-    "app-release.apk"
+    variant,
+    isDebug ? "app-debug.apk" : "app-release.apk"
   );
   const dist = join(root, "mobile", "dist");
   mkdirSync(dist, { recursive: true });
@@ -154,7 +157,7 @@ async function main() {
   }
 
   for (const app of apps) {
-    ensureKeystore(app);
+    if (!isDebug) ensureKeystore(app);
     const androidDir = join(root, "mobile", app, "android");
     ensureLocalProperties(androidDir, sdk);
     run("npm", ["run", "sync", "--prefix", `mobile/${app}`], root, env);
@@ -163,13 +166,14 @@ async function main() {
         ? join(androidDir, "gradlew.bat")
         : join(androidDir, "gradlew");
 
-    run(gradlew, ["assembleRelease"], androidDir, env, {
+    run(gradlew, [isDebug ? "assembleDebug" : "assembleRelease"], androidDir, env, {
       shell: process.platform === "win32",
     });
     copyApk(app);
   }
 
-  console.log("\nBuild APK selesai. File ada di mobile/dist/");
+  const label = isDebug ? "debug (production server)" : "release";
+  console.log(`\nBuild APK ${label} selesai. File ada di mobile/dist/`);
 }
 
 main().catch((err) => {

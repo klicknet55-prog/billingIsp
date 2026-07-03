@@ -21,12 +21,20 @@ export function buildPortalMobileBootstrapHtml(appOrigin: string): string {
       var origin = ${JSON.stringify(origin)};
       var loginUrl = ${JSON.stringify(loginUrl)};
       var tries = 0;
-      var maxTries = 80;
+      var maxTries = 40;
+
+      function isPaymentDeepLink(url) {
+        try {
+          var parsed = new URL(url, origin + "/");
+          return parsed.pathname.startsWith("/p/") && parsed.pathname.length > 3;
+        } catch (e) {
+          return false;
+        }
+      }
 
       function withPortalParam(url) {
         try {
           var parsed = new URL(url, origin + "/");
-          if (!parsed.pathname.startsWith("/p/") && !parsed.pathname.startsWith("/portal/")) return loginUrl;
           if (!parsed.searchParams.has("nm_app")) parsed.searchParams.set("nm_app", "portal");
           return parsed.href;
         } catch (e) {
@@ -39,7 +47,7 @@ export function buildPortalMobileBootstrapHtml(appOrigin: string): string {
         window.location.replace(loginUrl);
       }
 
-      function goTarget(url) {
+      function goPaymentLink(url) {
         sessionStorage.setItem("nm_app", "portal");
         window.location.replace(withPortalParam(url));
       }
@@ -48,21 +56,21 @@ export function buildPortalMobileBootstrapHtml(appOrigin: string): string {
         tries += 1;
         var cap = window.Capacitor;
         var app = cap && cap.Plugins && cap.Plugins.App;
-        if (app && typeof app.getLaunchUrl === "function") {
-          app.getLaunchUrl().then(function (launch) {
-            if (launch && launch.url) {
-              goTarget(launch.url);
-              return;
-            }
+        if (!app || typeof app.getLaunchUrl !== "function") {
+          if (tries >= maxTries) {
             goLogin();
-          }).catch(goLogin);
+            return;
+          }
+          setTimeout(tick, 50);
           return;
         }
-        if (tries >= maxTries) {
+        app.getLaunchUrl().then(function (launch) {
+          if (launch && launch.url && isPaymentDeepLink(launch.url)) {
+            goPaymentLink(launch.url);
+            return;
+          }
           goLogin();
-          return;
-        }
-        setTimeout(tick, 50);
+        }).catch(goLogin);
       }
 
       tick();

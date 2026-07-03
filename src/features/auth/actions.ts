@@ -2,6 +2,7 @@
 
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
+import { redirectPortalShell } from "@/lib/mobile/capacitor-shell-redirect";
 import {
   dashboardPathForRole,
   loginPelanggan,
@@ -89,7 +90,8 @@ export async function verifyOtpAction(
   });
   if (!cust) return { error: "Pelanggan tidak ditemukan." };
   await loginPelanggan(cust);
-  redirect("/portal");
+  await redirectPortalShell("/portal");
+  return { ok: true };
 }
 
 export async function requestPasswordResetAction(

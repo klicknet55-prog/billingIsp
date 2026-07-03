@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { pelanggan, tenants, users, type Pelanggan, type User } from "@/lib/db/schema";
+import { redirectPortalShell } from "@/lib/mobile/capacitor-shell-redirect";
 import { verifyPassword } from "./password";
 import { createSession, destroySession, getSession } from "./session";
 
@@ -142,8 +143,8 @@ export async function redirectIfAuthenticatedFromPortalLogin(): Promise<void> {
   try {
     const actor = await getCurrentActor();
     if (!actor) return;
-    if (actor.type === "pelanggan") redirect("/portal");
-    redirect(dashboardPathForRole(actor.user.role));
+    if (actor.type === "pelanggan") await redirectPortalShell("/portal");
+    if (actor.type === "user") redirect(dashboardPathForRole(actor.user.role));
   } catch (err) {
     if (isNextRedirectError(err)) throw err;
   }

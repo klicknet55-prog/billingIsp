@@ -233,6 +233,16 @@ server {
     listen 80;
     server_name isp.tunnelhost.my.id;
 
+    # Android App Links — WAJIB di atas blok `location ^~ /.well-known/` certbot jika ada
+    location = /.well-known/assetlinks.json {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -247,6 +257,8 @@ server {
 ```
 
 HTTPS: `sudo certbot --nginx -d isp.tunnelhost.my.id`
+
+**404 `/.well-known/assetlinks.json` dari nginx:** Certbot sering menambah `location ^~ /.well-known/` ke folder statis (`/var/www/html`), sehingga request tidak sampai ke Next.js. Tambahkan blok `location = /.well-known/assetlinks.json` di atasnya, lalu `sudo nginx -t && sudo systemctl reload nginx`. Pastikan juga `ANDROID_APP_LINK_SHA256` sudah di `.env` dan app sudah `npm run build` + `pm2 restart`.
 
 ### 6. Update rutin setelah `git push`
 
