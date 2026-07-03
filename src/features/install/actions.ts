@@ -112,11 +112,9 @@ export async function runSchemaMigrationAction(
   try {
     await assertInstallerOpen(databaseUrl);
     const hasTables = await postgresHasMigrations(databaseUrl);
-    if (hasTables) {
-      return { ok: true, data: { alreadyMigrated: true } };
-    }
+    // Selalu jalankan migrate (idempotent) agar migration baru (0006+) ikut terapkan.
     runPostgresMigrations(databaseUrl);
-    return { ok: true, data: { alreadyMigrated: false } };
+    return { ok: true, data: { alreadyMigrated: hasTables } };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return fail(msg.slice(0, 500));
@@ -162,6 +160,9 @@ export async function runDataSetupAction(
     if (!hasTables) {
       return fail("Schema PostgreSQL belum ada. Jalankan migrasi schema terlebih dahulu.");
     }
+
+    // Pastikan migration terbaru (0006+) sudah terapkan sebelum copy data.
+    runPostgresMigrations(databaseUrl);
 
     let migration: SqliteMigrationSummary | undefined;
     if (mode === "fresh") {

@@ -36,6 +36,7 @@ import {
   webhookDeliveryLogs,
   paketInternet,
 } from "@/lib/db/schema.pg";
+import { DEFAULT_PLATFORM_SETTINGS } from "@/features/platform-settings/defaults";
 import type { SqliteMigrationSummary } from "./types";
 
 const require = createRequire(import.meta.url);
@@ -88,6 +89,59 @@ function isTimestampKey(key: string): boolean {
   return key === "mulai" || key === "akhir" || key === "tanggal" || key === "due_date";
 }
 
+function parseSqliteTimestamp(val: unknown): unknown {
+  if (val == null) return null;
+  if (val instanceof Date) return val;
+  if (typeof val === "number" && Number.isFinite(val)) {
+    // SQLite unixepoch (detik) atau millis jika sudah > 1e12
+    return new Date(val > 1e12 ? val : val * 1000);
+  }
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    const asNum = Number(trimmed);
+    if (Number.isFinite(asNum)) {
+      return new Date(asNum > 1e12 ? asNum : asNum * 1000);
+    }
+    const parsed = Date.parse(trimmed);
+    if (Number.isFinite(parsed)) return new Date(parsed);
+  }
+  return val;
+}
+
+function normalizePlatformSettingsRow(row: Record<string, unknown>): Record<string, unknown> {
+  const merged: Record<string, unknown> = {
+    ...DEFAULT_PLATFORM_SETTINGS,
+    ...row,
+    id: row.id ?? DEFAULT_PLATFORM_SETTINGS.id,
+  };
+
+  const requiredText = [
+    "brandName",
+    "tentangTitle",
+    "tentangContent",
+    "kontakTitle",
+    "kontakContent",
+    "tcTitle",
+    "tcContent",
+  ] as const;
+  for (const key of requiredText) {
+    const val = merged[key];
+    if (typeof val !== "string" || !val.trim()) {
+      merged[key] = DEFAULT_PLATFORM_SETTINGS[key];
+    }
+  }
+
+  if (merged.mapGeocodingProvider !== "google" && merged.mapGeocodingProvider !== "nominatim") {
+    merged.mapGeocodingProvider = "nominatim";
+  }
+  if (!merged.updatedAt) {
+    merged.updatedAt = new Date();
+  }
+
+  return merged;
+}
+
 export function transformSqliteRow(row: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, val] of Object.entries(row)) {
@@ -101,8 +155,7 @@ export function transformSqliteRow(row: Record<string, unknown>): Record<string,
     } else if (JSON_KEYS.has(key)) {
       v = typeof val === "string" ? JSON.parse(val) : val;
     } else if (isTimestampKey(key)) {
-      const n = Number(val);
-      v = Number.isFinite(n) ? new Date(n * 1000) : val;
+      v = parseSqliteTimestamp(val);
     }
     out[snakeToCamel(key)] = v;
   }
@@ -153,7 +206,26 @@ export async function migrateSqliteFileToPostgres(
       const batchSize = 100;
       for (let i = 0; i < rows.length; i += batchSize) {
         const chunk = rows.slice(i, i + batchSize);
-        await db.insert(table).values(chunk as never[]);
+        try {
+          if (name === "platform_settings") {
+            for (const row of chunk) {
+              const values = normalizePlatformSettingsRow(row) as typeof platformSettings.$inferInsert;
+              const { id, ...patch } = values;
+              await db
+                .insert(platformSettings)
+                .values(values)
+                .onConflictDoUpdate({
+                  target: platformSettings.id,
+                  set: patch,
+                });
+            }
+          } else {
+            await db.insert(table).values(chunk as never[]);
+          }
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : String(err);
+          throw new Error(`Migrasi gagal pada tabel "${name}": ${detail}`);
+        }
       }
 
       totalRows += rows.length;
