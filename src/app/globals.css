@@ -172,3 +172,12 @@ html.nm-capacitor-shell .nm-page-safe-bottom {
   background-color: hsl(var(--border));
   border-radius: 9999px;
 }
+
+/* Cetak nota dari popup — layout struk */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+}
