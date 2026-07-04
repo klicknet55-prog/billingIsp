@@ -23,7 +23,7 @@ Status terakhir: dua APK sudah bisa dibuild (`Admin.net`, `MyWiFi`), masih ada i
 
 - [ ] Offline kolektor lebih matang (`/api/mobile/kolektor/tasks` + cache data).
 - [ ] Evaluasi kestabilan Bluetooth print di WebView (jika perlu plugin native).
-- [ ] Push notification (FCM) jika mulai dibutuhkan operasional.
+- [ ] Push notification (FCM) — lihat [android-push-notification-plan.md](./android-push-notification-plan.md).
 - [ ] Persiapan Play Store (AAB, screenshot, privacy policy, listing metadata).
 
 ## Catatan tambahan

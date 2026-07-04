@@ -3,11 +3,11 @@ import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { devicePushTokens, pushNotificationLogs, users } from "@/lib/db/schema";
+import { isFcmConfigured, sendFcmV1Message } from "@/features/notifications/fcm-v1-client";
 import { createLogger } from "@/lib/logger";
 import { PUSH_PATHS } from "@/lib/mobile/push-navigation";
 
 const log = createLogger("notif:push");
-const FCM_URL = "https://fcm.googleapis.com/fcm/send";
 
 type TargetApp = "admin" | "portal";
 type SubjectType = "user" | "pelanggan";
@@ -23,55 +23,13 @@ type PushEnvelope = {
   data?: Record<string, string>;
 };
 
-function getServerKey(): string {
-  return process.env.FCM_SERVER_KEY?.trim() ?? "";
-}
-
 async function sendToFcmToken(
   token: string,
   title: string,
   body: string,
   data: Record<string, string> | undefined
-): Promise<{ ok: boolean; attempts: number; response?: string; error?: string }> {
-  const serverKey = getServerKey();
-  if (!serverKey) {
-    return { ok: false, attempts: 0, error: "FCM_SERVER_KEY belum diatur." };
-  }
-
-  const payload = {
-    to: token,
-    notification: { title, body },
-    data: {
-      ...(data ?? {}),
-      title,
-      body,
-    },
-    priority: "high",
-  };
-
-  let lastError = "";
-  let lastResponse = "";
-
-  for (let i = 1; i <= 2; i++) {
-    try {
-      const res = await fetch(FCM_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `key=${serverKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-      const text = await res.text();
-      lastResponse = text;
-      if (res.ok) return { ok: true, attempts: i, response: text };
-      lastError = `HTTP ${res.status}`;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  return { ok: false, attempts: 2, error: lastError, response: lastResponse };
+): Promise<{ ok: boolean; attempts: number; response?: string; error?: string; tokenInvalid?: boolean }> {
+  return sendFcmV1Message({ token, title, body, data });
 }
 
 async function logPush(input: PushEnvelope & { token: string; status: "sent" | "failed" | "skipped"; attemptCount: number; response?: string; error?: string }) {
@@ -104,10 +62,24 @@ export async function sendPushToSubject(input: PushEnvelope): Promise<void> {
     columns: { token: true },
   });
 
-  if (tokens.length === 0) return;
+  if (tokens.length === 0) {
+    log.debug("No active push tokens for subject", {
+      subjectType: input.subjectType,
+      subjectId: input.subjectId,
+      app: input.app,
+      eventType: input.eventType,
+    });
+    return;
+  }
 
   for (const row of tokens) {
     const sent = await sendToFcmToken(row.token, input.title, input.body, input.data);
+    if (sent.tokenInvalid) {
+      await db
+        .update(devicePushTokens)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(devicePushTokens.token, row.token));
+    }
     if (sent.ok) {
       await logPush({
         ...input,
@@ -121,7 +93,7 @@ export async function sendPushToSubject(input: PushEnvelope): Promise<void> {
     await logPush({
       ...input,
       token: row.token,
-      status: getServerKey() ? "failed" : "skipped",
+      status: isFcmConfigured() ? "failed" : "skipped",
       attemptCount: sent.attempts,
       response: sent.response,
       error: sent.error,
