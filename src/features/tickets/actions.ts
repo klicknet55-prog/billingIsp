@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { assignTicket, createTicket, updateTicketStatus, updateTeknisiLocation } from "./service";
+import {
+  assignTicket,
+  createTicket,
+  deleteResolvedTicket,
+  updateTicketStatus,
+  updateTeknisiLocation,
+} from "./service";
 
 const ISP_ROLES = ["owner", "admin", "teknisi"] as const;
 
@@ -42,6 +48,18 @@ export async function assignTicketAction(formData: FormData) {
   await requireUser(ISP_ROLES);
   await assignTicket(String(formData.get("ticketId") ?? ""), String(formData.get("userId") ?? ""));
   revalidatePath("/dashboard/tiket");
+}
+
+export async function deleteResolvedTicketAction(ticketId: string) {
+  const user = await requireUser(["owner", "admin"]);
+  try {
+    await deleteResolvedTicket(user.tenantId!, ticketId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Gagal menghapus tiket.";
+    redirect(`/dashboard/tiket?error=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/dashboard/tiket");
+  redirect(`/dashboard/tiket?success=${encodeURIComponent("Tiket dihapus.")}`);
 }
 
 export async function updateTeknisiLocationAction(formData: FormData) {

@@ -28,6 +28,7 @@ import { listTeknisi, listTickets } from "@/features/tickets/service";
 import { requireUser } from "@/lib/auth";
 import { formatDate } from "@/lib/utils";
 import { TeknisiLocationPing } from "./teknisi-location-ping";
+import { TicketDeleteButton } from "./ticket-delete-button";
 
 const statusVariant = { open: "warning", in_progress: "default", resolved: "success" } as const;
 const statusLabel = { open: "Open", in_progress: "Dikerjakan", resolved: "Selesai" } as const;
@@ -37,12 +38,14 @@ const nextLabel = { open: "Mulai Tangani", in_progress: "Selesaikan", resolved: 
 export default async function TiketPage({
   searchParams,
 }: {
-  searchParams: Promise<{ pelangganId?: string; success?: string }>;
+  searchParams: Promise<{ pelangganId?: string; success?: string; error?: string }>;
 }) {
   const qs = await searchParams;
   const pelangganId = qs.pelangganId ? decodeURIComponent(qs.pelangganId) : "";
   const success = qs.success ? decodeURIComponent(qs.success) : "";
+  const error = qs.error ? decodeURIComponent(qs.error) : "";
   const user = await requireUser(["owner", "admin", "teknisi"]);
+  const canDeleteResolved = user.role === "owner" || user.role === "admin";
   const tenantId = user.tenantId!;
   const [rows, pelanggan, teknisi] = await Promise.all([
     listTickets(tenantId, pelangganId || undefined),
@@ -98,6 +101,11 @@ export default async function TiketPage({
       {success && (
         <Card className="mb-4 border-emerald-500/30 bg-emerald-500/5">
           <CardContent className="p-3 text-sm text-emerald-700 dark:text-emerald-400">{success}</CardContent>
+        </Card>
+      )}
+      {error && (
+        <Card className="mb-4 border-destructive/30 bg-destructive/5">
+          <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
         </Card>
       )}
       {pelangganId && (
@@ -172,13 +180,18 @@ export default async function TiketPage({
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(t.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <form action={updateTicketStatusAction} className="inline">
-                      <input type="hidden" name="id" value={t.id} />
-                      <input type="hidden" name="status" value={nextStatus[t.status]} />
-                      <Button variant="outline" size="sm" type="submit">
-                        {nextLabel[t.status]}
-                      </Button>
-                    </form>
+                    <div className="flex flex-wrap items-center justify-end gap-1">
+                      <form action={updateTicketStatusAction} className="inline">
+                        <input type="hidden" name="id" value={t.id} />
+                        <input type="hidden" name="status" value={nextStatus[t.status]} />
+                        <Button variant="outline" size="sm" type="submit">
+                          {nextLabel[t.status]}
+                        </Button>
+                      </form>
+                      {canDeleteResolved && t.status === "resolved" && (
+                        <TicketDeleteButton ticketId={t.id} />
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

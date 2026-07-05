@@ -142,3 +142,20 @@ export async function listTeknisi(tenantId: string) {
     where: and(eq(users.tenantId, tenantId), eq(users.role, "teknisi")),
   });
 }
+
+/** Hapus tiket yang sudah selesai (resolved) beserta assignment-nya. */
+export async function deleteResolvedTicket(tenantId: string, ticketId: string): Promise<void> {
+  const row = await db.query.tickets.findFirst({
+    where: and(eq(tickets.tenantId, tenantId), eq(tickets.id, ticketId)),
+    columns: { id: true, status: true },
+  });
+  if (!row) throw new Error("Tiket tidak ditemukan.");
+  if (row.status !== "resolved") {
+    throw new Error("Hanya tiket berstatus selesai yang bisa dihapus.");
+  }
+
+  await db.delete(ticketAssignments).where(eq(ticketAssignments.ticketId, ticketId));
+  await db
+    .delete(tickets)
+    .where(and(eq(tickets.tenantId, tenantId), eq(tickets.id, ticketId)));
+}
