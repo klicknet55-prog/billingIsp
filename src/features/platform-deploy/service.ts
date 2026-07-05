@@ -3,6 +3,10 @@ import { spawn } from "node:child_process";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { compareWithRemote, runGit } from "@/features/platform-deploy/git-update";
+import {
+  isDeployWorkerEnabled,
+  resolveDeployPm2WorkerApp,
+} from "@/features/platform-deploy/pm2-targets";
 import type { DeployInfo, DeployUpdateCheck } from "@/features/platform-deploy/types";
 
 const DEPLOY_DIR = path.join(process.cwd(), "data", "deploy");
@@ -12,7 +16,7 @@ const LOCK_FILE = path.join(DEPLOY_DIR, "deploy.lock");
 const UPDATE_CHECK_FILE = path.join(DEPLOY_DIR, "update-check.json");
 const STALE_DEPLOY_MS = 90_000;
 
-type DeployStateBody = Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck">;
+type DeployStateBody = Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck" | "queue">;
 
 function isProcessAlive(pid: number): boolean {
   try {
@@ -54,8 +58,12 @@ async function recoverStuckDeploy(state: DeployStateBody): Promise<DeployStateBo
   const ageMs = state.startedAt ? Date.now() - new Date(state.startedAt).getTime() : Infinity;
 
   const buildOk = state.steps.find((s) => s.name === "npm_build")?.status === "ok";
-  const pm2Step = state.steps.find((s) => s.name === "pm2_restart");
-  const pm2Incomplete = pm2Step?.status === "running" || pm2Step?.status === "pending";
+  const pm2Steps = state.steps.filter(
+    (s) => s.name === "pm2_restart" || s.name === "pm2_worker_restart"
+  );
+  const pm2Incomplete = pm2Steps.some(
+    (s) => s.status === "running" || s.status === "pending"
+  );
 
   const likelySuccessAfterPm2 = buildOk && pm2Incomplete;
 
@@ -63,10 +71,10 @@ async function recoverStuckDeploy(state: DeployStateBody): Promise<DeployStateBo
 
   if (!lockAlive && likelySuccessAfterPm2) {
     await removeDeployLock();
-    if (pm2Step) {
-      pm2Step.status = "ok";
-      pm2Step.at = new Date().toISOString();
-      pm2Step.detail = "recovered-after-pm2-restart";
+    for (const step of pm2Steps) {
+      step.status = "ok";
+      step.at = new Date().toISOString();
+      step.detail = "recovered-after-pm2-restart";
     }
     const recovered: DeployStateBody = {
       ...state,
@@ -100,7 +108,7 @@ async function recoverStuckDeploy(state: DeployStateBody): Promise<DeployStateBo
   return state;
 }
 
-function emptyDeployInfo(): Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck"> {
+function emptyDeployInfo(): Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck" | "queue"> {
   return {
     status: "idle",
     startedAt: null,
@@ -124,13 +132,13 @@ async function readLogTail(maxLines = 80): Promise<string> {
 }
 
 async function readDeployState(): Promise<
-  Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck">
+  Omit<DeployInfo, "logTail" | "enabled" | "git" | "updateCheck" | "queue">
 > {
   try {
     const raw = await readFile(STATUS_FILE, "utf8");
     return JSON.parse(raw) as Omit<
       DeployInfo,
-      "logTail" | "enabled" | "git" | "updateCheck"
+      "logTail" | "enabled" | "git" | "updateCheck" | "queue"
     >;
   } catch {
     return emptyDeployInfo();
@@ -189,6 +197,10 @@ export async function getDeployInfo(): Promise<DeployInfo> {
     ...state,
     logTail,
     enabled: isDeployEnabled(),
+    queue: {
+      enabled: isDeployWorkerEnabled(),
+      workerApp: resolveDeployPm2WorkerApp(),
+    },
     git: readGitInfo(),
     updateCheck,
   };

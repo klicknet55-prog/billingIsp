@@ -163,6 +163,7 @@ cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
 
 # Port default 3000 — pastikan PORT=3000 di .env jika perlu
 pm2 start npm --name billingisp -- start
+# Atau pakai ecosystem (web + worker): pm2 start ecosystem.config.cjs --only billingisp
 pm2 save
 ```
 
@@ -212,6 +213,40 @@ Setelah reboot VPS: `pm2 list` — status **online**. Jika **errored**, cek `pm2
 #### Env timezone & port (disarankan)
 
 Pastikan `.env` berisi `APP_TIMEZONE=Asia/Jakarta`. Di ecosystem PM2 (opsional), tambahkan `TZ=Asia/Jakarta`.
+
+#### Redis + worker queue (production, disarankan)
+
+Job berat (batch WhatsApp, webhook, cron enqueue) memakai **BullMQ + Redis**. Tanpa Redis, job dijalankan inline di proses web (kurang stabil di beban tinggi).
+
+**1. Pasang Redis di VPS (Ubuntu/Debian):**
+
+```bash
+sudo apt update && sudo apt install -y redis-server
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+redis-cli ping   # harus PONG
+```
+
+**2. Tambahkan ke `.env`:**
+
+```env
+REDIS_URL=redis://127.0.0.1:6379
+QUEUE_DRIVER=redis
+QUEUE_CONCURRENCY=5
+DEPLOY_PM2_WORKER_APP=billingisp-worker
+```
+
+**3. Jalankan worker PM2 (sekali, setelah web app sudah jalan):**
+
+```bash
+cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
+pm2 start ecosystem.config.cjs --only billingisp-worker
+pm2 save
+```
+
+Verifikasi: `pm2 list` — `billingisp` dan `billingisp-worker` status **online**. Log worker: `pm2 logs billingisp-worker --lines 30`.
+
+Deploy otomatis (Superadmin → Update Aplikasi) menampilkan langkah **Restart worker Redis (queue)** dan me-restart (atau `start` jika belum ada) proses worker saat `REDIS_URL` / `QUEUE_DRIVER=redis` aktif di `.env`.
 
 #### Kesalahan umum
 

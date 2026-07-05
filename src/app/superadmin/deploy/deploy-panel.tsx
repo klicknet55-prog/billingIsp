@@ -222,9 +222,20 @@ export function DeployPanel({ initialInfo }: { initialInfo: DeployInfo }) {
         </div>
         <p className="text-sm text-muted-foreground">
           Proses: backup DB → git pull → npm ci → patch/migrasi schema (SQLite atau
-          PostgreSQL) → build → restart PM2. Aplikasi akan offline singkat saat restart
-          (±30 detik).
+          PostgreSQL) → build → restart PM2 aplikasi web
+          {info.queue.enabled && info.queue.workerApp
+            ? ` → restart/start worker ${info.queue.workerApp} (Redis queue)`
+            : ""}
+          . Aplikasi akan offline singkat saat restart web (±30 detik).
         </p>
+        {info.queue.enabled && info.queue.workerApp && (
+          <p className="text-xs text-muted-foreground">
+            Redis aktif di <code className="rounded bg-muted px-1">.env</code> — deploy otomatis
+            me-restart worker queue. Jika worker belum pernah dijalankan, PM2 akan{" "}
+            <code className="rounded bg-muted px-1">start</code> proses{" "}
+            <code className="rounded bg-muted px-1">{info.queue.workerApp}</code>.
+          </p>
+        )}
         <div className="space-y-2">
           <Label htmlFor="confirm">Ketik DEPLOY untuk konfirmasi</Label>
           <Input

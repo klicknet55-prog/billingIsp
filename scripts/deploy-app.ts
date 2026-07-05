@@ -6,11 +6,19 @@
  *   DEPLOY_ENABLED=true
  *   DEPLOY_GIT_BRANCH=netmanage-implementation
  *   DEPLOY_PM2_APP=billingisp
+ *   DEPLOY_PM2_WORKER_APP=billingisp-worker  (opsional; default otomatis jika REDIS_URL aktif)
  */
 import { execSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, unlink, writeFile, appendFile, access } from "node:fs/promises";
 import path from "node:path";
 import { compareWithRemote, resolveDeployBranch, runGit } from "../src/features/platform-deploy/git-update";
+import {
+  buildDeployStepNames,
+  buildPm2DeployRestartCommand,
+  isDeployWorkerEnabled,
+  resolveDeployPm2WebApp,
+  resolveDeployPm2WorkerApp,
+} from "../src/features/platform-deploy/pm2-targets";
 import { isPostgresDriver } from "../src/lib/db/driver";
 import { runPgDump } from "../src/lib/db/pg-backup";
 
@@ -36,14 +44,7 @@ interface DeployState {
   error: string | null;
 }
 
-const STEPS = [
-  "backup_database",
-  "git_pull",
-  "npm_ci",
-  "db_ensure_schema",
-  "npm_build",
-  "pm2_restart",
-] as const;
+const STEPS = buildDeployStepNames();
 
 /** File yang Next.js/build ubah di server — restore sebelum pull agar deploy tidak gagal. */
 const GIT_GENERATED_PATHS = ["next-env.d.ts"] as const;
@@ -117,7 +118,7 @@ async function writeState(state: DeployState) {
   await writeFile(STATUS_FILE, JSON.stringify(state, null, 2), "utf8");
 }
 
-async function setStep(state: DeployState, name: (typeof STEPS)[number], status: StepStatus, detail?: string) {
+async function setStep(state: DeployState, name: string, status: StepStatus, detail?: string) {
   const step = state.steps.find((s) => s.name === name);
   if (step) {
     step.status = status;
@@ -155,10 +156,9 @@ async function writeUpdateCheckAvailable(available: boolean, branch: string, loc
   );
 }
 
-/** PM2 restart ditunda agar script deploy sempat menulis status sukses sebelum app di-recycle. */
-function schedulePm2Restart(appName: string) {
+function schedulePm2DeployRestart(bashCommand: string) {
   if (process.platform === "win32") return;
-  const child = spawn("bash", ["-lc", `sleep 2 && pm2 restart ${appName}`], {
+  const child = spawn("bash", ["-lc", bashCommand], {
     cwd: ROOT,
     detached: true,
     stdio: "ignore",
@@ -189,7 +189,10 @@ async function main() {
     state.commitBefore = null;
   }
   await writeState(state);
-  await log(`Deploy dimulai oleh ${state.startedBy ?? "system"} (branch: ${branch})`);
+  const workerEnabled = isDeployWorkerEnabled();
+  await log(
+    `Deploy dimulai oleh ${state.startedBy ?? "system"} (branch: ${branch}${workerEnabled ? ", worker Redis aktif" : ""})`
+  );
 
   try {
     await setStep(state, "backup_database", "running");
@@ -280,7 +283,8 @@ async function main() {
     await log("npm run build selesai");
 
     await setStep(state, "pm2_restart", "running");
-    const pm2App = process.env.DEPLOY_PM2_APP?.trim() || "billingisp";
+    const webApp = resolveDeployPm2WebApp();
+    const workerApp = resolveDeployPm2WorkerApp();
 
     // Tulis status sukses sebelum restart PM2 — proses deploy bisa ter-kill saat app di-recycle.
     state.status = "success";
@@ -290,10 +294,21 @@ async function main() {
     if (process.platform === "win32") {
       await log("Windows: lewati pm2 restart (restart dev server manual jika perlu)");
       await setStep(state, "pm2_restart", "ok", "skipped-windows");
+      if (workerApp) {
+        await setStep(state, "pm2_worker_restart", "ok", "skipped-windows");
+      }
     } else {
-      await setStep(state, "pm2_restart", "ok", `${pm2App} (scheduled)`);
-      await log(`Menjadwalkan pm2 restart ${pm2App} dalam 2 detik…`);
-      schedulePm2Restart(pm2App);
+      await setStep(state, "pm2_restart", "ok", `${webApp} (scheduled)`);
+      if (workerApp) {
+        await setStep(state, "pm2_worker_restart", "running");
+        await setStep(state, "pm2_worker_restart", "ok", `${workerApp} restart/start (scheduled)`);
+      }
+      await log(
+        workerApp
+          ? `Menjadwalkan pm2 restart ${webApp} + worker ${workerApp}…`
+          : `Menjadwalkan pm2 restart ${webApp}…`
+      );
+      schedulePm2DeployRestart(buildPm2DeployRestartCommand());
     }
 
     await writeState(state);

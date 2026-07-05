@@ -1,6 +1,7 @@
 import { Download, HandCoins, MessageCircle, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { CommunityImageLink } from "@/components/community/community-image-link";
+import { CommunityLinkButton } from "@/components/community/community-link-button";
 import { apkDisplayLabelFromUrl } from "@/lib/mobile/apk-filename";
 import { MOBILE_APP_NAMES } from "@/lib/mobile/app-names";
 import type { PlatformSettings } from "@/lib/db/schema";
@@ -50,26 +51,22 @@ export function CommunityPageContent({
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {settings.communityApkAdminUrl && (
-              <Button asChild variant="outline">
-                <a href={settings.communityApkAdminUrl} target="_blank" rel="noreferrer">
-                  <Download className="mr-1 h-4 w-4" />
-                  {apkDisplayLabelFromUrl(
-                    settings.communityApkAdminUrl,
-                    MOBILE_APP_NAMES.admin
-                  )}
-                </a>
-              </Button>
+              <CommunityLinkButton href={settings.communityApkAdminUrl} mode="download" variant="outline">
+                <Download className="mr-1 h-4 w-4" />
+                {apkDisplayLabelFromUrl(
+                  settings.communityApkAdminUrl,
+                  MOBILE_APP_NAMES.admin
+                )}
+              </CommunityLinkButton>
             )}
             {settings.communityApkPortalUrl && (
-              <Button asChild variant="outline">
-                <a href={settings.communityApkPortalUrl} target="_blank" rel="noreferrer">
-                  <Download className="mr-1 h-4 w-4" />
-                  {apkDisplayLabelFromUrl(
-                    settings.communityApkPortalUrl,
-                    MOBILE_APP_NAMES.portal
-                  )}
-                </a>
-              </Button>
+              <CommunityLinkButton href={settings.communityApkPortalUrl} mode="download" variant="outline">
+                <Download className="mr-1 h-4 w-4" />
+                {apkDisplayLabelFromUrl(
+                  settings.communityApkPortalUrl,
+                  MOBILE_APP_NAMES.portal
+                )}
+              </CommunityLinkButton>
             )}
           </CardContent>
         </Card>
@@ -82,19 +79,16 @@ export function CommunityPageContent({
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-sm text-muted-foreground">Scan QRIS berikut untuk mendukung komunitas.</p>
-            <a href={settings.communityDonationImageUrl} target="_blank" rel="noreferrer">
-              <img
-                src={settings.communityDonationImageUrl}
-                alt="QRIS Donasi"
-                className="max-h-80 w-full max-w-xs rounded-md border object-contain"
-              />
-            </a>
-            <Button asChild variant="outline" size="sm">
-              <a href={settings.communityDonationImageUrl} target="_blank" rel="noreferrer">
-                <HandCoins className="mr-1 h-4 w-4" />
-                Buka gambar donasi
-              </a>
-            </Button>
+            <CommunityImageLink href={settings.communityDonationImageUrl} alt="QRIS Donasi" />
+            <CommunityLinkButton
+              href={settings.communityDonationImageUrl}
+              mode="external"
+              variant="outline"
+              size="sm"
+            >
+              <HandCoins className="mr-1 h-4 w-4" />
+              Buka gambar donasi
+            </CommunityLinkButton>
           </CardContent>
         </Card>
       )}
@@ -106,20 +100,16 @@ export function CommunityPageContent({
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {waLink && (
-              <Button asChild>
-                <a href={waLink} target="_blank" rel="noreferrer">
-                  <MessageCircle className="mr-1 h-4 w-4" />
-                  WhatsApp Superadmin
-                </a>
-              </Button>
+              <CommunityLinkButton href={waLink} mode="external">
+                <MessageCircle className="mr-1 h-4 w-4" />
+                WhatsApp Superadmin
+              </CommunityLinkButton>
             )}
             {settings.communityTelegramUrl && (
-              <Button asChild variant="outline">
-                <a href={settings.communityTelegramUrl} target="_blank" rel="noreferrer">
-                  <Send className="mr-1 h-4 w-4" />
-                  Grup Telegram
-                </a>
-              </Button>
+              <CommunityLinkButton href={settings.communityTelegramUrl} mode="external" variant="outline">
+                <Send className="mr-1 h-4 w-4" />
+                Grup Telegram
+              </CommunityLinkButton>
             )}
           </CardContent>
         </Card>

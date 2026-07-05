@@ -20,6 +20,10 @@ export interface DeployInfo {
   error: string | null;
   logTail: string;
   enabled: boolean;
+  queue: {
+    enabled: boolean;
+    workerApp: string | null;
+  };
   git: {
     branch: string | null;
     commit: string | null;
@@ -44,7 +48,8 @@ const STEP_LABELS: Record<string, string> = {
   npm_ci: "npm ci",
   db_ensure_schema: "Patch / migrasi schema DB",
   npm_build: "Build production",
-  pm2_restart: "Restart PM2",
+  pm2_restart: "Restart PM2 (aplikasi web)",
+  pm2_worker_restart: "Restart worker Redis (queue)",
 };
 
 export function deployStepLabel(name: string): string {
