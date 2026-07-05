@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createComplaintAction } from "@/features/portal/actions";
 import { compressImageFileForUpload, formatFileSize } from "@/lib/image/compress-client";
+import { submitComplaintForm } from "@/lib/portal/complaint-client";
 
 export function PortalComplaintForm() {
   const router = useRouter();
@@ -59,7 +59,7 @@ export function PortalComplaintForm() {
 
     startTransition(async () => {
       try {
-        await createComplaintAction(fd);
+        await submitComplaintForm(fd);
         form.reset();
         setPhotoFile(null);
         setPhotoNote("");
