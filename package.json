@@ -23,7 +23,7 @@
     "backup:full": "node --env-file=.env --import tsx scripts/backup-full.ts",
     "deploy:app": "node --env-file=.env --import tsx scripts/deploy-app.ts",
     "messages:batch": "node --env-file=.env --import tsx scripts/send-message-batch.ts",
-    "queue:worker": "node --env-file=.env --import tsx scripts/queue-worker.ts",
+    "queue:worker": "node --env-file=.env --import ./scripts/register-server-only-stub.mjs --import tsx scripts/queue-worker.ts",
     "queue:failed": "node --env-file=.env --import tsx scripts/queue-failed.ts",
     "map:cache-test": "node --env-file=.env --import tsx scripts/map-cache-load-test.ts",
     "mobile:admin:sync": "npm run sync --prefix mobile/admin",
