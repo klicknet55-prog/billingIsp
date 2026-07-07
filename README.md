@@ -25,7 +25,7 @@ Platform SaaS billing & manajemen jaringan untuk ISP dan RT-RW Net (proyek inter
 |--------|-----------|
 | Framework | Next.js (App Router) + TypeScript |
 | Styling | Tailwind CSS + komponen ala shadcn/ui |
-| Database | SQLite (dev) via Drizzle ORM — siap migrasi PostgreSQL |
+| Database | SQLite (dev/single-server) atau PostgreSQL (production skala besar) via Drizzle ORM |
 | Auth | Modul internal (session cookie + scrypt + OTP) |
 | Mikrotik | REST API + Legacy API (`node-routeros`) |
 
@@ -95,11 +95,24 @@ File disimpan di `data/backups/` (di-gitignore). Restore tenant via UI, bukan CL
 
 ## Deploy ke Server (Production)
 
-Aplikasi ini berjalan sebagai **Node.js** (bukan Apache/PHP XAMPP). Contoh deploy di VPS Linux dengan domain `https://isp.tunnelhost.my.id`.
+Aplikasi berjalan sebagai **Node.js** (bukan Apache/PHP). Pilih **satu** jalur instalasi sesuai database production Anda:
 
-Path production contoh: `/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id`
+| Opsi | Database | Contoh server | PM2 web | PM2 worker |
+|------|----------|---------------|---------|------------|
+| **A** | SQLite | `isp.tunnelhost.my.id` | `billingisp` | `billingisp-worker` |
+| **B** | PostgreSQL | `billisp.tunnelhost.my.id` | `billisp` | `billisp-worker` |
 
-### 1. Clone / pull kode
+Kedua opsi mendukung **Redis + worker PM2** (BullMQ) untuk batch WhatsApp, webhook, dan job antrian.
+
+> **Dua app di VPS yang sama?** Satu instance Redis (`127.0.0.1:6379`) boleh dipakai bersama, tetapi **wajib** beda **database index** di `REDIS_URL` (mis. `/0` untuk SQLite, `/1` untuk PostgreSQL) agar antrian BullMQ tidak saling mengambil job. Lihat [Redis — dua app di satu VPS](#redis--dua-app-di-satu-vps).
+
+---
+
+### Opsi A — SQLite (step-by-step)
+
+Contoh path: `/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id` · domain `https://isp.tunnelhost.my.id` · port **3000**.
+
+#### A1. Clone / pull kode
 
 ```bash
 cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
@@ -108,117 +121,89 @@ git checkout netmanage-implementation   # atau branch production Anda
 git pull origin netmanage-implementation
 ```
 
-### 2. Install, schema & build
+#### A2. Install dependensi
 
 ```bash
-npm ci
-npm run db:ensure-schema     # wajib — patch tabel/kolom (odp, platform_settings, dll.)
-npm run build
+npm ci --include=dev
+npm run uploads:ensure-dirs
 ```
 
-Opsional **hanya server baru / staging kosong**:
+#### A3. Konfigurasi `.env` (SQLite)
 
-```bash
-npm run db:seed              # akun demo termasuk teknisi@demo.net
-```
-
-> Production dengan data live: **jangan** `db:seed`. Cukup `db:ensure-schema` setiap deploy.
-
-### 3. Konfigurasi `.env` production
-
-Salin dari `.env.example` dan sesuaikan:
+Salin dari `.env.example` lalu sesuaikan:
 
 ```env
 NEXT_PUBLIC_APP_URL=https://isp.tunnelhost.my.id
 DATABASE_URL=./netmanage.db
+# DATABASE_DRIVER kosong atau sqlite — jangan set postgres
 AUTH_SECRET=...random-panjang...
 CRON_SECRET=...
 APP_TIMEZONE=Asia/Jakarta
 NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta
-BILLING_GENERATE_DAYS=7
-BILLING_REMINDER_DAYS=3
-PORTAL_MAGIC_LINK_DAYS=14
+PORT=3000
 
 MIKROTIK_DRIVER=real
 MIKROTIK_TLS_INSECURE=true
-
 DUITKU_DRIVER=real
 DUITKU_CALLBACK_URL=https://isp.tunnelhost.my.id/api/webhook/duitku
 DUITKU_RETURN_URL=https://isp.tunnelhost.my.id/bayar/selesai
+
+# Deploy dari dashboard superadmin (opsional)
+DEPLOY_ENABLED=true
+DEPLOY_PM2_APP=billingisp
+DEPLOY_PM2_WORKER_APP=billingisp-worker
 ```
 
-Router Mikrotik tetap dikonfigurasi di **ISP → Router** per tenant.
+> Router Mikrotik dikonfigurasi di **ISP → Router** per tenant, bukan di `.env`.
 
-### 4. Jalankan dengan PM2
+#### A4. Schema database (SQLite)
 
-PM2 harus **disimpan** (`save`) dan **didaftarkan ke systemd** (`startup`) supaya proses naik otomatis setelah reboot VPS.
+```bash
+npm run db:ensure-schema
+```
 
-#### Instal & jalankan pertama kali
+Patch idempotent — aman dijalankan setiap deploy. **Jangan** `npm run db:seed` jika sudah ada data live.
 
-Jalankan sebagai **user pemilik folder app** (contoh `tunnelhost-isp`), **bukan root**:
+Opsional **hanya server baru / staging kosong**:
+
+```bash
+npm run db:seed
+```
+
+#### A5. Build production
+
+```bash
+npm run build
+```
+
+#### A6. PM2 — aplikasi web (SQLite)
+
+Jalankan sebagai **user pemilik folder app** (bukan root):
 
 ```bash
 npm install -g pm2
 cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
 
-# Port default 3000 — pastikan PORT=3000 di .env jika perlu
-pm2 start npm --name billingisp -- start
-# Atau pakai ecosystem (web + worker): pm2 start ecosystem.config.cjs --only billingisp
+pm2 start ecosystem.config.cjs --only billingisp
+# atau: pm2 start npm --name billingisp -- start
 pm2 save
 ```
 
-Server PostgreSQL baru (`billisp`, port **3001**):
-
-```bash
-cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
-PORT=3001 pm2 start npm --name billisp2 -- start
-pm2 save
-```
-
-#### Daftarkan auto-start saat reboot (wajib, sekali per user)
-
-Masih sebagai user yang sama yang menjalankan PM2:
+#### A7. PM2 — auto-start saat reboot (wajib, sekali)
 
 ```bash
 pm2 startup
-```
-
-PM2 akan menampilkan perintah `sudo env PATH=... pm2 startup systemd -u tunnelhost-isp --hp /home/tunnelhost-isp` — **salin dan jalankan persis** (user dan home path sesuaikan).
-
-Lalu simpan daftar proses saat ini:
-
-```bash
+# Salin & jalankan perintah sudo yang ditampilkan PM2, lalu:
 pm2 save
 ```
 
-Setiap kali menambah/mengganti/hapus app PM2 (`pm2 start`, `pm2 delete`, ganti nama), ulangi **`pm2 save`**.
+Verifikasi: `pm2 list` → `billingisp` **online**. Simulasi: `pm2 kill && pm2 resurrect`.
 
-#### Verifikasi
+#### A8. Redis + worker PM2 (SQLite)
 
-```bash
-pm2 list                    # billingisp / billisp2 harus online
-pm2 startup                 # harus sudah terkonfigurasi (bukan error)
-sudo systemctl status pm2-tunnelhost-isp   # nama service bisa sedikit beda; cek output pm2 startup
-```
+Job berat (batch WhatsApp, webhook) memakai **BullMQ + Redis**. Tanpa Redis, job dijalankan inline di proses web.
 
-Simulasi tanpa reboot penuh:
-
-```bash
-pm2 kill
-pm2 resurrect               # harus mengembalikan proses dari dump PM2
-```
-
-Setelah reboot VPS: `pm2 list` — status **online**. Jika **errored**, cek `pm2 logs billingisp --lines 50`.
-
-#### Env timezone & port (disarankan)
-
-Pastikan `.env` berisi `APP_TIMEZONE=Asia/Jakarta`. Di ecosystem PM2 (opsional), tambahkan `TZ=Asia/Jakarta`.
-
-#### Redis + worker queue (production, disarankan)
-
-Job berat (batch WhatsApp, webhook, cron enqueue) memakai **BullMQ + Redis**. Tanpa Redis, job dijalankan inline di proses web (kurang stabil di beban tinggi).
-
-**1. Pasang Redis di VPS (Ubuntu/Debian):**
+**A8.1 Pasang Redis (Ubuntu/Debian):**
 
 ```bash
 sudo apt update && sudo apt install -y redis-server
@@ -227,16 +212,19 @@ sudo systemctl start redis-server
 redis-cli ping   # harus PONG
 ```
 
-**2. Tambahkan ke `.env`:**
+**A8.2 Tambahkan ke `.env`:**
 
 ```env
-REDIS_URL=redis://127.0.0.1:6379
+# Index /0 — jika hanya satu app di VPS, /0 atau tanpa suffix juga OK
+REDIS_URL=redis://127.0.0.1:6379/0
 QUEUE_DRIVER=redis
 QUEUE_CONCURRENCY=5
 DEPLOY_PM2_WORKER_APP=billingisp-worker
 ```
 
-**3. Jalankan worker PM2 (sekali, setelah web app sudah jalan):**
+> Jika di VPS yang sama juga jalan app PostgreSQL (Opsi B), pakai **`/0`** di sini dan **`/1`** di app PostgreSQL — jangan URL identik tanpa index.
+
+**A8.3 Jalankan worker PM2 (sekali, setelah web app jalan):**
 
 ```bash
 cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
@@ -244,31 +232,23 @@ pm2 start ecosystem.config.cjs --only billingisp-worker
 pm2 save
 ```
 
-Verifikasi: `pm2 list` — `billingisp` dan `billingisp-worker` status **online**. Log worker: `pm2 logs billingisp-worker --lines 30`.
+**A8.4 Verifikasi worker:**
 
-Deploy otomatis (Superadmin → Update Aplikasi) menampilkan langkah **Restart worker Redis (queue)** dan me-restart (atau `start` jika belum ada) proses worker saat `REDIS_URL` / `QUEUE_DRIVER=redis` aktif di `.env`.
+```bash
+pm2 list                              # billingisp + billingisp-worker online
+pm2 logs billingisp-worker --lines 20 # harus: Worker netmanage started
+redis-cli ping                        # PONG
+```
 
-#### Kesalahan umum
+Deploy otomatis (Superadmin → Update Aplikasi) me-restart **web + worker** jika `REDIS_URL` aktif.
 
-| Masalah | Penyebab | Solusi |
-|---------|----------|--------|
-| Setelah reboot app mati | Belum `pm2 startup` + perintah sudo | Jalankan langkah daftar auto-start di atas |
-| `pm2 resurrect` kosong | Belum `pm2 save` setelah `pm2 start` | `pm2 start ...` lalu `pm2 save` |
-| Git/npm EACCES | PM2 jalan sebagai root, repo milik user lain | Hapus proses root; jalankan PM2 sebagai user pemilik repo |
-| Dua PM2 (root + user) | `pm2` per user terpisah | Satu user = satu `pm2 list`; jangan campur root |
-
-Untuk uninstall startup yang salah user: `pm2 unstartup systemd` (lalu ulangi `pm2 startup` dengan user benar).
-
-Aplikasi listen di port **3000** (`next start`) kecuali `PORT=3001` untuk instance billisp.
-
-### 5. Nginx reverse proxy (contoh)
+#### A9. Nginx reverse proxy (SQLite)
 
 ```nginx
 server {
     listen 80;
     server_name isp.tunnelhost.my.id;
 
-    # Android App Links — WAJIB di atas blok `location ^~ /.well-known/` certbot jika ada
     location = /.well-known/assetlinks.json {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -293,11 +273,9 @@ server {
 
 HTTPS: `sudo certbot --nginx -d isp.tunnelhost.my.id`
 
-**404 `/.well-known/assetlinks.json` dari nginx:** Certbot sering menambah `location ^~ /.well-known/` ke folder statis (`/var/www/html`), sehingga request tidak sampai ke Next.js. Tambahkan blok `location = /.well-known/assetlinks.json` di atasnya, lalu `sudo nginx -t && sudo systemctl reload nginx`. Pastikan juga `ANDROID_APP_LINK_SHA256` sudah di `.env` dan app sudah `npm run build` + `pm2 restart`.
+Nginx upload: `client_max_body_size 3m;` di blok `server`.
 
-### 6. Update rutin setelah `git push`
-
-**SQLite** (server production lama, `isp.tunnelhost.my.id`):
+#### A10. Update rutin (SQLite)
 
 ```bash
 cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
@@ -305,10 +283,154 @@ git pull origin netmanage-implementation
 npm ci --include=dev
 npm run db:ensure-schema
 npm run build
-pm2 restart billingisp --update-env
+pm2 restart billingisp billingisp-worker --update-env
 ```
 
-**PostgreSQL** (server baru, `billisp.tunnelhost.my.id`):
+Atau **Superadmin → Update Aplikasi** jika `DEPLOY_ENABLED=true`.
+
+---
+
+### Opsi B — PostgreSQL (step-by-step)
+
+Contoh path: `/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id` · domain `https://billisp.tunnelhost.my.id` · port **3001**.
+
+#### B1. Prasyarat — pasang PostgreSQL
+
+```bash
+sudo apt update && sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+```
+
+Buat database dan user (sesuaikan password):
+
+```bash
+sudo -u postgres psql <<'SQL'
+CREATE USER netmanage WITH PASSWORD 'GANTI_PASSWORD_KUAT';
+CREATE DATABASE netmanage OWNER netmanage;
+GRANT ALL PRIVILEGES ON DATABASE netmanage TO netmanage;
+SQL
+```
+
+#### B2. Clone / pull kode
+
+```bash
+cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+git fetch origin
+git checkout netmanage-implementation
+git pull origin netmanage-implementation
+```
+
+#### B3. Install dependensi
+
+```bash
+npm ci --include=dev
+npm run uploads:ensure-dirs
+```
+
+#### B4. Konfigurasi `.env` (PostgreSQL)
+
+```env
+NEXT_PUBLIC_APP_URL=https://billisp.tunnelhost.my.id
+DATABASE_DRIVER=postgres
+DATABASE_URL=postgresql://netmanage:GANTI_PASSWORD_KUAT@localhost:5432/netmanage
+AUTH_SECRET=...random-panjang...
+CRON_SECRET=...
+APP_TIMEZONE=Asia/Jakarta
+NEXT_PUBLIC_APP_TIMEZONE=Asia/Jakarta
+PORT=3001
+
+MIKROTIK_DRIVER=real
+MIKROTIK_TLS_INSECURE=true
+DUITKU_DRIVER=real
+DUITKU_CALLBACK_URL=https://billisp.tunnelhost.my.id/api/webhook/duitku
+DUITKU_RETURN_URL=https://billisp.tunnelhost.my.id/bayar/selesai
+
+DEPLOY_ENABLED=true
+DEPLOY_PM2_APP=billisp
+DEPLOY_PM2_WORKER_APP=billisp-worker
+```
+
+> Jika password mengandung `@`, `:`, `/` — encode URL (`@` → `%40`).
+
+#### B5. Schema database (PostgreSQL)
+
+**Instal baru:**
+
+```bash
+npm run db:migrate:pg
+```
+
+**Migrasi dari SQLite existing** (sekali, jika pindah database):
+
+```bash
+npm run db:migrate-sqlite-to-pg
+```
+
+Setiap deploy berikutnya:
+
+```bash
+npm run db:migrate:pg
+```
+
+#### B6. Build production
+
+```bash
+npm run build
+```
+
+#### B7. PM2 — aplikasi web (PostgreSQL)
+
+```bash
+npm install -g pm2
+cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+
+PORT=3001 pm2 start npm --name billisp -- start
+pm2 save
+```
+
+#### B8. PM2 — auto-start saat reboot (wajib, sekali)
+
+```bash
+pm2 startup
+# Jalankan perintah sudo dari output PM2, lalu:
+pm2 save
+```
+
+#### B9. Redis + worker PM2 (PostgreSQL)
+
+Langkah Redis **sama** dengan Opsi A (A8.1). Tambahkan ke `.env`:
+
+```env
+# Index /1 — pisahkan dari app SQLite (Opsi A) yang pakai /0
+REDIS_URL=redis://127.0.0.1:6379/1
+QUEUE_DRIVER=redis
+QUEUE_CONCURRENCY=5
+DEPLOY_PM2_WORKER_APP=billisp-worker
+```
+
+Jalankan worker (nama berbeda dari server SQLite):
+
+```bash
+cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+pm2 start npm --name billisp-worker -- run queue:worker
+pm2 save
+```
+
+Verifikasi:
+
+```bash
+pm2 list
+pm2 logs billisp-worker --lines 20
+```
+
+> Worker membutuhkan stub `server-only` (sudah di repo: `scripts/register-server-only-stub.mjs`). Pastikan kode terbaru sudah di-pull.
+
+#### B10. Nginx reverse proxy (PostgreSQL)
+
+Sama seperti Opsi A, ganti `server_name` dan `proxy_pass http://127.0.0.1:3001`.
+
+#### B11. Update rutin (PostgreSQL)
 
 ```bash
 cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
@@ -316,52 +438,92 @@ git pull origin netmanage-implementation
 npm ci --include=dev
 npm run db:migrate:pg
 npm run build
-pm2 restart billisp --update-env
+pm2 restart billisp billisp-worker --update-env
 ```
 
-Atau gunakan **Superadmin → Update Aplikasi** (`DEPLOY_ENABLED=true`) — alur sama: backup DB → pull → `npm ci --include=dev` → schema (`ensure-schema` / `db:migrate:pg` sesuai `DATABASE_DRIVER`) → build → restart PM2.
+Backup sebelum update: `pg_dump` atau fitur backup superadmin.
 
-Pastikan di `.env`:
+---
 
-| Server | `DATABASE_DRIVER` | `DEPLOY_PM2_APP` |
-|--------|-------------------|------------------|
-| SQLite (isp) | `sqlite` atau kosong | `billingisp` |
-| PostgreSQL (billisp) | `postgres` | `billisp` |
+### Redis — dua app di satu VPS
 
-### 6b. Checklist verifikasi deploy
+Satu `redis-server` di port **6379** cukup untuk beberapa aplikasi NetManage sekaligus. Port yang sama **bukan masalah** — Redis memang dirancang untuk banyak client.
 
-| Cek | URL / perintah |
-|-----|----------------|
-| Homepage & brand | `/` |
-| Halaman statis | `/tentang`, `/kontak`, `/syarat-ketentuan` |
-| Superadmin pengaturan | `/superadmin/pengaturan` |
-| Peta ODP | `/isp/peta` (login owner) |
-| Teknisi | `teknisi@demo.net` → `/isp/tiket` |
-| Cron billing & SaaS | `curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron` |
-| Log PM2 | `pm2 logs billingisp --lines 30` |
+Yang perlu dihindari: **dua worker** (`billingisp-worker` + `billisp-worker`) memakai `REDIS_URL` identik **tanpa** pemisahan namespace. Antrian BullMQ memakai nama tetap `netmanage`; worker dari app lain bisa **mengambil job** milik app satunya dan memprosesnya ke database yang salah.
 
-### 7. Pasang cron (wajib production)
+**Solusi (disarankan):** beda **database index** di URL:
 
-Isolasi otomatis & reminder jatuh tempo membutuhkan jadwal cron. Lihat bagian **[Pasang Cron (Background Worker)](#pasang-cron-background-worker)** di bawah.
+| App | Contoh `REDIS_URL` |
+|-----|-------------------|
+| SQLite (`isp...`) | `redis://127.0.0.1:6379/0` |
+| PostgreSQL (`billisp...`) | `redis://127.0.0.1:6379/1` |
 
-Ringkas:
+Redis default menyediakan index **0–15**; antrian, job, dan key cache terisolasi per index.
+
+Setelah mengubah `.env`:
 
 ```bash
-# 1. Set CRON_SECRET di .env, lalu pm2 restart billingisp
-# 2. crontab -e — tambahkan (ganti secret & URL):
-0 6 * * * curl -fsS -m 120 -H "Authorization: Bearer ISI_CRON_SECRET" https://isp.tunnelhost.my.id/api/cron >> /var/log/billingisp-cron.log 2>&1
+pm2 restart billingisp billingisp-worker --update-env
+pm2 restart billisp billisp-worker --update-env
 ```
 
-### Catatan deploy
+**Hanya satu app** di VPS? `redis://127.0.0.1:6379` atau `.../0` keduanya aman.
+
+**Alternatif:** instance Redis terpisah (port lain, mis. `6380`) — isolasi penuh, lebih boros RAM.
+
+---
+
+### PM2 — kesalahan umum (SQLite & PostgreSQL)
+
+| Masalah | Penyebab | Solusi |
+|---------|----------|--------|
+| Setelah reboot app mati | Belum `pm2 startup` + sudo | Jalankan A7 / B8 |
+| `pm2 resurrect` kosong | Belum `pm2 save` | `pm2 save` setelah setiap perubahan |
+| Worker crash loop `server-only` | Kode lama | `git pull` commit terbaru, restart worker |
+| Worker error `REDIS_URL` kosong | `.env` belum diset | Tambah `REDIS_URL` + `QUEUE_DRIVER=redis`, `--update-env` |
+| `Queue tidak aktif` | Redis env missing | Set env, `pm2 restart billisp-worker --update-env` |
+| Job WhatsApp/cron diproses app lain | Dua app, `REDIS_URL` sama tanpa index | Beda index: `/0` vs `/1`; restart kedua worker |
+| Git/npm EACCES | PM2 jalan sebagai root | Jalankan PM2 sebagai user pemilik repo |
+
+File ecosystem: [`ecosystem.config.cjs`](ecosystem.config.cjs) — default nama `billingisp` / `billingisp-worker`. Server PostgreSQL bisa pakai perintah `pm2 start npm --name billisp-worker` seperti B9.
+
+### Checklist verifikasi deploy
+
+| Cek | SQLite | PostgreSQL |
+|-----|--------|------------|
+| App online | `pm2 list` → billingisp | `pm2 list` → billisp |
+| Worker online | billingisp-worker | billisp-worker |
+| Redis | `redis-cli ping` → PONG | sama |
+| Schema | `npm run db:ensure-schema` OK | `npm run db:migrate:pg` OK |
+| Homepage | `https://isp.../` | `https://billisp.../` |
+| Cron | `curl -H "Authorization: Bearer $CRON_SECRET" .../api/cron` | sama |
+| Log | `pm2 logs billingisp --lines 30` | `pm2 logs billisp --lines 30` |
+
+### Catatan deploy tambahan
 
 | Topik | Keterangan |
 |-------|------------|
 | **Jaringan Mikrotik** | Server production harus bisa menjangkau IP/router (VPN/LAN). |
-| **Database** | SQLite: backup file `netmanage.db`. PostgreSQL: `pg_dump` + `npm run db:migrate:pg` saat deploy. |
-| **PM2 reboot** | Wajib `pm2 startup` (sudo) + `pm2 save`; jalankan PM2 sebagai user pemilik repo, bukan root. |
-| **Cron** | Wajib di production — lihat [Pasang Cron (Background Worker)](#pasang-cron-background-worker). |
+| **Redis multi-app** | Satu VPS, dua deploy: `REDIS_URL` beda index (`/0` vs `/1`). |
+| **PM2 reboot** | Wajib `pm2 startup` (sudo) + `pm2 save`; jalankan PM2 sebagai user pemilik repo. |
 | **Duitku** | `DUITKU_CALLBACK_URL` harus URL publik server, bukan localhost. |
-| **Upload logo/foto** | Folder `public/uploads/` harus bisa ditulis user PM2. Jalankan `npm run uploads:ensure-dirs` setelah deploy. Form upload wajib `multipart/form-data` (sudah di kode). Nginx: `client_max_body_size 3m;` |
+| **Nginx App Links** | Jika `404` di `/.well-known/assetlinks.json`, tambahkan `location =` di atas blok certbot; set `ANDROID_APP_LINK_SHA256` di `.env`. |
+| **Timezone** | `APP_TIMEZONE=Asia/Jakarta` di `.env`; opsional `TZ=Asia/Jakarta` di ecosystem PM2. |
+
+### Pasang cron (wajib production — SQLite & PostgreSQL)
+
+Isolasi otomatis & reminder jatuh tempo membutuhkan jadwal cron. Detail lengkap di bagian **[Pasang Cron (Background Worker)](#pasang-cron-background-worker)**.
+
+Ringkas (SQLite — sesuaikan URL untuk PostgreSQL):
+
+```bash
+# 1. Set CRON_SECRET di .env, lalu:
+pm2 restart billingisp --update-env          # SQLite
+# pm2 restart billisp --update-env           # PostgreSQL
+
+# 2. crontab -e
+0 6 * * * curl -fsS -m 120 -H "Authorization: Bearer ISI_CRON_SECRET" https://isp.tunnelhost.my.id/api/cron >> /var/log/billingisp-cron.log 2>&1
+```
 
 ## Integrasi Mikrotik
 

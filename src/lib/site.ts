@@ -8,9 +8,11 @@ export function resolveAppOrigin(
   host?: string | null,
   proto?: string | null
 ): string {
-  if (host) {
+  // Reverse proxy (CyberPanel/OLS/Nginx) kadang mengirim host/proto ganda: "a.com, a.com"
+  const hostname = host?.split(",")[0]?.trim();
+  if (hostname) {
     const scheme = proto?.split(",")[0]?.trim() || "https";
-    return `${scheme}://${host}`;
+    return `${scheme}://${hostname}`;
   }
   return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
 }
