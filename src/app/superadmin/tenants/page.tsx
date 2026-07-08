@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -135,11 +134,8 @@ export default async function TenantsPage({
       </Card>
       <p className="mt-3 text-xs text-muted-foreground">
         Perpanjang menambah hari dari tanggal berakhir (atau hari ini jika sudah lewat), mengaktifkan
-        kembali tenant dan langganan. Reminder H-7/H-1 otomatis via{" "}
-        <Link href="/api/cron" className="underline">
-          cron
-        </Link>
-        .
+        kembali tenant dan langganan. Reminder H-7/H-1 otomatis via endpoint{" "}
+        <code className="rounded bg-muted px-1 py-0.5 text-[0.7rem]">/api/cron</code>.
       </p>
     </>
   );
