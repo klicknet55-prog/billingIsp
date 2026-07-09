@@ -52,7 +52,7 @@ export const duitkuReal: DuitkuClient = {
         "Konfigurasi Duitku belum lengkap (DUITKU_MERCHANT_CODE / DUITKU_API_KEY / DUITKU_CALLBACK_URL)."
       );
     }
-    const returnUrl = resolveDuitkuReturnUrl(callbackUrl);
+    const returnUrl = p.returnUrl ?? resolveDuitkuReturnUrl(callbackUrl);
     const signature = md5(`${merchantCode}${p.orderId}${p.amount}${apiKey}`);
     const body = {
       merchantCode,

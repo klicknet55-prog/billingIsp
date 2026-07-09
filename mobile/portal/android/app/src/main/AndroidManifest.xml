@@ -24,13 +24,13 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="isp.tunnelhost.my.id" android:pathPrefix="/p/" />
+                <data android:scheme="https" android:host="netmanage.tunnelhost.my.id" android:pathPrefix="/p/" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="isp.tunnelhost.my.id" android:pathPrefix="/portal/" />
+                <data android:scheme="https" android:host="netmanage.tunnelhost.my.id" android:pathPrefix="/portal/" />
             </intent-filter>
         </activity>
 

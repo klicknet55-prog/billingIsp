@@ -1,0 +1,1 @@
+export const MIN_COMMUNITY_DONATION = 10_000;

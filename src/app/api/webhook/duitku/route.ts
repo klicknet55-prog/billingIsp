@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { changeTenantSubscriptionPackage } from "@/features/tenants/service";
 import { notifyNewTenantWelcome } from "@/features/tenants/welcome";
 import { applyReferralReward } from "@/features/referrals/service";
+import { finalizeCommunityDonation } from "@/features/community-donation/service";
 import { payTagihan } from "@/features/billing/payment-service";
 import type { PaymentSelection } from "@/features/billing/tagihan-service";
 import { markInvoicePaid } from "@/features/invoices/service";
@@ -54,6 +55,8 @@ export async function POST(req: Request) {
       where: eq(paymentGatewayLogs.id, logId),
     });
     tenantIdForSignature = tx?.tenantId ?? null;
+  } else if (orderId.startsWith("DON-")) {
+    tenantIdForSignature = null;
   }
   const tenantDuitkuCfg = tenantIdForSignature
     ? await getTenantDuitkuConfig(tenantIdForSignature)
@@ -149,6 +152,8 @@ export async function POST(req: Request) {
     if (tenantId && packageId) {
       await changeTenantSubscriptionPackage(tenantId, packageId, billingPeriod);
     }
+  } else if (result.orderId.startsWith("DON-")) {
+    await finalizeCommunityDonation(result.orderId, result.paymentMethod || "Duitku");
   }
 
   return new Response("OK", { status: 200 });

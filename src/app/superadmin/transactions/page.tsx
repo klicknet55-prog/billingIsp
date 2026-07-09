@@ -25,7 +25,7 @@ export default async function TransactionsPage() {
     <>
       <PageHeader
         title="Transaksi SaaS"
-        description="Rekap pembayaran langganan tenant via Duitku."
+        description="Rekap pembayaran langganan tenant dan donasi komunitas via Duitku."
       />
       <Card>
         <CardContent className="p-0">
@@ -33,6 +33,7 @@ export default async function TransactionsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Order ID</TableHead>
+                <TableHead>Tipe</TableHead>
                 <TableHead>Metode</TableHead>
                 <TableHead>Jumlah</TableHead>
                 <TableHead>Status</TableHead>
@@ -43,6 +44,9 @@ export default async function TransactionsPage() {
               {tx.map((t) => (
                 <TableRow key={t.id}>
                   <TableCell className="font-mono text-xs">{t.duitkuOrderId}</TableCell>
+                  <TableCell>
+                    {t.referenceType === "donation" ? "Donasi" : "Langganan"}
+                  </TableCell>
                   <TableCell>{t.paymentMethod ?? "-"}</TableCell>
                   <TableCell>{formatRupiah(t.amount)}</TableCell>
                   <TableCell>
@@ -53,7 +57,7 @@ export default async function TransactionsPage() {
               ))}
               {tx.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
                     Belum ada transaksi.
                   </TableCell>
                 </TableRow>

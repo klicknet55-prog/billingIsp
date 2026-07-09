@@ -310,7 +310,7 @@ export const paymentGatewayLogs = sqliteTable("payment_gateway_log", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id").references(() => tenants.id),
   referenceType: text("reference_type", {
-    enum: ["subscription", "invoice"],
+    enum: ["subscription", "invoice", "donation"],
   }).notNull(),
   referenceId: text("reference_id").notNull(),
   duitkuOrderId: text("duitku_order_id"),
@@ -603,6 +603,29 @@ export const referralRewards = sqliteTable("referral_reward", {
   status: text("status", { enum: ["pending", "rewarded", "rejected"] }).notNull(),
   rejectReason: text("reject_reason"),
   rewardedAt: integer("rewarded_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const communityDonations = sqliteTable("community_donation", {
+  id: text("id").primaryKey(),
+  tenantId: text("tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id),
+  amount: integer("amount").notNull(),
+  status: text("status", { enum: ["pending", "success", "failed"] }).notNull(),
+  duitkuOrderId: text("duitku_order_id").notNull().unique(),
+  paymentMethod: text("payment_method"),
+  namaUsaha: text("nama_usaha").notNull(),
+  domain: text("domain").notNull(),
+  donorNama: text("donor_nama").notNull(),
+  donorRole: text("donor_role", {
+    enum: ["owner", "admin", "kolektor", "teknisi"],
+  }).notNull(),
+  logoUrl: text("logo_url"),
+  paidAt: integer("paid_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 

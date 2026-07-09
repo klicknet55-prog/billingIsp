@@ -21,6 +21,7 @@ export function adminNavItems(role: string): MobileNavItem[] {
     return [
       { type: "link", href: "/kolektor", label: "Tugas", icon: ListChecks, match: "exact" },
       { type: "link", href: "/kolektor/profil", label: "Profil", icon: User, match: "prefix" },
+      { type: "action", id: "menu", label: "Menu", icon: Menu },
     ];
   }
   if (role === "teknisi") {

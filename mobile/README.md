@@ -7,7 +7,7 @@ Dua shell Android hybrid yang memuat web production via WebView HTTPS.
 | `mobile/admin/` | **Admin.net** | `id.tunnelhost.netmanage.admin` | `/login?nm_app=admin` |
 | `mobile/portal/` | **MyWiFi** | `id.tunnelhost.netmanage.portal` | `/portal/login?nm_app=portal` |
 
-Dokumen terkait: [../docs/android-app-plan.md](../docs/android-app-plan.md)
+Dokumen terkait: [../docs/build-apk-tutorial.md](../docs/build-apk-tutorial.md) · [../docs/android-app-plan.md](../docs/android-app-plan.md)
 
 ---
 

@@ -154,20 +154,10 @@ export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
             className="text-sm"
           />
         </Field>
-        <Field
-          id="communityDonationImageUrl"
-          label="URL gambar donasi (QRIS)"
-          error={fe.communityDonationImageUrl}
-        >
-          <input
-            id="communityDonationImageUrl"
-            name="communityDonationImageUrl"
-            type="url"
-            defaultValue={defaults.communityDonationImageUrl ?? ""}
-            placeholder="https://.../qris.png"
-            className="h-9 w-full rounded-md border px-3 text-sm"
-          />
-        </Field>
+        <p className="text-xs text-muted-foreground">
+          Donasi komunitas diproses via Duitku platform (env <code>DUITKU_*</code>). Nominal
+          custom minimal Rp 10.000; donatur tercatat di halaman Kontributor.
+        </p>
         <Field id="communityApkAdminUrl" label="URL download APK Admin.net" error={fe.communityApkAdminUrl}>
           <input
             id="communityApkAdminUrl"

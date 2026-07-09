@@ -261,6 +261,29 @@ export function applyAppSchemaMigrations(
     if (log) console.log("[ok]   tabel referral_reward dibuat");
   }
 
+  if (!hasDbTable(db, "community_donation")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS community_donation (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        user_id TEXT NOT NULL REFERENCES user(id),
+        amount INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        duitku_order_id TEXT NOT NULL UNIQUE,
+        payment_method TEXT,
+        nama_usaha TEXT NOT NULL,
+        domain TEXT NOT NULL,
+        donor_nama TEXT NOT NULL,
+        donor_role TEXT NOT NULL,
+        logo_url TEXT,
+        paid_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel community_donation dibuat");
+  }
+
   if (hasDbTable(db, "pelanggan") && hasColumn(db, "pelanggan", "tgl_daftar")) {
     const backfill = db
       .prepare("UPDATE pelanggan SET tgl_daftar = created_at WHERE tgl_daftar IS NULL")

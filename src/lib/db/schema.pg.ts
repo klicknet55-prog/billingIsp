@@ -297,7 +297,7 @@ export const paymentGatewayLogs = pgTable("payment_gateway_log", {
   id: text("id").primaryKey(),
   tenantId: text("tenant_id").references(() => tenants.id),
   referenceType: text("reference_type", {
-    enum: ["subscription", "invoice"],
+    enum: ["subscription", "invoice", "donation"],
   }).notNull(),
   referenceId: text("reference_id").notNull(),
   duitkuOrderId: text("duitku_order_id"),
@@ -551,6 +551,33 @@ export const referralRewards = pgTable(
   (t) => [uniqueIndex("referral_reward_referee_unique").on(t.refereeTenantId)]
 );
 
+export const communityDonations = pgTable(
+  "community_donation",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id),
+    amount: integer("amount").notNull(),
+    status: text("status", { enum: ["pending", "success", "failed"] }).notNull(),
+    duitkuOrderId: text("duitku_order_id").notNull().unique(),
+    paymentMethod: text("payment_method"),
+    namaUsaha: text("nama_usaha").notNull(),
+    domain: text("domain").notNull(),
+    donorNama: text("donor_nama").notNull(),
+    donorRole: text("donor_role", {
+      enum: ["owner", "admin", "kolektor", "teknisi"],
+    }).notNull(),
+    logoUrl: text("logo_url"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("community_donation_order_unique").on(t.duitkuOrderId)]
+);
+
 export const messageTemplates = pgTable(
   "message_template",
   {
@@ -637,6 +664,7 @@ export const pgSchema = {
   passwordResets,
   portalAccessCodes,
   referralRewards,
+  communityDonations,
   platformSettings,
   messageTemplates,
   messageSendLogs,

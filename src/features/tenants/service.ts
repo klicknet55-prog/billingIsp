@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { normalizePhone } from "@/lib/auth/otp";
 import {
@@ -156,7 +156,7 @@ export async function deleteSaasPackage(id: string) {
 
 export async function listSaasTransactions() {
   return db.query.paymentGatewayLogs.findMany({
-    where: eq(paymentGatewayLogs.referenceType, "subscription"),
+    where: inArray(paymentGatewayLogs.referenceType, ["subscription", "donation"]),
     orderBy: [desc(paymentGatewayLogs.createdAt)],
   });
 }

@@ -5,6 +5,8 @@ export interface CreateTransactionParams {
   customerName?: string;
   customerPhone?: string;
   tenantId?: string;
+  /** Override return URL browser setelah bayar (default dari DUITKU_CALLBACK_URL). */
+  returnUrl?: string;
 }
 
 export interface CreateTransactionResult {

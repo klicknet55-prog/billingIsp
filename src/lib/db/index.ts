@@ -27,21 +27,19 @@ function loadBetterSqlite3(): typeof Database {
 
 function createSqliteDb() {
   const BetterSqlite = loadBetterSqlite3();
-  const sqlite =
-    globalForDb.sqlite ??
-    (() => {
-      const conn = new BetterSqlite(DB_PATH);
-      conn.pragma("journal_mode = WAL");
-      conn.pragma("foreign_keys = ON");
-      applyAppSchemaMigrations(conn);
-      return conn;
-    })();
+  if (!globalForDb.sqlite) {
+    const conn = new BetterSqlite(DB_PATH);
+    conn.pragma("journal_mode = WAL");
+    conn.pragma("foreign_keys = ON");
+    globalForDb.sqlite = conn;
+  }
 
-  if (process.env.NODE_ENV !== "production") globalForDb.sqlite = sqlite;
+  // Idempotent — jalankan setiap startup agar tabel baru terbuat setelah hot reload dev.
+  applyAppSchemaMigrations(globalForDb.sqlite);
 
   return {
-    db: drizzleSqlite(sqlite, { schema: sqliteSchema }) as AppDb,
-    sqlite,
+    db: drizzleSqlite(globalForDb.sqlite, { schema: sqliteSchema }) as AppDb,
+    sqlite: globalForDb.sqlite,
   };
 }
 

@@ -17,6 +17,7 @@ import {
   pengeluaran,
   portalAccessCodes,
   pushNotificationLogs,
+  communityDonations,
   referralRewards,
   receiptTagihanLinks,
   routers,
@@ -116,6 +117,7 @@ export async function deleteTenantRelatedData(
       eq(referralRewards.refereeTenantId, tenantId)
     )
   );
+  await client.delete(communityDonations).where(eq(communityDonations.tenantId, tenantId));
   await client.delete(sessions).where(eq(sessions.tenantId, tenantId));
   await client.delete(users).where(eq(users.tenantId, tenantId));
 }

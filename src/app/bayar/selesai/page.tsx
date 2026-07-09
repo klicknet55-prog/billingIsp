@@ -2,8 +2,12 @@ import { CheckCircle2, XCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  confirmCommunityDonationFromReturn,
+  resolveKontributorPath,
+} from "@/features/community-donation/service";
 
-function nextStep(orderId: string) {
+function nextStep(orderId: string, returnTo?: string) {
   if (orderId.startsWith("SUB-")) {
     return {
       title: "Pembayaran langganan",
@@ -30,6 +34,14 @@ function nextStep(orderId: string) {
       label: "Kembali ke portal",
     };
   }
+  if (orderId.startsWith("DON-")) {
+    return {
+      title: "Donasi komunitas",
+      message: "Terima kasih atas donasi Anda. Nama Anda tercatat di halaman Kontributor.",
+      href: `${resolveKontributorPath(returnTo)}?ok=1`,
+      label: "Lihat kontributor",
+    };
+  }
   return {
     title: "Pembayaran",
     message: "Terima kasih. Pembayaran Anda telah diproses.",
@@ -45,13 +57,19 @@ export default async function PaymentReturnPage({
     merchantOrderId?: string;
     resultCode?: string;
     reference?: string;
+    paymentCode?: string;
+    returnTo?: string;
   }>;
 }) {
   const qs = await searchParams;
   const orderId = qs.merchantOrderId ?? "";
   const reference = qs.reference ?? "";
   const success = qs.resultCode === "00";
-  const step = nextStep(orderId);
+  const step = nextStep(orderId, qs.returnTo);
+
+  if (orderId.startsWith("DON-")) {
+    await confirmCommunityDonationFromReturn(orderId, qs.resultCode, qs.paymentCode);
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">

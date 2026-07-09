@@ -1,7 +1,8 @@
 import { Download, HandCoins, MessageCircle, Send } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CommunityImageLink } from "@/components/community/community-image-link";
+import { CommunityDonationForm } from "@/components/community/community-donation-form";
 import { CommunityLinkButton } from "@/components/community/community-link-button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { isPlatformDonationConfigured } from "@/features/community-donation/service";
 import { apkDisplayLabelFromUrl } from "@/lib/mobile/apk-filename";
 import { MOBILE_APP_NAMES } from "@/lib/mobile/app-names";
 import type { PlatformSettings } from "@/lib/db/schema";
@@ -9,22 +10,30 @@ import { whatsappUrl } from "@/features/platform-settings/whatsapp";
 
 export function CommunityPageContent({
   settings,
+  canDonate = false,
+  kontributorHref,
+  returnTo,
+  donationError,
 }: {
   settings: Pick<
     PlatformSettings,
     | "communityDescription"
-    | "communityDonationImageUrl"
     | "communityApkAdminUrl"
     | "communityApkPortalUrl"
     | "communityWhatsappSuperadmin"
     | "communityTelegramUrl"
   >;
+  canDonate?: boolean;
+  kontributorHref: string;
+  returnTo: string;
+  donationError?: string | null;
 }) {
   const waLink = settings.communityWhatsappSuperadmin
     ? whatsappUrl(settings.communityWhatsappSuperadmin)
     : null;
   const hasDownloads = !!(settings.communityApkAdminUrl || settings.communityApkPortalUrl);
   const hasCommunityContacts = !!(waLink || settings.communityTelegramUrl);
+  const donationEnabled = isPlatformDonationConfigured();
 
   return (
     <div className="space-y-4">
@@ -72,26 +81,23 @@ export function CommunityPageContent({
         </Card>
       )}
 
-      {settings.communityDonationImageUrl && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Donasi</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">Scan QRIS berikut untuk mendukung komunitas.</p>
-            <CommunityImageLink href={settings.communityDonationImageUrl} alt="QRIS Donasi" />
-            <CommunityLinkButton
-              href={settings.communityDonationImageUrl}
-              mode="external"
-              variant="outline"
-              size="sm"
-            >
-              <HandCoins className="mr-1 h-4 w-4" />
-              Buka gambar donasi
-            </CommunityLinkButton>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HandCoins className="h-5 w-5" />
+            Donasi
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CommunityDonationForm
+            canDonate={canDonate}
+            donationEnabled={donationEnabled}
+            kontributorHref={kontributorHref}
+            returnTo={returnTo}
+            errorMessage={donationError}
+          />
+        </CardContent>
+      </Card>
 
       {hasCommunityContacts && (
         <Card>

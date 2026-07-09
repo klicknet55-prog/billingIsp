@@ -34,7 +34,12 @@ export default async function SuperadminCommunityPage() {
           </Link>
         </CardContent>
       </Card>
-      <CommunityPageContent settings={settings} />
+      <CommunityPageContent
+        settings={settings}
+        canDonate={false}
+        kontributorHref="/superadmin/kontributor"
+        returnTo="/superadmin/community"
+      />
     </>
   );
 }
