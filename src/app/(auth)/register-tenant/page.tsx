@@ -9,7 +9,13 @@ import { listActiveSaasPackages } from "@/features/tenants/service";
 import { PackageList } from "./package-list";
 import { normalizeRegisterPkg } from "./shared";
 
-export default async function RegisterTenantPage() {
+export default async function RegisterTenantPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string }>;
+}) {
+  const qs = await searchParams;
+  const referralCode = qs.ref?.trim().toUpperCase() ?? "";
   const packages = await listActiveSaasPackages();
   const mapped = packages.map(normalizeRegisterPkg);
 
@@ -22,7 +28,12 @@ export default async function RegisterTenantPage() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <PackageList packages={mapped} />
+        {referralCode && (
+          <p className="mb-4 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary">
+            Anda diajak dengan kode referral <strong>{referralCode}</strong>.
+          </p>
+        )}
+        <PackageList packages={mapped} referralCode={referralCode} />
       </CardContent>
     </Card>
   );

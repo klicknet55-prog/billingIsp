@@ -19,6 +19,13 @@ export function applyAppSchemaMigrations(
   const log = opts?.log ?? false;
   let applied = applyColumnPatches(db, { log });
 
+  if (hasDbTable(db, "tenant") && hasColumn(db, "tenant", "referral_code")) {
+    db.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS tenant_referral_code_unique ON tenant(referral_code)"
+    );
+    if (log) console.log("[ok]   index tenant_referral_code_unique");
+  }
+
   if (!hasDbTable(db, "tagihan")) {
     db.exec(`
       CREATE TABLE tagihan (
@@ -234,6 +241,24 @@ export function applyAppSchemaMigrations(
     `);
     applied++;
     if (log) console.log("[ok]   tabel pelanggan_import_batch dibuat");
+  }
+
+  if (!hasDbTable(db, "referral_reward")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS referral_reward (
+        id TEXT PRIMARY KEY,
+        referrer_tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        referee_tenant_id TEXT NOT NULL UNIQUE REFERENCES tenant(id),
+        referral_code TEXT NOT NULL,
+        reward_days INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL,
+        reject_reason TEXT,
+        rewarded_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel referral_reward dibuat");
   }
 
   if (hasDbTable(db, "pelanggan") && hasColumn(db, "pelanggan", "tgl_daftar")) {

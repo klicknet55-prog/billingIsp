@@ -12,7 +12,13 @@ import {
   packageAmount,
 } from "./shared";
 
-export function PackageList({ packages }: { packages: RegisterPkg[] }) {
+export function PackageList({
+  packages,
+  referralCode = "",
+}: {
+  packages: RegisterPkg[];
+  referralCode?: string;
+}) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
 
   if (packages.length === 0) {
@@ -53,7 +59,10 @@ export function PackageList({ packages }: { packages: RegisterPkg[] }) {
           const isFree = p.hargaBulanan <= 0;
           const period = isFree ? "monthly" : billingPeriod;
           const amount = packageAmount(p, period);
-          const href = `/register-tenant/daftar?packageId=${encodeURIComponent(p.id)}&billingPeriod=${period}`;
+          const refQuery = referralCode
+            ? `&ref=${encodeURIComponent(referralCode)}`
+            : "";
+          const href = `/register-tenant/daftar?packageId=${encodeURIComponent(p.id)}&billingPeriod=${period}${refQuery}`;
 
           return (
             <div

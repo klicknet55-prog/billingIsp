@@ -7,6 +7,7 @@ import {
   text,
   timestamp,
   uniqueIndex,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 
 /** Skema PostgreSQL — server baru (Fase 5). Nama kolom/tabel sama dengan SQLite. */
@@ -23,6 +24,8 @@ export const tenants = pgTable("tenant", {
   themeMode: text("theme_mode", { enum: ["light", "dark"] })
     .notNull()
     .default("light"),
+  referralCode: text("referral_code").unique(),
+  referredByTenantId: text("referred_by_tenant_id").references((): AnyPgColumn => tenants.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -522,8 +525,31 @@ export const platformSettings = pgTable("platform_settings", {
     .notNull()
     .default("nominatim"),
   googleGeocodingApiKeyEncrypted: text("google_geocoding_api_key_encrypted"),
+  referralEnabled: boolean("referral_enabled").notNull().default(false),
+  referralRewardDays: integer("referral_reward_days").notNull().default(7),
+  referralMaxPerTenant: integer("referral_max_per_tenant").notNull().default(10),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const referralRewards = pgTable(
+  "referral_reward",
+  {
+    id: text("id").primaryKey(),
+    referrerTenantId: text("referrer_tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    refereeTenantId: text("referee_tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    referralCode: text("referral_code").notNull(),
+    rewardDays: integer("reward_days").notNull().default(0),
+    status: text("status", { enum: ["pending", "rewarded", "rejected"] }).notNull(),
+    rejectReason: text("reject_reason"),
+    rewardedAt: timestamp("rewarded_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("referral_reward_referee_unique").on(t.refereeTenantId)]
+);
 
 export const messageTemplates = pgTable(
   "message_template",
@@ -610,6 +636,7 @@ export const pgSchema = {
   otpCodes,
   passwordResets,
   portalAccessCodes,
+  referralRewards,
   platformSettings,
   messageTemplates,
   messageSendLogs,

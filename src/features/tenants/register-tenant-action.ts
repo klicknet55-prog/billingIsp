@@ -68,6 +68,7 @@ export async function registerTenantFormAction(
     packageId: String(formData.get("packageId") ?? ""),
     billingPeriod:
       String(formData.get("billingPeriod") ?? "monthly") === "yearly" ? "yearly" : "monthly",
+    referralCode: String(formData.get("referralCode") ?? "").trim() || undefined,
   });
 
   if ("error" in result) return { error: result.error };

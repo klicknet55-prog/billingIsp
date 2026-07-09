@@ -65,6 +65,9 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
         communityApkPortalUrl: DEFAULT_PLATFORM_SETTINGS.communityApkPortalUrl,
         communityWhatsappSuperadmin: DEFAULT_PLATFORM_SETTINGS.communityWhatsappSuperadmin,
         communityTelegramUrl: DEFAULT_PLATFORM_SETTINGS.communityTelegramUrl,
+        referralEnabled: DEFAULT_PLATFORM_SETTINGS.referralEnabled,
+        referralRewardDays: DEFAULT_PLATFORM_SETTINGS.referralRewardDays,
+        referralMaxPerTenant: DEFAULT_PLATFORM_SETTINGS.referralMaxPerTenant,
       })
       .onConflictDoNothing({ target: platformSettings.id });
 
@@ -137,6 +140,9 @@ export type PlatformSettingsPatch = Partial<{
   communityTelegramUrl: string | null;
   mapGeocodingProvider: "nominatim" | "google";
   googleGeocodingApiKeyEncrypted: string | null;
+  referralEnabled: boolean;
+  referralRewardDays: number;
+  referralMaxPerTenant: number;
 }>;
 
 export async function patchPlatformSettings(

@@ -25,6 +25,8 @@ export const tenants = sqliteTable("tenant", {
   themeMode: text("theme_mode", { enum: ["light", "dark"] })
     .notNull()
     .default("light"),
+  referralCode: text("referral_code").unique(),
+  referredByTenantId: text("referred_by_tenant_id"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
@@ -581,7 +583,27 @@ export const platformSettings = sqliteTable("platform_settings", {
     .notNull()
     .default("nominatim"),
   googleGeocodingApiKeyEncrypted: text("google_geocoding_api_key_encrypted"),
+  referralEnabled: integer("referral_enabled", { mode: "boolean" }).notNull().default(false),
+  referralRewardDays: integer("referral_reward_days").notNull().default(7),
+  referralMaxPerTenant: integer("referral_max_per_tenant").notNull().default(10),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const referralRewards = sqliteTable("referral_reward", {
+  id: text("id").primaryKey(),
+  referrerTenantId: text("referrer_tenant_id")
+    .notNull()
+    .references(() => tenants.id),
+  refereeTenantId: text("referee_tenant_id")
+    .notNull()
+    .unique()
+    .references(() => tenants.id),
+  referralCode: text("referral_code").notNull(),
+  rewardDays: integer("reward_days").notNull().default(0),
+  status: text("status", { enum: ["pending", "rewarded", "rejected"] }).notNull(),
+  rejectReason: text("reject_reason"),
+  rewardedAt: integer("rewarded_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
 // ---------------------------------------------------------------------------

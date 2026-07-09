@@ -1,5 +1,5 @@
 import "server-only";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import type { db } from "@/lib/db";
 import {
   devicePushTokens,
@@ -17,6 +17,7 @@ import {
   pengeluaran,
   portalAccessCodes,
   pushNotificationLogs,
+  referralRewards,
   receiptTagihanLinks,
   routers,
   sessions,
@@ -109,6 +110,12 @@ export async function deleteTenantRelatedData(
   await client.delete(paymentGatewayLogs).where(eq(paymentGatewayLogs.tenantId, tenantId));
   await client.delete(tenantDuitkuConfigs).where(eq(tenantDuitkuConfigs.tenantId, tenantId));
   await client.delete(tenantWhatsAppConfigs).where(eq(tenantWhatsAppConfigs.tenantId, tenantId));
+  await client.delete(referralRewards).where(
+    or(
+      eq(referralRewards.referrerTenantId, tenantId),
+      eq(referralRewards.refereeTenantId, tenantId)
+    )
+  );
   await client.delete(sessions).where(eq(sessions.tenantId, tenantId));
   await client.delete(users).where(eq(users.tenantId, tenantId));
 }

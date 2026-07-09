@@ -309,8 +309,13 @@ sudo -u postgres psql <<'SQL'
 CREATE USER netmanage WITH PASSWORD 'GANTI_PASSWORD_KUAT';
 CREATE DATABASE netmanage OWNER netmanage;
 GRANT ALL PRIVILEGES ON DATABASE netmanage TO netmanage;
+GRANT ALL ON SCHEMA public TO netmanage;
 SQL
 ```
+
+> **PostgreSQL 15+:** jika database dibuat tanpa `OWNER netmanage`, user hanya dapat `CONNECT` ke DB — migrasi gagal (exit 1, tabel `public` tetap 0). Perbaiki:
+> `sudo -u postgres psql -d netmanage -c "GRANT ALL ON SCHEMA public TO netmanage;"`
+> atau `ALTER DATABASE netmanage OWNER TO netmanage;`
 
 #### B2. Clone / pull kode
 

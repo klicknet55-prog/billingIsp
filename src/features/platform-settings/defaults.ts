@@ -36,4 +36,7 @@ export const DEFAULT_PLATFORM_SETTINGS: Omit<PlatformSettings, "updatedAt"> & {
   cronLastResult: null,
   mapGeocodingProvider: "nominatim",
   googleGeocodingApiKeyEncrypted: null,
+  referralEnabled: false,
+  referralRewardDays: 7,
+  referralMaxPerTenant: 10,
 };

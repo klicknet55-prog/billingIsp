@@ -10,6 +10,7 @@ import {
   saveLogoBrandAction,
   savePemilikAction,
   saveProfilAppAction,
+  saveReferralSettingsAction,
   saveTelegramAction,
 } from "@/features/platform-settings/actions";
 import type { PlatformSettings } from "@/lib/db/schema";
@@ -239,6 +240,77 @@ export function TelegramForm({
         />
       </Field>
       <SubmitButton>Simpan Link Telegram</SubmitButton>
+    </form>
+  );
+}
+
+export function ReferralForm({
+  defaults,
+}: {
+  defaults: Pick<
+    PlatformSettings,
+    "referralEnabled" | "referralRewardDays" | "referralMaxPerTenant"
+  >;
+}) {
+  const [state, action] = useActionState(saveReferralSettingsAction, initial);
+  const { toast } = useToast();
+  const fe = state.fieldErrors ?? {};
+
+  useEffect(() => {
+    if (state.ok) toast({ title: "Pengaturan referral tersimpan", variant: "success" });
+    if (state.error) toast({ title: state.error, variant: "error" });
+  }, [state.ok, state.error, toast]);
+
+  return (
+    <form action={action} className="space-y-4">
+      <label className="flex items-start gap-3 rounded-lg border bg-muted/20 p-3 text-sm">
+        <input
+          type="checkbox"
+          name="referralEnabled"
+          value="on"
+          defaultChecked={defaults.referralEnabled ?? false}
+          className="mt-0.5 size-4 shrink-0 rounded border-input"
+        />
+        <span>
+          <span className="font-medium">Aktifkan program referral</span>
+          <span className="mt-1 block text-muted-foreground">
+            Tenant pengundang mendapat perpanjangan langganan saat ISP baru mendaftar dengan kode
+            mereka.
+          </span>
+        </span>
+      </label>
+      <Field
+        id="referralRewardDays"
+        label="Bonus hari per referral sukses"
+        error={fe.referralRewardDays}
+      >
+        <input
+          id="referralRewardDays"
+          name="referralRewardDays"
+          type="number"
+          min={1}
+          max={365}
+          defaultValue={defaults.referralRewardDays ?? 7}
+          className="h-9 w-full rounded-md border px-3 text-sm"
+        />
+      </Field>
+      <Field
+        id="referralMaxPerTenant"
+        label="Maksimum referral sukses per tenant"
+        hint="Batas jumlah ISP baru yang dapat memberi bonus kepada satu pengundang."
+        error={fe.referralMaxPerTenant}
+      >
+        <input
+          id="referralMaxPerTenant"
+          name="referralMaxPerTenant"
+          type="number"
+          min={1}
+          max={1000}
+          defaultValue={defaults.referralMaxPerTenant ?? 10}
+          className="h-9 w-full rounded-md border px-3 text-sm"
+        />
+      </Field>
+      <SubmitButton>Simpan Pengaturan Referral</SubmitButton>
     </form>
   );
 }

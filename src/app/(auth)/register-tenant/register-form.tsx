@@ -2,7 +2,7 @@
 
 import { Check } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,11 +26,13 @@ const initial: ActionState = {};
 export function RegisterForm({
   pkg,
   billingPeriod,
+  referralCode = "",
   tcTitle,
   tcContent,
 }: {
   pkg: RegisterPkg;
   billingPeriod: BillingPeriod;
+  referralCode?: string;
   tcTitle: string;
   tcContent: string;
 }) {
@@ -113,7 +115,26 @@ export function RegisterForm({
       <form ref={formRef} action={action} onSubmit={handleSubmit} className="space-y-6">
         <input type="hidden" name="packageId" value={safePkg.id} />
         <input type="hidden" name="billingPeriod" value={billingPeriod} />
+        {referralCode ? (
+          <input type="hidden" name="referralCode" value={referralCode} />
+        ) : null}
         {termsAccepted && <input type="hidden" name="acceptTerms" value="on" />}
+
+        {referralCode ? (
+          <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-primary">
+            Kode referral <strong>{referralCode}</strong> akan dipakai saat pendaftaran.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <Label htmlFor="referralCode">Kode referral (opsional)</Label>
+            <Input
+              id="referralCode"
+              name="referralCode"
+              placeholder="NM-XXXXXX"
+              autoCapitalize="characters"
+            />
+          </div>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
@@ -163,7 +184,9 @@ export function RegisterForm({
                       ?.value ?? "";
                   const fd = new FormData();
                   fd.set("adminPhone", phone);
-                  otpAction(fd);
+                  startTransition(() => {
+                    otpAction(fd);
+                  });
                 }}
               >
                 {otpPending ? "Mengirim..." : otpSent ? "Kirim ulang" : "Kirim kode"}

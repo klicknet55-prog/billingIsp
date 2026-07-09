@@ -16,11 +16,12 @@ import { normalizeBillingPeriod, normalizeRegisterPkg } from "../shared";
 export default async function RegisterTenantFormPage({
   searchParams,
 }: {
-  searchParams: Promise<{ packageId?: string; billingPeriod?: string }>;
+  searchParams: Promise<{ packageId?: string; billingPeriod?: string; ref?: string }>;
 }) {
   const qs = await searchParams;
   const packageId = qs.packageId?.trim() ?? "";
   if (!packageId) notFound();
+  const referralCode = qs.ref?.trim().toUpperCase() ?? "";
 
   const [packages, settings] = await Promise.all([
     listActiveSaasPackages(),
@@ -53,6 +54,7 @@ export default async function RegisterTenantFormPage({
           key={selected.id}
           pkg={selected}
           billingPeriod={billingPeriod}
+          referralCode={referralCode}
           tcTitle={settings.tcTitle}
           tcContent={settings.tcContent}
         />

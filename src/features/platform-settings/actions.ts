@@ -103,6 +103,29 @@ const mapGeocodingSchema = z.object({
   googleGeocodingApiKey: z.string().optional(),
 });
 
+const referralSettingsSchema = z.object({
+  referralRewardDays: z.coerce.number().int().min(1).max(365),
+  referralMaxPerTenant: z.coerce.number().int().min(1).max(1000),
+});
+
+export async function saveReferralSettingsAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requireUser(["superadmin"]);
+  const parsed = parseForm(referralSettingsSchema, formData);
+  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+
+  await patchPlatformSettings({
+    referralEnabled: formData.get("referralEnabled") === "on",
+    referralRewardDays: parsed.data.referralRewardDays,
+    referralMaxPerTenant: parsed.data.referralMaxPerTenant,
+  });
+  revalidatePlatform();
+  revalidatePath("/dashboard/referral");
+  return { ok: true };
+}
+
 export async function saveMapGeocodingAction(
   _prev: ActionState,
   formData: FormData

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { changeTenantSubscriptionPackage } from "@/features/tenants/service";
 import { notifyNewTenantWelcome } from "@/features/tenants/welcome";
+import { applyReferralReward } from "@/features/referrals/service";
 import { payTagihan } from "@/features/billing/payment-service";
 import type { PaymentSelection } from "@/features/billing/tagihan-service";
 import { markInvoicePaid } from "@/features/invoices/service";
@@ -136,6 +137,7 @@ export async function POST(req: Request) {
     if (tenant && owner?.role === "owner") {
       await notifyNewTenantWelcome(tenant, owner);
     }
+    await applyReferralReward(tenantId);
   } else if (result.orderId.startsWith("SUP-")) {
     const upgradeRef =
       txLog?.referenceType === "subscription" && txLog.referenceId.startsWith("UPG:")

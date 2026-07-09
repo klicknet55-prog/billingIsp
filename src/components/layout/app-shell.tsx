@@ -27,6 +27,7 @@ import {
   Ticket,
   UserCheck,
   UserCog,
+  UserPlus,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -115,6 +116,12 @@ const DASHBOARD_NAV: DashboardNavEntry[] = [
     href: "/dashboard/integrasi",
     label: "Integrasi",
     icon: Plug,
+    roles: ["owner", "admin"],
+  },
+  {
+    href: "/dashboard/referral",
+    label: "Referral",
+    icon: UserPlus,
     roles: ["owner", "admin"],
   },
   {
@@ -553,13 +560,22 @@ export function AppShell({
               </div>
             )}
             {variant === "dashboard" && (userRole === "owner" || userRole === "admin") && (
-              <Link
-                href="/dashboard/langganan"
-                onClick={() => setOpen(false)}
-                className="mt-3 inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Kelola langganan
-              </Link>
+              <div className="mt-3 space-y-2">
+                <Link
+                  href="/dashboard/langganan"
+                  onClick={() => setOpen(false)}
+                  className="inline-flex w-full items-center justify-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Kelola langganan
+                </Link>
+                <Link
+                  href="/dashboard/referral"
+                  onClick={() => setOpen(false)}
+                  className="inline-flex w-full items-center justify-center rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted"
+                >
+                  Program referral
+                </Link>
+              </div>
             )}
             <form action={logoutAction} className="mt-3">
               <Button type="submit" variant="outline" className="w-full touch-manipulation">

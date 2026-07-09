@@ -164,6 +164,31 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     sql: "ALTER TABLE platform_settings ADD COLUMN community_telegram_url TEXT",
   },
   {
+    table: "tenant",
+    column: "referral_code",
+    sql: "ALTER TABLE tenant ADD COLUMN referral_code TEXT",
+  },
+  {
+    table: "tenant",
+    column: "referred_by_tenant_id",
+    sql: "ALTER TABLE tenant ADD COLUMN referred_by_tenant_id TEXT REFERENCES tenant(id)",
+  },
+  {
+    table: "platform_settings",
+    column: "referral_enabled",
+    sql: "ALTER TABLE platform_settings ADD COLUMN referral_enabled INTEGER NOT NULL DEFAULT 0",
+  },
+  {
+    table: "platform_settings",
+    column: "referral_reward_days",
+    sql: "ALTER TABLE platform_settings ADD COLUMN referral_reward_days INTEGER NOT NULL DEFAULT 7",
+  },
+  {
+    table: "platform_settings",
+    column: "referral_max_per_tenant",
+    sql: "ALTER TABLE platform_settings ADD COLUMN referral_max_per_tenant INTEGER NOT NULL DEFAULT 10",
+  },
+  {
     table: "device_push_token",
     column: "platform",
     sql: "ALTER TABLE device_push_token ADD COLUMN platform TEXT NOT NULL DEFAULT 'android'",

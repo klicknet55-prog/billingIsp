@@ -2,6 +2,10 @@ import "server-only";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { hashPassword } from "@/lib/auth/password";
 import { normalizePhone } from "@/lib/auth/otp";
+import {
+  applyReferralReward,
+  recordReferralAtRegistration,
+} from "@/features/referrals/service";
 import { assertTenantRegisterPhoneAvailable } from "./register-phone";
 import { db } from "@/lib/db";
 import {
@@ -350,6 +354,7 @@ export interface RegisterTenantInput {
   password: string;
   packageId: string;
   billingPeriod: BillingPeriod;
+  referralCode?: string;
 }
 
 type RegisterTenantResult =
@@ -398,6 +403,8 @@ export async function registerTenant(
     status: process.env.DUITKU_DRIVER === "real" ? "suspended" : "active",
     themePreset: "default",
     themeMode: "light",
+    referralCode: null,
+    referredByTenantId: null,
     createdAt: new Date(),
   };
   await db.insert(tenants).values(tenant);
@@ -426,6 +433,14 @@ export async function registerTenant(
   };
   await db.insert(users).values(owner);
 
+  const referralCode = input.referralCode?.trim();
+  if (referralCode) {
+    const referralError = await recordReferralAtRegistration(tenantId, referralCode);
+    if (referralError?.error) return { error: referralError.error };
+  }
+
+  const immediateReferralReward = referralCode && process.env.DUITKU_DRIVER !== "real";
+
   // Paket gratis tidak perlu lewat payment gateway.
   if (amount <= 0) {
     await db.update(tenants).set({ status: "active" }).where(eq(tenants.id, tenantId));
@@ -444,6 +459,7 @@ export async function registerTenant(
       paymentMethod: "FREE",
     });
     await notifyNewTenantWelcome({ ...tenant, status: "active" }, owner);
+    if (referralCode) await applyReferralReward(tenantId);
     return { tenant: { ...tenant, status: "active" }, owner };
   }
 
@@ -496,5 +512,6 @@ export async function registerTenant(
 
   log.info(`Tenant baru terdaftar: ${domain}`);
   await notifyNewTenantWelcome(tenant, owner);
+  if (immediateReferralReward) await applyReferralReward(tenantId);
   return { tenant, owner };
 }

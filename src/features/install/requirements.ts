@@ -69,6 +69,37 @@ export async function testPostgresConnection(databaseUrl: string): Promise<Requi
   }
 }
 
+export async function testPostgresPublicSchema(databaseUrl: string): Promise<RequirementCheck> {
+  try {
+    const postgres = (await import("postgres")).default;
+    const client = postgres(databaseUrl, { max: 1, connect_timeout: 10 });
+    const probe = `__nm_install_probe_${Date.now()}`;
+    try {
+      await client.unsafe(`CREATE TABLE public."${probe}" (id int)`);
+      await client.unsafe(`DROP TABLE public."${probe}"`);
+      return {
+        id: "pg_public_schema",
+        label: "Hak CREATE di schema public",
+        status: "ok",
+        detail: "User DB boleh membuat tabel",
+      };
+    } finally {
+      await client.end({ timeout: 5 });
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return {
+      id: "pg_public_schema",
+      label: "Hak CREATE di schema public",
+      status: "fail",
+      detail:
+        msg.includes("permission denied") || msg.includes("42501")
+          ? "permission denied — jalankan: GRANT ALL ON SCHEMA public TO netmanage; (atau OWNER database)"
+          : msg.slice(0, 200),
+    };
+  }
+}
+
 export async function runRequirementsCheck(databaseUrl?: string): Promise<RequirementCheck[]> {
   const root = process.cwd();
   const checks: RequirementCheck[] = [
@@ -111,7 +142,9 @@ export async function runRequirementsCheck(databaseUrl?: string): Promise<Requir
   }
 
   if (databaseUrl?.trim()) {
-    checks.push(await testPostgresConnection(databaseUrl.trim()));
+    const url = databaseUrl.trim();
+    checks.push(await testPostgresConnection(url));
+    checks.push(await testPostgresPublicSchema(url));
   }
 
   return checks;

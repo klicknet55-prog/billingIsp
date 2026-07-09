@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   getTenantSubscriptionStatus,
@@ -30,6 +32,11 @@ export default async function SubscriptionPage({
       <PageHeader
         title="Langganan SaaS"
         description="Lihat status paket aktif dan lakukan upgrade paket berlangganan."
+        action={
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/referral">Program Referral</Link>
+          </Button>
+        }
       />
 
       {error && (

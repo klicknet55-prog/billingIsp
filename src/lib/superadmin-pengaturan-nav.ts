@@ -35,6 +35,11 @@ export const SUPERADMIN_PENGATURAN_NAV = [
     label: "Halaman Statis",
     description: "Tentang, Kontak, Syarat & Ketentuan",
   },
+  {
+    href: "/superadmin/pengaturan/referral",
+    label: "Referral",
+    description: "Program undang ISP & bonus langganan",
+  },
 ] as const;
 
 export const SUPERADMIN_PENGATURAN_HREF = "/superadmin/pengaturan";
