@@ -16,7 +16,9 @@ import {
   getGowaBasicUserFromEnv,
   isGowaFullyFromEnv,
   resolveKlicknetAuth,
+  resolveWhatsAppApiUrl,
 } from "@/lib/integrations/whatsapp/config";
+import { resolveDuitkuInquiryUrl } from "@/lib/integrations/duitku/config";
 
 export interface DuitkuTenantConfigResolved {
   merchantCode: string;
@@ -24,7 +26,7 @@ export interface DuitkuTenantConfigResolved {
   callbackUrl: string;
   inquiryUrl: string;
   paymentMethod: string;
-  source: "tenant" | "global";
+  source: "tenant";
 }
 
 export interface WhatsAppTenantConfigResolved {
@@ -47,6 +49,21 @@ function resolveWaRow(row: {
   deviceId?: string | null;
   basicAuthUser?: string | null;
 }, source: WhatsAppTenantConfigResolved["source"]): WhatsAppTenantConfigResolved {
+  if (row.provider === "klicknet") {
+    const auth = resolveKlicknetAuth({
+      basicAuthUser: row.basicAuthUser,
+      password: decryptSecret(row.apiTokenEncrypted),
+    });
+    return {
+      apiUrl: resolveWhatsAppApiUrl("klicknet", row.apiUrl),
+      apiToken: auth.password,
+      provider: "klicknet",
+      phoneNumberId: row.phoneNumberId ?? "",
+      deviceId: row.deviceId ?? undefined,
+      basicAuthUser: auth.username,
+      source,
+    };
+  }
   return {
     apiUrl: row.apiUrl,
     apiToken: decryptSecret(row.apiTokenEncrypted),
@@ -62,32 +79,24 @@ export async function getTenantDuitkuConfig(tenantId: string): Promise<DuitkuTen
   const row = await db.query.tenantDuitkuConfigs.findFirst({
     where: and(eq(tenantDuitkuConfigs.tenantId, tenantId), eq(tenantDuitkuConfigs.isEnabled, true)),
   });
-  if (row) {
-    return {
-      merchantCode: row.merchantCode,
-      apiKey: decryptSecret(row.apiKeyEncrypted),
-      callbackUrl: row.callbackUrl ?? process.env.DUITKU_CALLBACK_URL ?? "",
-      inquiryUrl:
-        row.inquiryUrl ??
-        process.env.DUITKU_INQUIRY_URL ??
-        "https://passport.duitku.com/webapi/api/merchant/v2/inquiry",
-      paymentMethod: row.paymentMethod || "VC",
-      source: "tenant",
-    };
-  }
-  const merchantCode = process.env.DUITKU_MERCHANT_CODE ?? "";
-  const apiKey = process.env.DUITKU_API_KEY ?? "";
-  if (!merchantCode || !apiKey) return null;
+  if (!row?.merchantCode?.trim() || !row.apiKeyEncrypted) return null;
+
+  const callbackUrl = row.callbackUrl?.trim() ?? "";
+  if (!callbackUrl) return null;
+
   return {
-    merchantCode,
-    apiKey,
-    callbackUrl: process.env.DUITKU_CALLBACK_URL ?? "",
-    inquiryUrl:
-      process.env.DUITKU_INQUIRY_URL ??
-      "https://passport.duitku.com/webapi/api/merchant/v2/inquiry",
-    paymentMethod: process.env.DUITKU_PAYMENT_METHOD ?? "VC",
-    source: "global",
+    merchantCode: row.merchantCode.trim(),
+    apiKey: decryptSecret(row.apiKeyEncrypted),
+    callbackUrl,
+    inquiryUrl: resolveDuitkuInquiryUrl(row.inquiryUrl),
+    paymentMethod: row.paymentMethod || "VC",
+    source: "tenant",
   };
+}
+
+/** Tenant punya payment gateway sendiri yang aktif dan lengkap. */
+export async function isTenantDuitkuConfigured(tenantId: string): Promise<boolean> {
+  return (await getTenantDuitkuConfig(tenantId)) !== null;
 }
 
 export async function getTenantWhatsAppConfig(
@@ -99,13 +108,20 @@ export async function getTenantWhatsAppConfig(
       eq(tenantWhatsAppConfigs.isEnabled, true)
     ),
   });
-  if (row) {
-    return resolveWaRow(row, "tenant");
+  if (!row) return null;
+
+  const resolved = resolveWaRow(row, "tenant");
+  if (row.provider === "klicknet") {
+    const auth = resolveKlicknetAuth({
+      basicAuthUser: row.basicAuthUser,
+      password: decryptSecret(row.apiTokenEncrypted),
+    });
+    if (!resolved.apiUrl || !auth.username || !auth.password) return null;
+    if (!row.deviceId?.trim()) return null;
+  } else if (!resolved.apiUrl || !resolved.apiToken) {
+    return null;
   }
-  const apiUrl = process.env.WHATSAPP_API_URL ?? "";
-  const apiToken = process.env.WHATSAPP_API_TOKEN ?? "";
-  if (!apiUrl || !apiToken) return null;
-  return { apiUrl, apiToken, provider: "waba", phoneNumberId: "", source: "global" };
+  return resolved;
 }
 
 export async function getPlatformWhatsAppConfig(): Promise<WhatsAppTenantConfigResolved | null> {
@@ -265,7 +281,7 @@ export async function upsertTenantWhatsAppConfig(input: {
   }
 }
 
-/** Siapkan baris Klicknet tenant — auto-simpan dari .env jika belum ada / provider salah. */
+/** Siapkan baris Klicknet tenant — SERVER KLICKnet dari .env; device ID tetap per tenant. */
 export async function ensureTenantKlicknetFromEnv(
   tenantId: string
 ): Promise<TenantWhatsAppConfig | null> {
@@ -283,13 +299,15 @@ export async function ensureTenantKlicknetFromEnv(
     return row?.provider === "klicknet" ? row : null;
   }
 
+  if (row && row.provider !== "klicknet") return null;
+
   await upsertTenantWhatsAppConfig({
     tenantId,
     provider: "klicknet",
     apiUrl: getGowaBaseUrlFromEnv(),
     apiToken: getGowaBasicPasswordFromEnv(),
     basicAuthUser: getGowaBasicUserFromEnv(),
-    isEnabled: row?.isEnabled ?? true,
+    isEnabled: row?.isEnabled ?? false,
     deviceId: row?.deviceId ?? undefined,
   });
 

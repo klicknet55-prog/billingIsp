@@ -87,9 +87,11 @@ export function DuitkuConfigForm({
           defaultValue={defaults.callbackUrl ?? ""}
           placeholder="https://domain-anda.com/api/webhook/duitku"
           className="h-9 w-full rounded-md border px-3 text-sm"
+          required
         />
         <p className="mt-1 text-xs text-muted-foreground">
-          Webhook server (POST). Return URL browser otomatis: origin yang sama + /bayar/selesai
+          Wajib diisi agar payment gateway aktif. Webhook server (POST). Return URL browser
+          otomatis: origin yang sama + /bayar/selesai
         </p>
         {fe.callbackUrl && <p className="text-xs text-destructive">{fe.callbackUrl}</p>}
       </div>
@@ -123,9 +125,9 @@ export function WhatsAppConfigForm({
   deviceIdPrefix = "tenant",
 }: {
   scope?: "tenant" | "platform";
-  /** Kredensial GOWA dari .env — admin tidak perlu isi URL/Basic Auth manual. */
+  /** SERVER KLICKnet dari .env — admin tidak perlu isi URL/Basic Auth manual. */
   gowaEnv?: GowaEnvDefaults;
-  /** Prefix otomatis device ID di server GOWA (domain tenant atau `platform`). */
+  /** Prefix otomatis device ID di SERVER KLICKnet (unik per tenant). */
   deviceIdPrefix?: string;
   defaults: {
     apiUrl?: string;
@@ -212,7 +214,7 @@ export function WhatsAppConfigForm({
             onChange={(e) => setProvider(e.target.value as typeof provider)}
             className="h-9 w-full rounded-md border px-3 text-sm"
           >
-            <option value="klicknet">Klicknet / GOWA (scan QR)</option>
+            <option value="klicknet">KLICKnet (scan QR / kode pairing)</option>
             <option value="waba">WhatsApp Business API (WABA)</option>
             <option value="gateway">Gateway URL (legacy)</option>
           </select>
@@ -231,7 +233,7 @@ export function WhatsAppConfigForm({
                   <input type="hidden" name="apiUrl" value={gowaEnv.baseUrl} />
                 ) : (
                   <div>
-                    <label className="mb-1 block text-sm font-medium">Server URL GOWA</label>
+                    <label className="mb-1 block text-sm font-medium">SERVER KLICKnet URL</label>
                     <input
                       name="apiUrl"
                       defaultValue={defaults.apiUrl ?? ""}
@@ -258,7 +260,7 @@ export function WhatsAppConfigForm({
                     <input
                       name="apiToken"
                       type="password"
-                      placeholder={defaults.hasToken ? "Kosongkan jika tidak diubah" : "Password GOWA"}
+                      placeholder={defaults.hasToken ? "Kosongkan jika tidak diubah" : "Password SERVER KLICKnet"}
                       className="h-9 w-full rounded-md border px-3 text-sm"
                     />
                   </div>
@@ -286,11 +288,7 @@ export function WhatsAppConfigForm({
                 <p className="mt-1 text-xs text-muted-foreground">
                   Device terdaftar: <span className="font-mono">{defaults.deviceId}</span>
                 </p>
-              ) : (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Simpan akan mendaftarkan device ke server GOWA.
-                </p>
-              )}
+              ) : null}
             </div>
           </>
         )}

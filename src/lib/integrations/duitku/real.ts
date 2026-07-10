@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getTenantDuitkuConfig } from "@/features/integrations/service";
 import { createLogger } from "@/lib/logger";
+import { isPlatformDuitkuOrder, resolveDuitkuInquiryUrl } from "./config";
 import type {
   CreateTransactionParams,
   CreateTransactionResult,
@@ -21,17 +22,21 @@ function cfg() {
   const apiKey = process.env.DUITKU_API_KEY ?? "";
   const callbackUrl = process.env.DUITKU_CALLBACK_URL ?? "";
   const paymentMethod = process.env.DUITKU_PAYMENT_METHOD ?? "VC";
-  // Ganti ke sandbox saat pengujian: https://sandbox.duitku.com/...
-  const inquiryUrl =
-    process.env.DUITKU_INQUIRY_URL ??
-    "https://passport.duitku.com/webapi/api/merchant/v2/inquiry";
+  const inquiryUrl = resolveDuitkuInquiryUrl();
   return { merchantCode, apiKey, callbackUrl, inquiryUrl, paymentMethod };
 }
 
-async function resolveCfg(tenantId?: string) {
-  if (!tenantId) return cfg();
-  const tenantCfg = await getTenantDuitkuConfig(tenantId);
-  if (!tenantCfg) return cfg();
+async function resolveCfg(input: { tenantId?: string; orderId: string }) {
+  if (isPlatformDuitkuOrder(input.orderId)) return cfg();
+  if (!input.tenantId) {
+    throw new Error("Transaksi tenant membutuhkan tenantId.");
+  }
+  const tenantCfg = await getTenantDuitkuConfig(input.tenantId);
+  if (!tenantCfg) {
+    throw new Error(
+      "Payment gateway tenant belum dikonfigurasi. Owner/admin dapat mengatur di ISP → Integrasi → Duitku."
+    );
+  }
   return {
     merchantCode: tenantCfg.merchantCode,
     apiKey: tenantCfg.apiKey,
@@ -44,9 +49,10 @@ async function resolveCfg(tenantId?: string) {
 /** Implementasi Duitku via REST API resmi. */
 export const duitkuReal: DuitkuClient = {
   async createTransaction(p: CreateTransactionParams): Promise<CreateTransactionResult> {
-    const { merchantCode, apiKey, callbackUrl, inquiryUrl, paymentMethod } = await resolveCfg(
-      p.tenantId
-    );
+    const { merchantCode, apiKey, callbackUrl, inquiryUrl, paymentMethod } = await resolveCfg({
+      tenantId: p.tenantId,
+      orderId: p.orderId,
+    });
     if (!merchantCode || !apiKey || !callbackUrl) {
       throw new Error(
         "Konfigurasi Duitku belum lengkap (DUITKU_MERCHANT_CODE / DUITKU_API_KEY / DUITKU_CALLBACK_URL)."

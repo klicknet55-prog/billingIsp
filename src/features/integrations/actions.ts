@@ -27,11 +27,12 @@ import {
   resolveKlicknetAuth,
   buildKlicknetDeviceId,
 } from "@/lib/integrations/whatsapp/config";
+import type { TenantWhatsAppConfig } from "@/lib/db/schema";
 
 const duitkuSchema = z.object({
   merchantCode: z.string().trim().min(1, "Merchant code wajib"),
   apiKey: z.string().optional(),
-  callbackUrl: z.string().trim().url("Callback URL tidak valid").optional().or(z.literal("")),
+  callbackUrl: z.string().trim().url("Callback URL tidak valid").min(1, "Callback URL wajib"),
   inquiryUrl: z.string().trim().url("Inquiry URL tidak valid").optional().or(z.literal("")),
   paymentMethod: z.string().trim().min(1, "Payment method wajib"),
   isEnabled: z.string().optional(),
@@ -55,7 +56,7 @@ const waSchema = z
         path: ["apiUrl"],
         message:
           data.provider === "klicknet"
-            ? "Server URL wajib — set KLICKNET_WA_BASE_URL di .env atau isi manual."
+            ? "SERVER KLICKnet wajib — set KLICKNET_WA_BASE_URL di .env atau isi manual."
             : "Server URL wajib diisi.",
       });
       return;
@@ -120,7 +121,7 @@ function klicknetCredsFromRow(row: {
     password: decryptSecret(row.apiTokenEncrypted),
   });
   if (!auth.username || !auth.password) {
-    throw new Error("Basic Auth GOWA belum lengkap — simpan konfigurasi atau set .env.");
+    throw new Error("Basic Auth SERVER KLICKnet belum lengkap — simpan konfigurasi atau set .env.");
   }
   const baseUrl = resolveWhatsAppApiUrl("klicknet", row.apiUrl);
   return {
@@ -129,6 +130,72 @@ function klicknetCredsFromRow(row: {
     password: auth.password,
     deviceId: row.deviceId?.trim() ?? "",
   };
+}
+
+async function logoutKlicknetStoredDevice(row: {
+  apiUrl: string;
+  apiTokenEncrypted: string;
+  basicAuthUser: string | null;
+  deviceId: string | null;
+}) {
+  if (!row.deviceId?.trim()) return;
+  const creds = klicknetCredsFromRow(row);
+  await klicknetLogoutAndDeleteDevice({
+    baseUrl: creds.baseUrl,
+    username: creds.username,
+    password: creds.password,
+    deviceId: creds.deviceId,
+  });
+}
+
+async function syncTenantKlicknetDeviceId(input: {
+  tenantId: string;
+  tenantDomain?: string;
+  deviceName: string;
+  current: TenantWhatsAppConfig | null;
+}): Promise<string | undefined> {
+  if (!input.deviceName) return input.current?.deviceId ?? undefined;
+
+  const targetDeviceId = buildKlicknetDeviceId({
+    scope: "tenant",
+    tenantId: input.tenantId,
+    tenantDomain: input.tenantDomain,
+    rawName: input.deviceName,
+  });
+
+  if (input.current?.deviceId === targetDeviceId) {
+    return targetDeviceId;
+  }
+
+  if (input.current?.deviceId && input.current.provider === "klicknet") {
+    await logoutKlicknetStoredDevice(input.current);
+  }
+
+  const registered = await registerKlicknetDeviceForTenant(input.tenantId, input.deviceName);
+  return registered.deviceId;
+}
+
+async function syncPlatformKlicknetDeviceId(input: {
+  deviceName: string;
+  current: Awaited<ReturnType<typeof getPlatformWhatsAppConfigRow>>;
+}): Promise<string | undefined> {
+  if (!input.deviceName) return input.current?.deviceId ?? undefined;
+
+  const targetDeviceId = buildKlicknetDeviceId({
+    scope: "platform",
+    rawName: input.deviceName,
+  });
+
+  if (input.current?.deviceId === targetDeviceId) {
+    return targetDeviceId;
+  }
+
+  if (input.current?.deviceId && input.current.provider === "klicknet") {
+    await logoutKlicknetStoredDevice(input.current);
+  }
+
+  const registered = await registerKlicknetDeviceForPlatform(input.deviceName);
+  return registered.deviceId;
 }
 
 async function registerKlicknetDeviceForTenant(tenantId: string, deviceName: string) {
@@ -201,33 +268,41 @@ export async function saveTenantWhatsAppConfigAction(
   const parsed = parseWaForm(formData);
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
   const deviceName = String(formData.get("deviceName") ?? "").trim();
-  const current = await getTenantWhatsAppConfigRow(user.tenantId!);
+  const tenantId = user.tenantId!;
+  const current = await getTenantWhatsAppConfigRow(tenantId);
 
   try {
+    if (
+      current?.provider === "klicknet" &&
+      current.deviceId &&
+      parsed.data.provider !== "klicknet"
+    ) {
+      await logoutKlicknetStoredDevice(current);
+    }
+
+    let deviceId: string | undefined =
+      parsed.data.provider === "klicknet" ? current?.deviceId ?? undefined : undefined;
+
+    if (parsed.data.provider === "klicknet" && deviceName) {
+      const tenant = await db.query.tenants.findFirst({ where: eq(tenants.id, tenantId) });
+      deviceId = await syncTenantKlicknetDeviceId({
+        tenantId,
+        tenantDomain: tenant?.domain,
+        deviceName,
+        current,
+      });
+    }
+
     await upsertTenantWhatsAppConfig({
-      tenantId: user.tenantId!,
+      tenantId,
       provider: parsed.data.provider,
       apiUrl: parsed.data.apiUrl,
       apiToken: parsed.data.apiToken,
       phoneNumberId: parsed.data.phoneNumberId || undefined,
-      deviceId: current?.deviceId ?? undefined,
+      deviceId,
       basicAuthUser: parsed.data.basicAuthUser || undefined,
       isEnabled: parsed.data.isEnabled === "on",
     });
-
-    if (parsed.data.provider === "klicknet" && deviceName) {
-      const registered = await registerKlicknetDeviceForTenant(user.tenantId!, deviceName);
-      await upsertTenantWhatsAppConfig({
-        tenantId: user.tenantId!,
-        provider: parsed.data.provider,
-        apiUrl: parsed.data.apiUrl,
-        apiToken: parsed.data.apiToken,
-        phoneNumberId: parsed.data.phoneNumberId || undefined,
-        deviceId: registered.deviceId,
-        basicAuthUser: parsed.data.basicAuthUser || undefined,
-        isEnabled: parsed.data.isEnabled === "on",
-      });
-    }
 
     revalidatePath("/dashboard/integrasi");
     return { ok: true };
@@ -378,28 +453,30 @@ export async function savePlatformWhatsAppConfigAction(
   const current = await getPlatformWhatsAppConfigRow();
 
   try {
+    if (
+      current?.provider === "klicknet" &&
+      current.deviceId &&
+      parsed.data.provider !== "klicknet"
+    ) {
+      await logoutKlicknetStoredDevice(current);
+    }
+
+    let deviceId: string | undefined =
+      parsed.data.provider === "klicknet" ? current?.deviceId ?? undefined : undefined;
+
+    if (parsed.data.provider === "klicknet" && deviceName) {
+      deviceId = await syncPlatformKlicknetDeviceId({ deviceName, current });
+    }
+
     await upsertPlatformWhatsAppConfig({
       provider: parsed.data.provider,
       apiUrl: parsed.data.apiUrl,
       apiToken: parsed.data.apiToken,
       phoneNumberId: parsed.data.phoneNumberId || undefined,
-      deviceId: current?.deviceId ?? undefined,
+      deviceId,
       basicAuthUser: parsed.data.basicAuthUser || undefined,
       isEnabled: parsed.data.isEnabled === "on",
     });
-
-    if (parsed.data.provider === "klicknet" && deviceName) {
-      const registered = await registerKlicknetDeviceForPlatform(deviceName);
-      await upsertPlatformWhatsAppConfig({
-        provider: parsed.data.provider,
-        apiUrl: parsed.data.apiUrl,
-        apiToken: parsed.data.apiToken,
-        phoneNumberId: parsed.data.phoneNumberId || undefined,
-        deviceId: registered.deviceId,
-        basicAuthUser: parsed.data.basicAuthUser || undefined,
-        isEnabled: parsed.data.isEnabled === "on",
-      });
-    }
 
     revalidatePath("/superadmin/integrasi");
     return { ok: true };

@@ -9,11 +9,13 @@ export function PortalPayPanel({
   tunggakanTotal,
   hasBulanIni,
   hasTunggakan,
+  onlinePayEnabled = true,
 }: {
   bulanIniAmount: number;
   tunggakanTotal: number;
   hasBulanIni: boolean;
   hasTunggakan: boolean;
+  onlinePayEnabled?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const idempotencyRef = useRef(crypto.randomUUID());
@@ -40,6 +42,7 @@ export function PortalPayPanel({
       hasBulanIni={hasBulanIni}
       hasTunggakan={hasTunggakan}
       pending={pending}
+      onlinePayEnabled={onlinePayEnabled}
       onPay={pay}
     />
   );

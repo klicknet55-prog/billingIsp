@@ -11,6 +11,7 @@ import {
   type PaymentSelection,
 } from "@/features/billing/tagihan-service";
 import { tagihanBalance } from "@/features/billing/tagihan-balance";
+import { isTenantDuitkuConfigured } from "@/features/integrations/service";
 import { requireUser, requirePelanggan } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { paymentGatewayLogs } from "@/lib/db/schema";
@@ -149,6 +150,13 @@ export async function payTagihanPortalAction(formData: FormData) {
   const total = resolvePayableBalance(payable);
 
   if (process.env.DUITKU_DRIVER === "real") {
+    if (!(await isTenantDuitkuConfigured(cust.tenantId))) {
+      redirect(
+        `/portal/tagihan?error=${encodeURIComponent(
+          "Pembayaran online belum tersedia. ISP belum mengaktifkan payment gateway."
+        )}`
+      );
+    }
     const logId = newId("pgl");
     const orderId = `PAY-${logId}`;
     await db.insert(paymentGatewayLogs).values({

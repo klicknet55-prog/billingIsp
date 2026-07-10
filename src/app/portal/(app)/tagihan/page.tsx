@@ -4,6 +4,7 @@ import { PortalPayPanel } from "@/features/billing/portal-pay-panel";
 import { getTagihanSummary } from "@/features/billing/tagihan-service";
 import { tagihanBalance } from "@/features/billing/tagihan-balance";
 import { listReceipts } from "@/features/invoices/service";
+import { isTenantDuitkuConfigured } from "@/features/integrations/service";
 import { requirePelanggan } from "@/lib/auth";
 import { formatDate, formatRupiah } from "@/lib/utils";
 import Link from "next/link";
@@ -21,6 +22,8 @@ export default async function TagihanPage({
     getTagihanSummary(cust.tenantId, cust.id),
     listReceipts(cust.tenantId, cust.id),
   ]);
+  const onlinePayEnabled =
+    process.env.DUITKU_DRIVER !== "real" || (await isTenantDuitkuConfigured(cust.tenantId));
 
   return (
     <div className="space-y-4">
@@ -41,6 +44,7 @@ export default async function TagihanPage({
         tunggakanTotal={summary.totalTunggakan}
         hasBulanIni={summary.hasBulanIni}
         hasTunggakan={summary.tunggakan.length > 0}
+        onlinePayEnabled={onlinePayEnabled}
       />
 
       {(summary.hasBulanIni || summary.tunggakan.length > 0) && (

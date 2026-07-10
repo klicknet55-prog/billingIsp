@@ -19,6 +19,7 @@
     "db:migrate-tagihan": "node --env-file=.env --import tsx scripts/migrate-invoice-to-tagihan.ts",
     "db:seed": "node --env-file=.env --import tsx src/lib/db/seed.ts",
     "db:backfill-integrations": "node --env-file=.env --import tsx src/lib/db/backfill-tenant-integrations.ts",
+    "db:sync-duitku-env": "node --env-file=.env --import tsx src/lib/db/sync-duitku-from-env.ts",
     "backup:tenant": "node --env-file=.env --import tsx scripts/backup-tenant.ts",
     "backup:full": "node --env-file=.env --import tsx scripts/backup-full.ts",
     "deploy:app": "node --env-file=.env --import tsx scripts/deploy-app.ts",

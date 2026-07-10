@@ -4,8 +4,9 @@ import {
   getTenantWhatsAppConfig,
 } from "@/features/integrations/service";
 import { klicknetSendText } from "./klicknet";
-import { getGowaBaseUrlFromEnv, resolveKlicknetAuth } from "./config";
+import { resolveKlicknetAuth } from "./config";
 import type { WhatsAppClient } from "./types";
+import type { WhatsAppTenantConfigResolved } from "@/features/integrations/service";
 
 const log = createLogger("whatsapp:real");
 
@@ -15,33 +16,25 @@ function normalizePhone(raw: string): string {
   return p;
 }
 
-async function sendText(to: string, body: string, tenantId?: string) {
-  const tenantCfg = tenantId ? await getTenantWhatsAppConfig(tenantId) : null;
-  const platformCfg = !tenantCfg ? await getPlatformWhatsAppConfig() : null;
-  const cfg = tenantCfg ?? platformCfg;
-
-  const provider = cfg?.provider ?? "waba";
-  const url =
-    cfg?.apiUrl?.trim() ||
-    (provider === "klicknet" ? getGowaBaseUrlFromEnv() : "") ||
-    process.env.WHATSAPP_API_URL ||
-    "";
+async function sendWithConfig(
+  to: string,
+  body: string,
+  cfg: WhatsAppTenantConfigResolved
+) {
+  const provider = cfg.provider;
+  const url = cfg.apiUrl.trim();
   const klicknetAuth =
     provider === "klicknet"
       ? resolveKlicknetAuth({
-          basicAuthUser: cfg?.basicAuthUser,
-          password: cfg?.apiToken,
+          basicAuthUser: cfg.basicAuthUser,
+          password: cfg.apiToken,
         })
       : null;
   const token =
-    provider === "klicknet"
-      ? klicknetAuth?.password ?? ""
-      : cfg?.apiToken ?? process.env.WHATSAPP_API_TOKEN ?? "";
+    provider === "klicknet" ? klicknetAuth?.password ?? "" : cfg.apiToken;
 
   if (!url || !token) {
-    throw new Error(
-      "WhatsApp belum dikonfigurasi. Isi di ISP → Integrasi, atau set WHATSAPP_API_URL & WHATSAPP_API_TOKEN di .env. Untuk development, gunakan WHATSAPP_DRIVER=mock."
-    );
+    throw new Error("Konfigurasi WhatsApp tidak lengkap.");
   }
   const phone = normalizePhone(to);
 
@@ -49,9 +42,9 @@ async function sendText(to: string, body: string, tenantId?: string) {
     await klicknetSendText(
       {
         baseUrl: url,
-        username: klicknetAuth?.username ?? cfg?.basicAuthUser ?? "",
+        username: klicknetAuth?.username ?? cfg.basicAuthUser ?? "",
         password: token,
-        deviceId: cfg?.deviceId,
+        deviceId: cfg.deviceId,
       },
       phone,
       body
@@ -91,6 +84,27 @@ async function sendText(to: string, body: string, tenantId?: string) {
     log.error(`Kirim WA gagal ${res.status}`, detail);
     throw new Error(`WhatsApp API gagal: ${res.status}`);
   }
+}
+
+async function sendText(to: string, body: string, tenantId?: string) {
+  if (tenantId) {
+    const tenantCfg = await getTenantWhatsAppConfig(tenantId);
+    if (!tenantCfg) {
+      throw new Error(
+        "WhatsApp tenant belum dikonfigurasi. Atur di ISP → Integrasi → WhatsApp API."
+      );
+    }
+    await sendWithConfig(to, body, tenantCfg);
+    return;
+  }
+
+  const platformCfg = await getPlatformWhatsAppConfig();
+  if (!platformCfg) {
+    throw new Error(
+      "WhatsApp platform belum dikonfigurasi. Atur di Superadmin → Integrasi atau .env."
+    );
+  }
+  await sendWithConfig(to, body, platformCfg);
 }
 
 export const whatsappReal: WhatsAppClient = {

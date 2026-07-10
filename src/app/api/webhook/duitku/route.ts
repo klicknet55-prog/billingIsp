@@ -10,6 +10,7 @@ import { getTenantDuitkuConfig } from "@/features/integrations/service";
 import { db } from "@/lib/db";
 import { invoices, paymentGatewayLogs, subscriptions, tenants, users } from "@/lib/db/schema";
 import { getDuitkuClient } from "@/lib/integrations/duitku";
+import { isPlatformDuitkuOrder } from "@/lib/integrations/duitku/config";
 import { createLogger } from "@/lib/logger";
 import { getAppOrigin } from "@/lib/site-server";
 
@@ -41,10 +42,8 @@ export async function POST(req: Request) {
     where: eq(paymentGatewayLogs.duitkuOrderId, orderId),
   });
   let tenantIdForSignature: string | null = null;
-  if (orderId.startsWith("SUP-")) {
-    tenantIdForSignature = txLogByOrder?.tenantId ?? null;
-  } else if (orderId.startsWith("SUB-")) {
-    tenantIdForSignature = orderId.slice(4);
+  if (isPlatformDuitkuOrder(orderId)) {
+    tenantIdForSignature = null;
   } else if (orderId.startsWith("INV-")) {
     const invoiceId = orderId.slice(4);
     const inv = await db.query.invoices.findFirst({ where: eq(invoices.id, invoiceId) });
@@ -55,8 +54,6 @@ export async function POST(req: Request) {
       where: eq(paymentGatewayLogs.id, logId),
     });
     tenantIdForSignature = tx?.tenantId ?? null;
-  } else if (orderId.startsWith("DON-")) {
-    tenantIdForSignature = null;
   }
   const tenantDuitkuCfg = tenantIdForSignature
     ? await getTenantDuitkuConfig(tenantIdForSignature)

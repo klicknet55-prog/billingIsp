@@ -1,4 +1,4 @@
-/** URL server GOWA/Klicknet dari .env (prioritas KLICKNET_WA_BASE_URL). */
+/** URL SERVER KLICKnet dari .env (prioritas KLICKNET_WA_BASE_URL). */
 export function getGowaBaseUrlFromEnv(): string {
   return (process.env.KLICKNET_WA_BASE_URL ?? process.env.WHATSAPP_API_URL ?? "").trim();
 }
@@ -25,7 +25,7 @@ export function getGowaEnvDefaults(): GowaEnvDefaults {
   };
 }
 
-/** URL + Basic Auth lengkap dari .env — admin cukup pilih Klicknet & scan QR. */
+/** URL + Basic Auth lengkap dari .env — admin cukup pilih KLICKnet & scan QR. */
 export function isGowaFullyFromEnv(): boolean {
   const env = getGowaEnvDefaults();
   return env.baseUrl.length > 0 && env.basicUser.length > 0 && env.hasBasicPassword;
@@ -91,7 +91,7 @@ export function getKlicknetDevicePrefix(input: {
   return fromId || "tenant";
 }
 
-/** Gabung prefix scope + nama device agar unik di server GOWA bersama. */
+/** Gabung prefix scope + nama device agar unik di SERVER KLICKnet bersama. */
 export function buildKlicknetDeviceId(input: {
   scope: "platform" | "tenant";
   tenantId?: string;
