@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Textarea } from "@/components/ui/textarea";
@@ -211,29 +212,49 @@ export function AlamatForm({
 export function TelegramForm({
   defaults,
 }: {
-  defaults: Pick<PlatformSettings, "telegramGroupUrl">;
+  defaults: Pick<PlatformSettings, "telegramGroupUrl" | "updatedAt">;
 }) {
   const [state, action] = useActionState(saveTelegramAction, initial);
   const { toast } = useToast();
+  const router = useRouter();
   const fe = state.fieldErrors ?? {};
 
   useEffect(() => {
-    if (state.ok) toast({ title: "Link Telegram tersimpan", variant: "success" });
+    if (state.ok) {
+      toast({ title: "Link Telegram tersimpan", variant: "success" });
+      router.refresh();
+    }
     if (state.error) toast({ title: state.error, variant: "error" });
-  }, [state.ok, state.error, toast]);
+    if (state.fieldErrors && Object.keys(state.fieldErrors).length > 0) {
+      toast({
+        title: "Link Telegram tidak valid. Contoh: https://t.me/nama_grup",
+        variant: "error",
+      });
+    }
+  }, [state.ok, state.error, state.fieldErrors, toast, router]);
 
   return (
-    <form action={action} className="space-y-4">
+    <form
+      key={
+        defaults.updatedAt instanceof Date
+          ? defaults.updatedAt.toISOString()
+          : String(defaults.updatedAt)
+      }
+      action={action}
+      className="space-y-4"
+      noValidate
+    >
       <Field
         id="telegramGroupUrl"
         label="Link grup Telegram"
-        hint="Contoh: https://t.me/nama_grup atau link invite t.me/+xxxxx"
+        hint="Contoh: https://t.me/nama_grup, t.me/nama_grup, atau @nama_grup"
         error={fe.telegramGroupUrl}
       >
         <input
           id="telegramGroupUrl"
           name="telegramGroupUrl"
-          type="url"
+          type="text"
+          inputMode="url"
           defaultValue={defaults.telegramGroupUrl ?? ""}
           placeholder="https://t.me/grup_anda"
           className="h-9 w-full rounded-md border px-3 text-sm"

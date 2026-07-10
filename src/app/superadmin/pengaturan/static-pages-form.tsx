@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect } from "react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,15 +36,30 @@ function Field({
 export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
   const [state, action] = useActionState(saveStaticPagesAction, initial);
   const { toast } = useToast();
+  const router = useRouter();
   const fe = state.fieldErrors ?? {};
 
   useEffect(() => {
-    if (state.ok) toast({ title: "Halaman statis tersimpan", variant: "success" });
+    if (state.ok) {
+      toast({ title: "Halaman statis tersimpan", variant: "success" });
+      router.refresh();
+    }
     if (state.error) toast({ title: state.error, variant: "error" });
-  }, [state.ok, state.error, toast]);
+    if (state.fieldErrors && Object.keys(state.fieldErrors).length > 0) {
+      toast({
+        title: "Beberapa isian belum valid. Periksa field yang ditandai merah.",
+        variant: "error",
+      });
+    }
+  }, [state.ok, state.error, state.fieldErrors, toast, router]);
 
   return (
-    <form action={action} className="space-y-8">
+    <form
+      key={defaults.updatedAt instanceof Date ? defaults.updatedAt.toISOString() : String(defaults.updatedAt)}
+      action={action}
+      className="space-y-8"
+      noValidate
+    >
       <section className="space-y-4 rounded-lg border p-4">
         <h3 className="font-semibold">Halaman Tentang</h3>
         <Field id="tentangTitle" label="Judul" error={fe.tentangTitle}>
@@ -162,7 +178,8 @@ export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
           <input
             id="communityApkAdminUrl"
             name="communityApkAdminUrl"
-            type="url"
+            type="text"
+            inputMode="url"
             defaultValue={defaults.communityApkAdminUrl ?? ""}
             placeholder="https://.../uploads/mobile-apk/..."
             className="h-9 w-full rounded-md border px-3 text-sm"
@@ -175,7 +192,8 @@ export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
           <input
             id="communityApkPortalUrl"
             name="communityApkPortalUrl"
-            type="url"
+            type="text"
+            inputMode="url"
             defaultValue={defaults.communityApkPortalUrl ?? ""}
             placeholder="https://.../uploads/mobile-apk/..."
             className="h-9 w-full rounded-md border px-3 text-sm"
@@ -201,9 +219,10 @@ export function StaticPagesForm({ defaults }: { defaults: PlatformSettings }) {
           <input
             id="communityTelegramUrl"
             name="communityTelegramUrl"
-            type="url"
+            type="text"
+            inputMode="url"
             defaultValue={defaults.communityTelegramUrl ?? ""}
-            placeholder="https://t.me/..."
+            placeholder="https://t.me/... atau t.me/nama_grup"
             className="h-9 w-full rounded-md border px-3 text-sm"
           />
         </Field>

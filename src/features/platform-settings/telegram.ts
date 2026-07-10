@@ -4,6 +4,12 @@ export function normalizeTelegramGroupUrl(raw: string): string | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
+  if (trimmed.startsWith("@")) {
+    const username = trimmed.slice(1).trim();
+    if (!username) return null;
+    return `https://t.me/${username}`;
+  }
+
   let url: URL;
   try {
     url = new URL(trimmed.startsWith("http") ? trimmed : `https://${trimmed}`);

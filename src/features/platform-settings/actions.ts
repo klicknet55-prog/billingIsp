@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/auth";
 import { encryptSecret } from "@/lib/crypto";
 import { saveLogoUpload } from "@/lib/uploads";
 import { PLATFORM_REVALIDATE_PATHS } from "@/lib/superadmin-pengaturan-nav";
+import { isValidAbsoluteUrl, normalizeAbsoluteUrl } from "@/lib/site";
 import { parseForm } from "@/lib/validation";
 import { patchPlatformSettings } from "./service";
 import { isValidTelegramGroupUrl, normalizeTelegramGroupUrl } from "./telegram";
@@ -72,17 +73,17 @@ const staticPagesSchema = z.object({
     .string()
     .trim()
     .optional()
-    .refine((v) => !v || z.string().url().safeParse(v).success, "URL gambar donasi tidak valid"),
+    .refine((v) => isValidAbsoluteUrl(v ?? ""), "URL gambar donasi tidak valid"),
   communityApkAdminUrl: z
     .string()
     .trim()
     .optional()
-    .refine((v) => !v || z.string().url().safeParse(v).success, "URL download Admin.net tidak valid"),
+    .refine((v) => isValidAbsoluteUrl(v ?? ""), "URL download Admin.net tidak valid"),
   communityApkPortalUrl: z
     .string()
     .trim()
     .optional()
-    .refine((v) => !v || z.string().url().safeParse(v).success, "URL download MyWiFi tidak valid"),
+    .refine((v) => isValidAbsoluteUrl(v ?? ""), "URL download MyWiFi tidak valid"),
   communityWhatsappSuperadmin: z
     .string()
     .trim()
@@ -261,9 +262,10 @@ export async function saveStaticPagesAction(
     tcTitle: parsed.data.tcTitle,
     tcContent: parsed.data.tcContent,
     communityDescription: parsed.data.communityDescription?.trim() || null,
-    communityDonationImageUrl: parsed.data.communityDonationImageUrl?.trim() || null,
-    communityApkAdminUrl: parsed.data.communityApkAdminUrl?.trim() || null,
-    communityApkPortalUrl: parsed.data.communityApkPortalUrl?.trim() || null,
+    communityDonationImageUrl:
+      normalizeAbsoluteUrl(parsed.data.communityDonationImageUrl ?? "") ?? null,
+    communityApkAdminUrl: normalizeAbsoluteUrl(parsed.data.communityApkAdminUrl ?? "") ?? null,
+    communityApkPortalUrl: normalizeAbsoluteUrl(parsed.data.communityApkPortalUrl ?? "") ?? null,
     communityWhatsappSuperadmin: communityWaRaw ? normalizeWhatsappNumber(communityWaRaw) : null,
     communityTelegramUrl: communityTelegramRaw ? normalizeTelegramGroupUrl(communityTelegramRaw) : null,
   });

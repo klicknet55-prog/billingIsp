@@ -10,6 +10,7 @@ import {
   type MobileApkApp,
 } from "@/lib/mobile/apk-filename";
 import { MOBILE_APP_NAMES } from "@/lib/mobile/app-names";
+import { resolveAppOrigin } from "@/lib/site";
 import { PLATFORM_REVALIDATE_PATHS } from "@/lib/superadmin-pengaturan-nav";
 import { saveApkUpload } from "@/lib/uploads";
 
@@ -18,10 +19,6 @@ function revalidateAfterApkUpload() {
     revalidatePath(p);
   }
   revalidatePath("/superadmin/mobile-apk");
-}
-
-function resolveAppOrigin(): string {
-  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
 }
 
 export async function uploadMobileApkAction(
