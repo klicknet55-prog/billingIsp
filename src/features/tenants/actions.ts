@@ -14,6 +14,7 @@ import {
   assertTenantRegisterPhoneAvailable,
   isTenantRegisterPhoneTaken,
 } from "./register-phone";
+import { parsePackageFeaturesFromForm } from "./saas-features";
 import {
   changeTenantSubscriptionPackage,
   calculateSaasPackageAmount,
@@ -195,16 +196,8 @@ const saasPackageSchema = z.object({
   diskonTahunanPersen: z.coerce.number().int().min(0, "Minimal 0").max(100, "Maksimal 100"),
   maxPelanggan: z.coerce.number().int().min(1, "Minimal 1"),
   maxRouter: z.coerce.number().int().min(1, "Minimal 1"),
-  fitur: z.string().optional().default(""),
   isActive: z.string().optional(),
 });
-
-function toFitur(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((s) => s.trim().toLowerCase().replace(/\s+/g, "_"))
-    .filter(Boolean);
-}
 
 export async function saveSaasPackageAction(
   _prev: ActionState,
@@ -221,7 +214,7 @@ export async function saveSaasPackageAction(
     diskonTahunanPersen: parsed.data.diskonTahunanPersen,
     maxPelanggan: parsed.data.maxPelanggan,
     maxRouter: parsed.data.maxRouter,
-    fitur: toFitur(parsed.data.fitur),
+    fitur: parsePackageFeaturesFromForm(formData),
     isActive: parsed.data.isActive === "on",
   };
   if (id) await updateSaasPackage(id, input);

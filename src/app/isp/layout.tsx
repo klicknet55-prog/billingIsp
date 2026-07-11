@@ -3,8 +3,13 @@ import { AppShell } from "@/components/layout/app-shell";
 import { WrongAppScreen } from "@/components/layout/wrong-app-screen";
 import { Card, CardContent } from "@/components/ui/card";
 import { startOfDay } from "@/features/jobs/billing";
+import { getStaffAccessMode } from "@/features/tenants/saas-access";
 import { getTenantSubscriptionStatus } from "@/features/tenants/service";
-import { getCurrentActor, requireUser } from "@/lib/auth";
+import {
+  enforceRenewalOnlyRouteGuard,
+  getCurrentActor,
+  requireUser,
+} from "@/lib/auth";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getAppOrigin } from "@/lib/site-server";
 import { getCurrentTenant } from "@/lib/tenant";
@@ -26,7 +31,11 @@ export default async function IspLayout({ children }: { children: React.ReactNod
     );
   }
 
-  const user = await requireUser(["owner", "admin", "teknisi"]);
+  const user = await requireUser(["owner", "admin", "teknisi"], { allowRenewalOnly: true });
+  await enforceRenewalOnlyRouteGuard(user);
+  const accessMode = await getStaffAccessMode(user);
+  const renewalOnly = accessMode === "renewal_only";
+
   const [tenant, subscription, appOrigin] = await Promise.all([
     getCurrentTenant(),
     user.tenantId ? getTenantSubscriptionStatus(user.tenantId) : Promise.resolve(null),
@@ -46,6 +55,8 @@ export default async function IspLayout({ children }: { children: React.ReactNod
       brandName={tenant?.namaUsaha ?? DEFAULT_BRAND_NAME}
       brandLogoUrl={tenant?.logoUrl ?? null}
       appOrigin={appOrigin}
+      packageFeatures={subscription?.fitur}
+      renewalOnly={renewalOnly}
       subscriptionInfo={
         subscription
           ? {
@@ -56,7 +67,15 @@ export default async function IspLayout({ children }: { children: React.ReactNod
           : null
       }
     >
-      {showSubBanner && subscription!.status === "expired" && (
+      {renewalOnly && (
+        <Card className="mb-4 border-amber-500/30 bg-amber-500/5">
+          <CardContent className="p-3 text-sm text-amber-900 dark:text-amber-200">
+            Langganan paket Free telah berakhir. Anda hanya dapat mengakses halaman perpanjang
+            langganan via donasi.
+          </CardContent>
+        </Card>
+      )}
+      {showSubBanner && subscription!.status === "expired" && !renewalOnly && (
         <Card className="mb-4 border-destructive/30 bg-destructive/5">
           <CardContent className="p-3 text-sm text-destructive">
             Langganan platform berakhir {formatDate(subscription!.akhir)}. Akses ISP ditangguhkan

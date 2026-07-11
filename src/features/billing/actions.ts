@@ -12,6 +12,7 @@ import {
 } from "@/features/billing/tagihan-service";
 import { tagihanBalance } from "@/features/billing/tagihan-balance";
 import { isTenantDuitkuConfigured } from "@/features/integrations/service";
+import { tenantHasSaasFeature } from "@/features/tenants/saas-access";
 import { requireUser, requirePelanggan } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { paymentGatewayLogs } from "@/lib/db/schema";
@@ -150,6 +151,13 @@ export async function payTagihanPortalAction(formData: FormData) {
   const total = resolvePayableBalance(payable);
 
   if (process.env.DUITKU_DRIVER === "real") {
+    if (!(await tenantHasSaasFeature(cust.tenantId, "payment_gateway"))) {
+      redirect(
+        `/portal/tagihan?error=${encodeURIComponent(
+          "Pembayaran online tidak tersedia di paket langganan ISP ini."
+        )}`
+      );
+    }
     if (!(await isTenantDuitkuConfigured(cust.tenantId))) {
       redirect(
         `/portal/tagihan?error=${encodeURIComponent(

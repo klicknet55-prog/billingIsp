@@ -528,6 +528,8 @@ export const platformSettings = pgTable("platform_settings", {
   referralEnabled: boolean("referral_enabled").notNull().default(false),
   referralRewardDays: integer("referral_reward_days").notNull().default(7),
   referralMaxPerTenant: integer("referral_max_per_tenant").notNull().default(10),
+  freeRenewalDonationMin: integer("free_renewal_donation_min").notNull().default(10000),
+  freeRenewalExtensionDays: integer("free_renewal_extension_days").notNull().default(30),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

@@ -151,6 +151,9 @@ export async function POST(req: Request) {
     }
   } else if (result.orderId.startsWith("DON-")) {
     await finalizeCommunityDonation(result.orderId, result.paymentMethod || "Duitku");
+  } else if (result.orderId.startsWith("REN-")) {
+    const { finalizeFreePackageRenewal } = await import("@/features/saas-renewal/service");
+    await finalizeFreePackageRenewal(result.orderId, result.paymentMethod || "Duitku");
   }
 
   return new Response("OK", { status: 200 });

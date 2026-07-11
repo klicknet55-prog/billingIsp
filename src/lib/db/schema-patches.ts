@@ -189,6 +189,16 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     sql: "ALTER TABLE platform_settings ADD COLUMN referral_max_per_tenant INTEGER NOT NULL DEFAULT 10",
   },
   {
+    table: "platform_settings",
+    column: "free_renewal_donation_min",
+    sql: "ALTER TABLE platform_settings ADD COLUMN free_renewal_donation_min INTEGER NOT NULL DEFAULT 10000",
+  },
+  {
+    table: "platform_settings",
+    column: "free_renewal_extension_days",
+    sql: "ALTER TABLE platform_settings ADD COLUMN free_renewal_extension_days INTEGER NOT NULL DEFAULT 30",
+  },
+  {
     table: "device_push_token",
     column: "platform",
     sql: "ALTER TABLE device_push_token ADD COLUMN platform TEXT NOT NULL DEFAULT 'android'",

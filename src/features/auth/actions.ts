@@ -45,6 +45,13 @@ export async function loginStaffAction(
         "Akun Super Admin tidak didukung di aplikasi mobile. Gunakan browser desktop untuk mengelola platform.",
     };
   }
+  if (user.tenantId && (user.role === "owner" || user.role === "admin")) {
+    const { getStaffAccessMode } = await import("@/features/tenants/saas-access");
+    const mode = await getStaffAccessMode(user);
+    if (mode === "renewal_only") {
+      redirect("/dashboard/langganan");
+    }
+  }
   redirect(dashboardPathForRole(user.role));
 }
 

@@ -1,9 +1,10 @@
 import { PageHeader } from "@/components/layout/page-header";
-import { requireUser } from "@/lib/auth";
+import { requireFullTenantAccess } from "@/lib/auth";
 import {
   getTenantDuitkuConfigRow,
   getTenantWhatsAppConfigRow,
 } from "@/features/integrations/service";
+import { getTenantPackageFeatures } from "@/features/tenants/saas-access";
 import { listTenantApiKeys } from "@/features/api-keys/service";
 import {
   getTenantWebhookRow,
@@ -23,8 +24,9 @@ export default async function IntegrasiPage({
 }) {
   const qs = await searchParams;
   const initialTab = qs.tab ?? "duitku";
-  const user = await requireUser(["owner", "admin"]);
+  const user = await requireFullTenantAccess(["owner", "admin"]);
   const tenantId = user.tenantId!;
+  const packageFeatures = await getTenantPackageFeatures(tenantId);
   const tenant = await getCurrentTenant();
   const gowaEnv = getGowaEnvDefaults();
   const deviceIdPrefix = getKlicknetDevicePrefix({
@@ -49,6 +51,7 @@ export default async function IntegrasiPage({
       />
       <IntegrasiPageClient
         initialTab={initialTab}
+        packageFeatures={packageFeatures}
         duitku={{
           merchantCode: duitku?.merchantCode,
           callbackUrl: duitku?.callbackUrl,

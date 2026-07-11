@@ -109,6 +109,26 @@ const referralSettingsSchema = z.object({
   referralMaxPerTenant: z.coerce.number().int().min(1).max(1000),
 });
 
+const freeRenewalSettingsSchema = z.object({
+  freeRenewalExtensionDays: z.coerce.number().int().min(1).max(365),
+});
+
+export async function saveFreeRenewalSettingsAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await requireUser(["superadmin"]);
+  const parsed = parseForm(freeRenewalSettingsSchema, formData);
+  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+
+  await patchPlatformSettings({
+    freeRenewalExtensionDays: parsed.data.freeRenewalExtensionDays,
+  });
+  revalidatePlatform();
+  revalidatePath("/dashboard/langganan");
+  return { ok: true };
+}
+
 export async function saveReferralSettingsAction(
   _prev: ActionState,
   formData: FormData

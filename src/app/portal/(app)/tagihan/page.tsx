@@ -5,6 +5,7 @@ import { getTagihanSummary } from "@/features/billing/tagihan-service";
 import { tagihanBalance } from "@/features/billing/tagihan-balance";
 import { listReceipts } from "@/features/invoices/service";
 import { isTenantDuitkuConfigured } from "@/features/integrations/service";
+import { tenantHasSaasFeature } from "@/features/tenants/saas-access";
 import { requirePelanggan } from "@/lib/auth";
 import { formatDate, formatRupiah } from "@/lib/utils";
 import Link from "next/link";
@@ -22,8 +23,10 @@ export default async function TagihanPage({
     getTagihanSummary(cust.tenantId, cust.id),
     listReceipts(cust.tenantId, cust.id),
   ]);
+  const hasPgFeature = await tenantHasSaasFeature(cust.tenantId, "payment_gateway");
   const onlinePayEnabled =
-    process.env.DUITKU_DRIVER !== "real" || (await isTenantDuitkuConfigured(cust.tenantId));
+    hasPgFeature &&
+    (process.env.DUITKU_DRIVER !== "real" || (await isTenantDuitkuConfigured(cust.tenantId)));
 
   return (
     <div className="space-y-4">

@@ -39,4 +39,6 @@ export const DEFAULT_PLATFORM_SETTINGS: Omit<PlatformSettings, "updatedAt"> & {
   referralEnabled: false,
   referralRewardDays: 7,
   referralMaxPerTenant: 10,
+  freeRenewalDonationMin: 10000,
+  freeRenewalExtensionDays: 30,
 };

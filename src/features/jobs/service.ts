@@ -27,6 +27,8 @@ const DAY = 24 * 60 * 60 * 1000;
 let billingSendCount = 0;
 
 async function notifyPelangganWa(phone: string, message: string, tenantId: string) {
+  const { tenantHasSaasFeature } = await import("@/features/tenants/saas-access");
+  if (!(await tenantHasSaasFeature(tenantId, "whatsapp"))) return;
   try {
     await waitBeforeSend();
     await getWhatsAppClient().sendNotification(phone, message, tenantId);

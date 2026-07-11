@@ -68,6 +68,8 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
         referralEnabled: DEFAULT_PLATFORM_SETTINGS.referralEnabled,
         referralRewardDays: DEFAULT_PLATFORM_SETTINGS.referralRewardDays,
         referralMaxPerTenant: DEFAULT_PLATFORM_SETTINGS.referralMaxPerTenant,
+        freeRenewalDonationMin: DEFAULT_PLATFORM_SETTINGS.freeRenewalDonationMin,
+        freeRenewalExtensionDays: DEFAULT_PLATFORM_SETTINGS.freeRenewalExtensionDays,
       })
       .onConflictDoNothing({ target: platformSettings.id });
 
@@ -143,6 +145,8 @@ export type PlatformSettingsPatch = Partial<{
   referralEnabled: boolean;
   referralRewardDays: number;
   referralMaxPerTenant: number;
+  freeRenewalDonationMin: number;
+  freeRenewalExtensionDays: number;
 }>;
 
 export async function patchPlatformSettings(

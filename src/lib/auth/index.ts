@@ -1,9 +1,15 @@
 import "server-only";
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { pelanggan, tenants, users, type Pelanggan, type User } from "@/lib/db/schema";
 import { redirectPortalShell } from "@/lib/mobile/capacitor-shell-redirect";
+import {
+  getStaffAccessMode,
+  isRenewalOnlyPath,
+  isTenantOnFreePackage,
+} from "@/features/tenants/saas-access";
 import { verifyPassword } from "./password";
 import { createSession, destroySession, getSession } from "./session";
 
@@ -60,7 +66,12 @@ export async function loginStaff(
     const tenant = await db.query.tenants.findFirst({
       where: eq(tenants.id, user.tenantId),
     });
-    if (tenant?.status === "suspended") return "suspended";
+    if (tenant?.status === "suspended") {
+      const canRenew =
+        (user.role === "owner" || user.role === "admin") &&
+        (await isTenantOnFreePackage(user.tenantId));
+      if (!canRenew) return "suspended";
+    }
   }
 
   await createSession({
@@ -84,24 +95,49 @@ export async function logout(): Promise<void> {
   await destroySession();
 }
 
-// ---------------------------------------------------------------------------
-// Guard untuk dipakai di layout/page/server action
-// ---------------------------------------------------------------------------
+export interface RequireUserOptions {
+  /** Izinkan owner/admin paket Free yang suspended mengakses halaman perpanjang. */
+  allowRenewalOnly?: boolean;
+}
+
+async function enforceStaffAccessMode(
+  user: User,
+  opts?: RequireUserOptions
+): Promise<void> {
+  const mode = await getStaffAccessMode(user);
+  if (mode === "blocked") redirect("/login?error=suspended");
+  if (mode === "renewal_only" && !opts?.allowRenewalOnly) {
+    redirect("/dashboard/langganan");
+  }
+}
 
 /** Wajib login sebagai staf dengan salah satu role; jika tidak, redirect ke /login. */
-export async function requireUser(roles?: readonly StaffRole[]): Promise<User> {
+export async function requireUser(
+  roles?: readonly StaffRole[],
+  opts?: RequireUserOptions
+): Promise<User> {
   const actor = await getCurrentActor();
   if (!actor || actor.type !== "user") redirect("/login");
   if (roles && !roles.includes(actor.user.role)) redirect("/login?error=forbidden");
-
-  if (actor.user.tenantId) {
-    const tenant = await db.query.tenants.findFirst({
-      where: eq(tenants.id, actor.user.tenantId),
-    });
-    if (tenant?.status === "suspended") redirect("/login?error=suspended");
-  }
-
+  await enforceStaffAccessMode(actor.user, opts);
   return actor.user;
+}
+
+/** Wajib akses penuh tenant (bukan mode perpanjang saja). */
+export async function requireFullTenantAccess(
+  roles?: readonly StaffRole[]
+): Promise<User> {
+  return requireUser(roles, { allowRenewalOnly: false });
+}
+
+/** Redirect jika mode perpanjang mengakses halaman di luar whitelist (dipakai layout ISP). */
+export async function enforceRenewalOnlyRouteGuard(user: User): Promise<void> {
+  const mode = await getStaffAccessMode(user);
+  if (mode !== "renewal_only") return;
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  if (!isRenewalOnlyPath(pathname)) {
+    redirect("/dashboard/langganan");
+  }
 }
 
 /** Wajib login sebagai pelanggan; jika tidak, redirect ke portal login. */
@@ -126,12 +162,11 @@ export async function redirectIfAuthenticatedFromStaffLogin(): Promise<void> {
     if (actor.type === "pelanggan") {
       redirect("/portal");
     }
-    if (actor.user.tenantId) {
-      const tenant = await db.query.tenants.findFirst({
-        where: eq(tenants.id, actor.user.tenantId),
-      });
-      if (tenant?.status === "suspended") return;
+    const mode = await getStaffAccessMode(actor.user);
+    if (mode === "renewal_only") {
+      redirect("/dashboard/langganan");
     }
+    if (mode === "blocked") return;
     redirect(dashboardPathForRole(actor.user.role));
   } catch (err) {
     if (isNextRedirectError(err)) throw err;

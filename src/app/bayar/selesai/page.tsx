@@ -6,6 +6,7 @@ import {
   confirmCommunityDonationFromReturn,
   resolveKontributorPath,
 } from "@/features/community-donation/service";
+import { confirmFreeRenewalFromReturn } from "@/features/saas-renewal/service";
 
 function nextStep(orderId: string, returnTo?: string) {
   if (orderId.startsWith("SUB-")) {
@@ -42,6 +43,14 @@ function nextStep(orderId: string, returnTo?: string) {
       label: "Lihat kontributor",
     };
   }
+  if (orderId.startsWith("REN-")) {
+    return {
+      title: "Perpanjang paket Free",
+      message: "Donasi berhasil. Masa langganan paket Free Anda diperpanjang.",
+      href: "/dashboard/langganan?ok=1",
+      label: "Lihat langganan",
+    };
+  }
   return {
     title: "Pembayaran",
     message: "Terima kasih. Pembayaran Anda telah diproses.",
@@ -69,6 +78,9 @@ export default async function PaymentReturnPage({
 
   if (orderId.startsWith("DON-")) {
     await confirmCommunityDonationFromReturn(orderId, qs.resultCode, qs.paymentCode);
+  }
+  if (orderId.startsWith("REN-")) {
+    await confirmFreeRenewalFromReturn(orderId, qs.resultCode, qs.paymentCode);
   }
 
   return (

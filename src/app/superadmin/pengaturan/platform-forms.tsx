@@ -12,9 +12,11 @@ import {
   savePemilikAction,
   saveProfilAppAction,
   saveReferralSettingsAction,
+  saveFreeRenewalSettingsAction,
   saveTelegramAction,
 } from "@/features/platform-settings/actions";
 import type { PlatformSettings } from "@/lib/db/schema";
+import { MIN_DONATION_AMOUNT } from "@/lib/donation/constants";
 
 const initial: ActionState = {};
 
@@ -332,6 +334,48 @@ export function ReferralForm({
         />
       </Field>
       <SubmitButton>Simpan Pengaturan Referral</SubmitButton>
+    </form>
+  );
+}
+
+export function FreeRenewalForm({
+  defaults,
+}: {
+  defaults: Pick<PlatformSettings, "freeRenewalExtensionDays">;
+}) {
+  const [state, action] = useActionState(saveFreeRenewalSettingsAction, initial);
+  const { toast } = useToast();
+  const fe = state.fieldErrors ?? {};
+
+  useEffect(() => {
+    if (state.ok) toast({ title: "Pengaturan perpanjang Free tersimpan", variant: "success" });
+    if (state.error) toast({ title: state.error, variant: "error" });
+  }, [state.ok, state.error, toast]);
+
+  return (
+    <form action={action} className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Nominal donasi ditentukan tenant (minimal Rp{" "}
+        {MIN_DONATION_AMOUNT.toLocaleString("id-ID")}). Superadmin hanya mengatur jumlah hari
+        perpanjangan setelah donasi berhasil.
+      </p>
+      <Field
+        id="freeRenewalExtensionDays"
+        label="Hari perpanjangan"
+        hint="Jumlah hari langganan yang ditambahkan setelah donasi berhasil."
+        error={fe.freeRenewalExtensionDays}
+      >
+        <input
+          id="freeRenewalExtensionDays"
+          name="freeRenewalExtensionDays"
+          type="number"
+          min={1}
+          max={365}
+          defaultValue={defaults.freeRenewalExtensionDays ?? 30}
+          className="h-9 w-full rounded-md border px-3 text-sm"
+        />
+      </Field>
+      <SubmitButton>Simpan Pengaturan Perpanjang Free</SubmitButton>
     </form>
   );
 }

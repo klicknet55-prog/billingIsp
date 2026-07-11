@@ -586,6 +586,8 @@ export const platformSettings = sqliteTable("platform_settings", {
   referralEnabled: integer("referral_enabled", { mode: "boolean" }).notNull().default(false),
   referralRewardDays: integer("referral_reward_days").notNull().default(7),
   referralMaxPerTenant: integer("referral_max_per_tenant").notNull().default(10),
+  freeRenewalDonationMin: integer("free_renewal_donation_min").notNull().default(10000),
+  freeRenewalExtensionDays: integer("free_renewal_extension_days").notNull().default(30),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
 });
 

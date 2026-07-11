@@ -7,7 +7,8 @@ export function isPlatformDuitkuOrder(orderId: string): boolean {
   return (
     orderId.startsWith("SUB-") ||
     orderId.startsWith("SUP-") ||
-    orderId.startsWith("DON-")
+    orderId.startsWith("DON-") ||
+    orderId.startsWith("REN-")
   );
 }
 

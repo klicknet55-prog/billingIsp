@@ -38,6 +38,8 @@ function isWhatsAppConfigured(): boolean {
 
 export async function assertWhatsAppReady(tenantId?: string | null) {
   if (tenantId) {
+    const { assertSaasFeature } = await import("@/features/tenants/saas-access");
+    await assertSaasFeature(tenantId, "whatsapp");
     const cfg = await getTenantWhatsAppConfig(tenantId);
     if (!cfg && process.env.WHATSAPP_DRIVER === "real") {
       throw new Error("WhatsApp tenant belum dikonfigurasi. Atur di menu Integrasi.");

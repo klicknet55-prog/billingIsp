@@ -49,7 +49,7 @@ export function CommunityDonationForm({
               name="amount"
               type="number"
               min={MIN_COMMUNITY_DONATION}
-              step={1000}
+              step={1}
               required
               placeholder={String(MIN_COMMUNITY_DONATION)}
             />

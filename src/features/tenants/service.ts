@@ -187,6 +187,8 @@ export interface TenantQuotaSnapshot {
   totalRouter: number;
   maxPelanggan: number | null;
   maxRouter: number | null;
+  fitur: string[];
+  isFreePackage: boolean;
 }
 
 /** Kuota tenant berdasarkan subscription aktif + pemakaian saat ini. */
@@ -215,6 +217,8 @@ export async function getTenantQuotaSnapshot(
     maxPelanggan:
       typeof pkg.limitasi?.maxPelanggan === "number" ? pkg.limitasi.maxPelanggan : null,
     maxRouter: typeof pkg.limitasi?.maxRouter === "number" ? pkg.limitasi.maxRouter : null,
+    fitur: pkg.limitasi?.fitur ?? [],
+    isFreePackage: pkg.hargaBulanan <= 0,
   };
 }
 
@@ -226,6 +230,8 @@ export interface TenantSubscriptionStatus {
   status: "active" | "expired";
   mulai: Date;
   akhir: Date;
+  fitur: string[];
+  isFreePackage: boolean;
 }
 
 export async function getTenantSubscriptionStatus(
@@ -252,6 +258,8 @@ export async function getTenantSubscriptionStatus(
     status: expired ? "expired" : "active",
     mulai: sub.mulai,
     akhir: sub.akhir,
+    fitur: pkg.limitasi?.fitur ?? [],
+    isFreePackage: pkg.hargaBulanan <= 0,
   };
 }
 

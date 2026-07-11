@@ -53,6 +53,8 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   roles?: readonly string[];
+  /** Fitur paket SaaS yang wajib aktif (mis. whatsapp). */
+  requiredFeature?: string;
 }
 
 interface NavGroup {
@@ -98,7 +100,7 @@ const DASHBOARD_NAV: DashboardNavEntry[] = [
   { href: "/dashboard/paket", label: "Paket Internet", icon: Package },
   { href: "/dashboard/router", label: "Router", icon: RouterIcon },
   { href: "/dashboard/invoice", label: "Nota", icon: FileText },
-  { href: "/dashboard/pesan", label: "Pesan", icon: MessageSquare, roles: ["owner", "admin"] },
+  { href: "/dashboard/pesan", label: "Pesan", icon: MessageSquare, roles: ["owner", "admin"], requiredFeature: "whatsapp" },
   { href: "/dashboard/laporan", label: "Laporan", icon: BarChart3 },
   {
     id: "administrator",
@@ -135,20 +137,34 @@ const DASHBOARD_NAV: DashboardNavEntry[] = [
   },
   { href: "/dashboard/community", label: "Community", icon: HandCoins },
   { href: "/dashboard/kontributor", label: "Kontributor", icon: Heart },
+  { href: "/dashboard/langganan", label: "Langganan SaaS", icon: CreditCard, roles: ["owner", "admin"] },
 ];
 
-function canSeeNavItem(item: NavItem, userRole: string): boolean {
-  if (!item.roles) return true;
-  return item.roles.includes(userRole);
+const RENEWAL_ONLY_NAV: NavItem[] = [
+  { href: "/dashboard/langganan", label: "Langganan SaaS", icon: CreditCard },
+];
+
+function canSeeNavItem(item: NavItem, userRole: string, packageFeatures?: string[]): boolean {
+  if (item.roles && !item.roles.includes(userRole)) return false;
+  if (item.requiredFeature && packageFeatures && !packageFeatures.includes(item.requiredFeature)) {
+    return false;
+  }
+  return true;
 }
 
-function filterDashboardNav(entries: DashboardNavEntry[], userRole: string): DashboardNavEntry[] {
+function filterDashboardNav(
+  entries: DashboardNavEntry[],
+  userRole: string,
+  packageFeatures?: string[]
+): DashboardNavEntry[] {
   return entries
     .map((entry) => {
       if (!isNavGroup(entry)) {
-        return canSeeNavItem(entry, userRole) ? entry : null;
+        return canSeeNavItem(entry, userRole, packageFeatures) ? entry : null;
       }
-      const children = entry.children.filter((child) => canSeeNavItem(child, userRole));
+      const children = entry.children.filter((child) =>
+        canSeeNavItem(child, userRole, packageFeatures)
+      );
       if (children.length === 0) return null;
       return { ...entry, children };
     })
@@ -163,6 +179,8 @@ export function AppShell({
   brandLogoUrl,
   appOrigin = "",
   subscriptionInfo,
+  packageFeatures,
+  renewalOnly,
   children,
 }: {
   variant: "superadmin" | "dashboard" | "kolektor";
@@ -171,6 +189,8 @@ export function AppShell({
   brandName?: string;
   brandLogoUrl?: string | null;
   appOrigin?: string;
+  packageFeatures?: string[];
+  renewalOnly?: boolean;
   subscriptionInfo?: {
     packageName: string;
     status: "active" | "expired";
@@ -213,7 +233,11 @@ export function AppShell({
   }, []);
 
   const dashboardEntries =
-    variant === "dashboard" ? filterDashboardNav(DASHBOARD_NAV, userRole) : [];
+    variant === "dashboard"
+      ? renewalOnly
+        ? RENEWAL_ONLY_NAV
+        : filterDashboardNav(DASHBOARD_NAV, userRole, packageFeatures)
+      : [];
   const flatItems = variant !== "dashboard" ? NAV[variant] : [];
 
   const isActivePath = (href: string) => {
@@ -225,7 +249,7 @@ export function AppShell({
 
   useEffect(() => {
     if (variant !== "dashboard") return;
-    for (const entry of filterDashboardNav(DASHBOARD_NAV, userRole)) {
+    for (const entry of filterDashboardNav(DASHBOARD_NAV, userRole, packageFeatures)) {
       if (!isNavGroup(entry)) continue;
       const childActive = entry.children.some((child) => {
         const href = child.href;

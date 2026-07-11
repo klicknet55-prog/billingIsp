@@ -103,7 +103,14 @@ async function main() {
       limitasi: {
         maxPelanggan: 250,
         maxRouter: 5,
-        fitur: ["pelanggan", "invoice", "tiket", "api_mikrotik"],
+        fitur: [
+          "pelanggan",
+          "invoice",
+          "tiket",
+          "api_mikrotik",
+          "whatsapp",
+          "payment_gateway",
+        ],
       },
     },
     {
@@ -114,7 +121,15 @@ async function main() {
       limitasi: {
         maxPelanggan: 2000,
         maxRouter: 50,
-        fitur: ["pelanggan", "invoice", "tiket", "api_mikrotik", "laporan_keuangan"],
+        fitur: [
+          "pelanggan",
+          "invoice",
+          "tiket",
+          "api_mikrotik",
+          "laporan_keuangan",
+          "whatsapp",
+          "payment_gateway",
+        ],
       },
     },
   ]);

@@ -4,11 +4,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  getFreeRenewalSettings,
+  isPlatformDonationConfigured,
+} from "@/features/saas-renewal/service";
+import {
   getTenantSubscriptionStatus,
   listActiveSaasPackages,
 } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
 import { formatDate, formatRupiah } from "@/lib/utils";
+import { FreeRenewalCard } from "./free-renewal-card";
 import { UpgradePackageDialog } from "./upgrade-package-dialog";
 
 export default async function SubscriptionPage({
@@ -20,12 +25,15 @@ export default async function SubscriptionPage({
   const error = qs.error ? decodeURIComponent(qs.error) : "";
   const ok = qs.ok === "1";
 
-  const user = await requireUser(["owner", "admin"]);
+  const user = await requireUser(["owner", "admin"], { allowRenewalOnly: true });
   const tenantId = user.tenantId!;
-  const [current, packages] = await Promise.all([
+  const [current, packages, renewalSettings] = await Promise.all([
     getTenantSubscriptionStatus(tenantId),
     listActiveSaasPackages(),
+    getFreeRenewalSettings(),
   ]);
+  const showFreeRenewal = current?.isFreePackage ?? false;
+  const donationConfigured = isPlatformDonationConfigured();
 
   return (
     <>
@@ -107,6 +115,15 @@ export default async function SubscriptionPage({
           </CardContent>
         </Card>
       </div>
+
+      {showFreeRenewal && (
+        <div className="mt-4">
+          <FreeRenewalCard
+            extensionDays={renewalSettings.extensionDays}
+            donationConfigured={donationConfigured}
+          />
+        </div>
+      )}
     </>
   );
 }

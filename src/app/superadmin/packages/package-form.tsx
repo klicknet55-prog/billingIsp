@@ -9,6 +9,12 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/features/auth/actions";
 import { saveSaasPackageAction } from "@/features/tenants/actions";
+import {
+  SAAS_FEATURE_CATALOG,
+  SAAS_INTEGRATION_COMING_SOON,
+  SAAS_INTEGRATION_FEATURE_KEYS,
+  SAAS_MODULE_FEATURE_KEYS,
+} from "@/features/tenants/saas-features";
 
 interface Pkg {
   id: string;
@@ -31,9 +37,53 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
   );
 }
 
+function FeatureCheckboxes({
+  keys,
+  selected,
+  namePrefix,
+}: {
+  keys: readonly string[];
+  selected: string[];
+  namePrefix: string;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {keys.map((key) => {
+        const info = SAAS_FEATURE_CATALOG[key as keyof typeof SAAS_FEATURE_CATALOG];
+        const comingSoon = SAAS_INTEGRATION_COMING_SOON.includes(
+          key as (typeof SAAS_INTEGRATION_COMING_SOON)[number]
+        );
+        return (
+          <label
+            key={key}
+            className={`flex items-start gap-2 rounded-md border p-3 text-sm ${comingSoon ? "opacity-60" : ""}`}
+          >
+            <input
+              type="checkbox"
+              name={`${namePrefix}_${key}`}
+              value="on"
+              defaultChecked={selected.includes(key)}
+              disabled={comingSoon}
+              className="mt-0.5 size-4"
+            />
+            <span>
+              <span className="font-medium">{info?.label ?? key}</span>
+              {comingSoon && (
+                <span className="ml-1 text-xs text-muted-foreground">(fase berikutnya)</span>
+              )}
+              <span className="mt-0.5 block text-xs text-muted-foreground">{info?.description}</span>
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
 function FormBody({ pkg, close }: { pkg?: Pkg; close: () => void }) {
   const [state, action] = useActionState(saveSaasPackageAction, initial);
   const { toast } = useToast();
+  const selected = pkg?.limitasi.fitur ?? [];
 
   useEffect(() => {
     if (state.ok) {
@@ -70,14 +120,17 @@ function FormBody({ pkg, close }: { pkg?: Pkg; close: () => void }) {
           <Input id="maxRouter" name="maxRouter" type="number" defaultValue={pkg?.limitasi.maxRouter ?? 1} />
         </Field>
       </div>
-      <Field id="fitur" label="Fitur (pisahkan dengan koma)" error={fe.fitur}>
-        <Input
-          id="fitur"
-          name="fitur"
-          defaultValue={pkg?.limitasi.fitur.join(", ")}
-          placeholder="pelanggan, invoice, tiket, api_mikrotik"
-        />
-      </Field>
+
+      <div className="space-y-2">
+        <Label>Integrasi (aktif/nonaktif per paket)</Label>
+        <FeatureCheckboxes keys={SAAS_INTEGRATION_FEATURE_KEYS} selected={selected} namePrefix="fitur" />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Modul aplikasi</Label>
+        <FeatureCheckboxes keys={SAAS_MODULE_FEATURE_KEYS} selected={selected} namePrefix="fitur" />
+      </div>
+
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="isActive" defaultChecked={pkg?.isActive ?? true} className="size-4" />
         Aktif (tampil saat pendaftaran)

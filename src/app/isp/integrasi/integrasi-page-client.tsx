@@ -16,14 +16,28 @@ import { DuitkuConfigForm, WhatsAppConfigForm } from "./integration-forms";
 import { ApiKeysPanel } from "./api-keys-panel";
 import { WebhookConfigPanel } from "./webhook-config-panel";
 
-const TABS = [
-  { id: "duitku", label: "Duitku" },
-  { id: "whatsapp", label: "WhatsApp API" },
+const ALL_TABS = [
+  { id: "duitku", label: "Duitku", feature: "payment_gateway" as const },
+  { id: "whatsapp", label: "WhatsApp API", feature: "whatsapp" as const },
   { id: "api", label: "REST API Key" },
   { id: "webhook", label: "Webhook Keluar" },
 ] as const;
 
-type IntegrasiTabId = (typeof TABS)[number]["id"];
+type IntegrasiTabId = (typeof ALL_TABS)[number]["id"];
+
+function PackageFeatureNotice({ feature }: { feature: string }) {
+  return (
+    <Card className="mt-4 border-dashed">
+      <CardContent className="p-4 text-sm text-muted-foreground">
+        Fitur <strong>{feature.replace(/_/g, " ")}</strong> tidak termasuk paket langganan Anda.{" "}
+        <a href="/dashboard/langganan" className="font-medium text-primary underline">
+          Upgrade paket
+        </a>{" "}
+        untuk mengaktifkan integrasi ini.
+      </CardContent>
+    </Card>
+  );
+}
 
 type ApiKeyRow = {
   id: string;
@@ -45,6 +59,7 @@ type WebhookDelivery = {
 
 export function IntegrasiPageClient({
   initialTab,
+  packageFeatures,
   duitku,
   wa,
   gowaEnv,
@@ -58,6 +73,7 @@ export function IntegrasiPageClient({
   webhookMaxFailures,
 }: {
   initialTab: string;
+  packageFeatures: string[];
   duitku: {
     merchantCode?: string;
     callbackUrl?: string | null;
@@ -92,13 +108,18 @@ export function IntegrasiPageClient({
   apiRateLimit: string;
   webhookMaxFailures: number;
 }) {
-  const validTab = TABS.some((t) => t.id === initialTab) ? initialTab : "duitku";
+  const tabs = ALL_TABS.map((t) => ({ id: t.id, label: t.label }));
+  const hasFeature = (key?: string) => !key || packageFeatures.includes(key);
+  const validTab = tabs.some((t) => t.id === initialTab) ? initialTab : tabs[0]?.id ?? "api";
   const [tab, setTab] = useState<IntegrasiTabId>(validTab as IntegrasiTabId);
+
+  const currentTabDef = ALL_TABS.find((t) => t.id === tab);
+  const tabAllowed = hasFeature(currentTabDef && "feature" in currentTabDef ? currentTabDef.feature : undefined);
 
   return (
     <>
       <QueryTabNav
-        tabs={TABS}
+        tabs={tabs}
         active={tab}
         basePath="/dashboard/integrasi"
         paramKey="tab"
@@ -107,7 +128,8 @@ export function IntegrasiPageClient({
         onTabChange={(id) => setTab(id as IntegrasiTabId)}
       />
 
-      {tab === "duitku" && (
+      {tab === "duitku" && !tabAllowed && <PackageFeatureNotice feature="payment_gateway" />}
+      {tab === "duitku" && tabAllowed && (
         <Card className="mt-4">
           <CardHeader>
             <CardTitle>Duitku</CardTitle>
@@ -121,7 +143,8 @@ export function IntegrasiPageClient({
         </Card>
       )}
 
-      {tab === "whatsapp" && (
+      {tab === "whatsapp" && !tabAllowed && <PackageFeatureNotice feature="whatsapp" />}
+      {tab === "whatsapp" && tabAllowed && (
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
             <div className="space-y-1.5">

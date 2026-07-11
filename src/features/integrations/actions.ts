@@ -9,6 +9,7 @@ import { tenants } from "@/lib/db/schema";
 import type { ActionState } from "@/features/auth/actions";
 import { getWhatsAppClient } from "@/lib/integrations/whatsapp";
 import { parseForm } from "@/lib/validation";
+import { assertSaasFeature } from "@/features/tenants/saas-access";
 import {
   upsertTenantDuitkuConfig,
   upsertTenantWhatsAppConfig,
@@ -243,9 +244,11 @@ export async function saveTenantDuitkuConfigAction(
   const user = await requireUser(["owner", "admin"]);
   const parsed = parseForm(duitkuSchema, formData);
   if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+  const tenantId = user.tenantId!;
   try {
+    await assertSaasFeature(tenantId, "payment_gateway");
     await upsertTenantDuitkuConfig({
-      tenantId: user.tenantId!,
+      tenantId,
       merchantCode: parsed.data.merchantCode,
       apiKey: parsed.data.apiKey,
       callbackUrl: parsed.data.callbackUrl || undefined,
@@ -272,6 +275,7 @@ export async function saveTenantWhatsAppConfigAction(
   const current = await getTenantWhatsAppConfigRow(tenantId);
 
   try {
+    await assertSaasFeature(tenantId, "whatsapp");
     if (
       current?.provider === "klicknet" &&
       current.deviceId &&
