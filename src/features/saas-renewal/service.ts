@@ -12,6 +12,18 @@ import { newId } from "@/lib/utils";
 import { eq } from "drizzle-orm";
 
 const log = createLogger("saas-renewal");
+const REN_APPLIED_SUFFIX = ":applied";
+
+function parseRenReference(referenceId: string): { tenantId: string; days: number } | null {
+  const raw = referenceId.endsWith(REN_APPLIED_SUFFIX)
+    ? referenceId.slice(0, -REN_APPLIED_SUFFIX.length)
+    : referenceId;
+  const match = raw.match(/^REN:([^:]+):(\d+)$/);
+  if (!match) return null;
+  const days = Number(match[2]);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return { tenantId: match[1]!, days };
+}
 
 export async function getFreeRenewalSettings() {
   const settings = await getPlatformSettings();
@@ -83,6 +95,14 @@ export async function createFreePackageRenewal(input: {
     return { paymentUrl: trx.paymentUrl };
   }
 
+  await logSaasTransaction({
+    tenantId: input.tenantId,
+    referenceId,
+    orderId,
+    status: "pending",
+    amount: input.amount,
+    paymentMethod: process.env.DUITKU_PAYMENT_METHOD ?? "MOCK",
+  });
   const paid = duitku.simulatePaid(orderId, input.amount);
   await finalizeFreePackageRenewal(orderId, paid.paymentMethod);
   return { ok: true };
@@ -97,31 +117,30 @@ export async function finalizeFreePackageRenewal(
   const pgl = await db.query.paymentGatewayLogs.findFirst({
     where: eq(paymentGatewayLogs.duitkuOrderId, orderId),
   });
-  if (!pgl || pgl.status === "success") {
-    if (pgl?.status === "success") return true;
-    return false;
-  }
+  if (!pgl) return false;
 
-  const match = pgl.referenceId.match(/^REN:([^:]+):(\d+)$/);
-  if (!match) {
+  if (pgl.referenceId.endsWith(REN_APPLIED_SUFFIX)) return true;
+  if (pgl.status === "failed") return false;
+
+  const parsed = parseRenReference(pgl.referenceId);
+  if (!parsed) {
     log.error(`Reference REN tidak valid: ${pgl.referenceId}`);
     return false;
   }
 
-  const tenantId = match[1]!;
-  const days = Number(match[2]);
-  if (!Number.isFinite(days) || days <= 0) return false;
-
-  await extendTenantSubscription(tenantId, { days });
+  await extendTenantSubscription(parsed.tenantId, { days: parsed.days });
   await db
     .update(paymentGatewayLogs)
     .set({
       status: "success",
+      referenceId: `${pgl.referenceId}${REN_APPLIED_SUFFIX}`,
       paymentMethod: paymentMethod ?? pgl.paymentMethod,
     })
     .where(eq(paymentGatewayLogs.id, pgl.id));
 
-  log.info(`Perpanjang Free sukses ${orderId} tenant ${tenantId} +${days} hari`);
+  log.info(
+    `Perpanjang Free sukses ${orderId} tenant ${parsed.tenantId} +${parsed.days} hari`
+  );
   return true;
 }
 

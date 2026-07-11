@@ -82,6 +82,11 @@ export async function POST(req: Request) {
     return new Response("OK", { status: 200 });
   }
 
+  if (result.orderId.startsWith("REN-")) {
+    const { finalizeFreePackageRenewal } = await import("@/features/saas-renewal/service");
+    await finalizeFreePackageRenewal(result.orderId, result.paymentMethod || "Duitku");
+  }
+
   if (result.orderId.startsWith("PAY-")) {
     const logId = result.orderId.slice(4);
     const txLogPay =
@@ -151,9 +156,6 @@ export async function POST(req: Request) {
     }
   } else if (result.orderId.startsWith("DON-")) {
     await finalizeCommunityDonation(result.orderId, result.paymentMethod || "Duitku");
-  } else if (result.orderId.startsWith("REN-")) {
-    const { finalizeFreePackageRenewal } = await import("@/features/saas-renewal/service");
-    await finalizeFreePackageRenewal(result.orderId, result.paymentMethod || "Duitku");
   }
 
   return new Response("OK", { status: 200 });
