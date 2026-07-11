@@ -1,8 +1,25 @@
 // Service worker NetManage: cache app shell + network-first untuk halaman.
 // Mendukung kebutuhan offline dasar kolektor (lihat daftar tugas terakhir).
-const CACHE = "netmanage-v4";
+const CACHE = "netmanage-v5";
 const SHELL = ["/", "/kolektor", "/offline"];
 const OFFLINE_URL = "/offline";
+
+function isRscRequest(request) {
+  if (request.headers.get("RSC") === "1") return true;
+  if (request.headers.get("Next-Router-Prefetch")) return true;
+  if (request.headers.get("Next-Router-State-Tree")) return true;
+  if (request.headers.get("Next-Url")) return true;
+  return false;
+}
+
+function isDashboardPath(pathname) {
+  return (
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/isp") ||
+    pathname.startsWith("/superadmin") ||
+    pathname.startsWith("/kolektor")
+  );
+}
 
 function cachePut(request, response) {
   if (!response || !response.ok) return;
@@ -28,6 +45,10 @@ function networkFirst(request, offlineFallback) {
         return offlineFallback ? offlineResponse() : undefined;
       })
     );
+}
+
+function networkOnly(request, offlineFallback) {
+  return fetch(request).catch(() => (offlineFallback ? offlineResponse() : undefined));
 }
 
 function cacheFirst(request) {
@@ -64,13 +85,25 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname === "/manifest.webmanifest" || url.pathname.startsWith("/api/")) return;
 
+  // Jangan cache flight RSC — sumber halaman kosong saat navigasi client-side.
+  if (isRscRequest(request)) {
+    event.respondWith(networkOnly(request, false));
+    return;
+  }
+
   // Network-first untuk chunk Next.js — hindari JS lama di cache (tab/filter tidak responsif).
   if (url.pathname.startsWith("/_next/")) {
     event.respondWith(networkFirst(request, false));
     return;
   }
 
-  // Network-first untuk navigasi; fallback ke cache lalu halaman offline.
+  // Dashboard: selalu ambil data segar; hindari cache HTML/RSC usang.
+  if (request.mode === "navigate" && isDashboardPath(url.pathname)) {
+    event.respondWith(networkOnly(request, true));
+    return;
+  }
+
+  // Network-first untuk navigasi publik; fallback ke cache lalu halaman offline.
   if (request.mode === "navigate") {
     event.respondWith(networkFirst(request, true));
     return;

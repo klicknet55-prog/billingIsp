@@ -1,10 +1,10 @@
 import "server-only";
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { pelanggan, tenants, users, type Pelanggan, type User } from "@/lib/db/schema";
 import { redirectPortalShell } from "@/lib/mobile/capacitor-shell-redirect";
+import { getRequestPathname } from "@/lib/request-pathname";
 import {
   getStaffAccessMode,
   isRenewalOnlyPath,
@@ -131,11 +131,14 @@ export async function requireFullTenantAccess(
 }
 
 /** Redirect jika mode perpanjang mengakses halaman di luar whitelist (dipakai layout ISP). */
-export async function enforceRenewalOnlyRouteGuard(user: User): Promise<void> {
+export async function enforceRenewalOnlyRouteGuard(
+  user: User,
+  pathname?: string
+): Promise<void> {
   const mode = await getStaffAccessMode(user);
   if (mode !== "renewal_only") return;
-  const pathname = (await headers()).get("x-pathname") ?? "";
-  if (!isRenewalOnlyPath(pathname)) {
+  const path = pathname ?? (await getRequestPathname());
+  if (!isRenewalOnlyPath(path)) {
     redirect("/dashboard/langganan");
   }
 }

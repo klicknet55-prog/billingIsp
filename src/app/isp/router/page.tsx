@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { Pencil, Plus, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
@@ -22,6 +23,8 @@ import { getTenantQuotaSnapshot } from "@/features/tenants/service";
 import { requireUser } from "@/lib/auth";
 import { RouterCreateDialog, RouterFormDialog } from "./router-form-dialog";
 
+export const dynamic = "force-dynamic";
+
 export default async function RouterPage({
   searchParams,
 }: {
@@ -32,6 +35,7 @@ export default async function RouterPage({
   const success = qs.success ? decodeURIComponent(qs.success) : "";
   const warn = qs.warn ? decodeURIComponent(qs.warn) : "";
   const routerId = qs.routerId ? decodeURIComponent(qs.routerId) : "";
+  noStore();
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const [rows, quota] = await Promise.all([
     listRouters(user.tenantId!),
