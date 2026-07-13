@@ -87,10 +87,14 @@ async function buildUniqueVpnUsername(tenantId: string, domain?: string | null):
 }
 
 export async function listTenantVpns(tenantId: string) {
-  return db.query.tenantVpnAccounts.findMany({
-    where: eq(tenantVpnAccounts.tenantId, tenantId),
-    orderBy: (t, { desc }) => [desc(t.createdAt)],
-  });
+  try {
+    return await db.query.tenantVpnAccounts.findMany({
+      where: eq(tenantVpnAccounts.tenantId, tenantId),
+      orderBy: (t, { desc }) => [desc(t.createdAt)],
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getTenantVpn(tenantId: string, id: string) {

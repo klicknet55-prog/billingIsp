@@ -45,7 +45,12 @@ export async function getTenantVpnQuota(tenantId: string) {
   const hasFeature = row?.pkg.limitasi?.fitur?.includes("vpn_mikrotik") ?? false;
   const maxVpn =
     typeof row?.pkg.limitasi?.maxVpn === "number" ? row.pkg.limitasi.maxVpn : 0;
-  const used = await db.$count(tenantVpnAccounts, eq(tenantVpnAccounts.tenantId, tenantId));
+  let used = 0;
+  try {
+    used = await db.$count(tenantVpnAccounts, eq(tenantVpnAccounts.tenantId, tenantId));
+  } catch {
+    used = 0;
+  }
   return {
     used,
     maxVpn,

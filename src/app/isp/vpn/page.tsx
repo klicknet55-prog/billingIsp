@@ -6,15 +6,45 @@ import { probeVpnListenPort } from "@/features/tenant-vpn/probe";
 import { getTenantVpnQuota } from "@/features/tenants/saas-access";
 import { getTenantQuotaSnapshot } from "@/features/tenants/service";
 import { requireFullTenantAccess } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { tenantVpnAccounts } from "@/lib/db/schema";
 import { getVpnPublicHost } from "@/lib/integrations/vpn-api";
 import { VpnPageClient } from "./vpn-page-client";
 
 export const dynamic = "force-dynamic";
 
+async function isVpnSchemaReady(): Promise<boolean> {
+  try {
+    await db.select({ id: tenantVpnAccounts.id }).from(tenantVpnAccounts).limit(1);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export default async function VpnPage() {
   noStore();
   const user = await requireFullTenantAccess(["owner", "admin"]);
   const tenantId = user.tenantId!;
+
+  const schemaReady = await isVpnSchemaReady();
+  if (!schemaReady) {
+    return (
+      <>
+        <PageHeader
+          title="VPN Mikrotik"
+          description="Buat tunnel L2TP dan port forward API router dari dashboard."
+        />
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="p-4 text-sm text-amber-900 dark:text-amber-200">
+            Tabel database VPN belum tersedia. Di server production jalankan{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">npm run db:migrate:pg</code>{" "}
+            lalu restart aplikasi.
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
 
   const [rows, quota, snapshot] = await Promise.all([
     listTenantVpns(tenantId),
