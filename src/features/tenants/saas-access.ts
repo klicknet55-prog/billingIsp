@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { packageTenants, subscriptions, tenants, type PackageTenant, type User } from "@/lib/db/schema";
+import { packageTenants, subscriptions, tenantVpnAccounts, tenants, type PackageTenant, type User } from "@/lib/db/schema";
 
 export type StaffAccessMode = "full" | "renewal_only" | "blocked";
 
@@ -38,6 +38,20 @@ export async function assertSaasFeature(tenantId: string, key: string): Promise<
       `Fitur "${label}" tidak tersedia di paket langganan Anda. Upgrade paket di menu Langganan SaaS.`
     );
   }
+}
+
+export async function getTenantVpnQuota(tenantId: string) {
+  const row = await getLatestSubscriptionPackage(tenantId);
+  const hasFeature = row?.pkg.limitasi?.fitur?.includes("vpn_mikrotik") ?? false;
+  const maxVpn =
+    typeof row?.pkg.limitasi?.maxVpn === "number" ? row.pkg.limitasi.maxVpn : 0;
+  const used = await db.$count(tenantVpnAccounts, eq(tenantVpnAccounts.tenantId, tenantId));
+  return {
+    used,
+    maxVpn,
+    hasFeature,
+    allowed: hasFeature && used < maxVpn,
+  };
 }
 
 export async function isTenantOnFreePackage(tenantId: string): Promise<boolean> {

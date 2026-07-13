@@ -32,6 +32,8 @@ export const tenantDuitkuConfigs =
   active.tenantDuitkuConfigs as typeof sqlite.tenantDuitkuConfigs;
 export const tenantWhatsAppConfigs =
   active.tenantWhatsAppConfigs as typeof sqlite.tenantWhatsAppConfigs;
+export const tenantVpnAccounts =
+  active.tenantVpnAccounts as typeof sqlite.tenantVpnAccounts;
 export const tenantApiKeys = active.tenantApiKeys as typeof sqlite.tenantApiKeys;
 export const tenantWebhooks = active.tenantWebhooks as typeof sqlite.tenantWebhooks;
 export const webhookDeliveryLogs =
@@ -71,6 +73,7 @@ export type KategoriPengeluaran = typeof sqlite.kategoriPengeluaran.$inferSelect
 export type PaymentGatewayLog = typeof sqlite.paymentGatewayLogs.$inferSelect;
 export type TenantDuitkuConfig = typeof sqlite.tenantDuitkuConfigs.$inferSelect;
 export type TenantWhatsAppConfig = typeof sqlite.tenantWhatsAppConfigs.$inferSelect;
+export type TenantVpnAccount = typeof sqlite.tenantVpnAccounts.$inferSelect;
 export type TenantApiKey = typeof sqlite.tenantApiKeys.$inferSelect;
 export type TenantWebhook = typeof sqlite.tenantWebhooks.$inferSelect;
 export type WebhookDeliveryLog = typeof sqlite.webhookDeliveryLogs.$inferSelect;

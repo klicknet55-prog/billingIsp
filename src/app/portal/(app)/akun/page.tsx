@@ -13,32 +13,38 @@ export default async function PortalAkunPage() {
   const cust = await requirePelanggan();
   const tenant = await getCurrentTenant();
   const brandName = tenant?.namaUsaha ?? DEFAULT_BRAND_NAME;
+  const initials = cust.nama
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Akun saya" description="Profil pelanggan dan pengaturan." />
+      <div className="fm-desktop-only">
+        <PageHeader title="Akun saya" description="Profil pelanggan dan pengaturan." />
+      </div>
+      <h1 className="fm-mobile-only text-lg font-bold">Akun Saya</h1>
 
-      <Card>
-        <CardContent className="flex items-center gap-4 p-4">
-          <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
-            {cust.nama
-              .split(/\s+/)
-              .slice(0, 2)
-              .map((w) => w[0])
-              .join("")
-              .toUpperCase()}
-          </div>
-          <div>
-            <p className="font-semibold">{cust.nama}</p>
-            <p className="text-sm text-muted-foreground">{cust.noWa}</p>
-            {cust.alamat && (
-              <p className="mt-1 text-sm text-muted-foreground">{cust.alamat}</p>
-            )}
+      <Card className="fm-surface-card overflow-hidden">
+        <CardContent className="bg-gradient-to-br from-primary/10 to-transparent p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex size-14 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+              {initials}
+            </div>
+            <div>
+              <p className="text-lg font-semibold">{cust.nama}</p>
+              <p className="text-sm text-muted-foreground">{cust.noWa}</p>
+              {cust.alamat && (
+                <p className="mt-1 text-sm text-muted-foreground">{cust.alamat}</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="fm-surface-card">
         <CardContent className="divide-y p-0">
           <Link
             href="/portal"
@@ -74,7 +80,7 @@ export default async function PortalAkunPage() {
       </p>
 
       <form action={logoutPortalAction}>
-        <Button type="submit" variant="outline" className="w-full">
+        <Button type="submit" variant="outline" className="w-full rounded-full">
           Keluar
         </Button>
       </form>

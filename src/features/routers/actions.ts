@@ -6,6 +6,7 @@ import { z } from "zod";
 import type { ActionState } from "@/features/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { parseForm } from "@/lib/validation";
+import { normalizeRouterEndpoint } from "./endpoint";
 import { createRouter, deleteRouter, refreshRouterStatus, updateRouter } from "./service";
 
 const ISP_ROLES = ["owner", "admin"] as const;
@@ -26,11 +27,15 @@ export async function createRouterAction(formData: FormData) {
   const formPath = fromTambah ? "/dashboard/router/tambah" : listPath;
 
   const nama = String(formData.get("nama") ?? "").trim();
+  const normalized = normalizeRouterEndpoint(
+    String(formData.get("ipAddress") ?? "").trim(),
+    String(formData.get("apiPort") ?? "443").trim()
+  );
   const input = {
     nama,
     connectionMode: (String(formData.get("connectionMode") ?? "rest") as "rest" | "legacy_api"),
-    ipAddress: String(formData.get("ipAddress") ?? "").trim(),
-    apiPort: String(formData.get("apiPort") ?? "443").trim(),
+    ipAddress: normalized.ipAddress,
+    apiPort: normalized.apiPort,
     username: String(formData.get("username") ?? "").trim(),
     password: String(formData.get("password") ?? ""),
   };
@@ -76,12 +81,14 @@ export async function updateRouterAction(
   const id = String(formData.get("id") ?? "").trim();
   if (!id) return { error: "ID router tidak valid." };
 
+  const normalized = normalizeRouterEndpoint(parsed.data.ipAddress, parsed.data.apiPort);
+
   try {
     await updateRouter(user.tenantId!, id, {
       nama: parsed.data.nama,
       connectionMode: parsed.data.connectionMode,
-      ipAddress: parsed.data.ipAddress,
-      apiPort: parsed.data.apiPort,
+      ipAddress: normalized.ipAddress,
+      apiPort: normalized.apiPort,
       username: parsed.data.username,
       password: parsed.data.password,
     });

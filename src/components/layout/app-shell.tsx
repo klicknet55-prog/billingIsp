@@ -36,41 +36,35 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import { MobileMenuDrawer } from "@/components/layout/mobile-menu-drawer";
-import { MobileThemeToggle } from "@/components/layout/mobile-theme-toggle";
 import { BrandLogo } from "@/components/layout/brand-logo";
 import { Button } from "@/components/ui/button";
 import { SiteFooterContent } from "@/components/layout/site-footer-content";
 import { logoutAction } from "@/features/auth/actions";
 import { SUPERADMIN_PENGATURAN_HREF } from "@/lib/superadmin-pengaturan-nav";
-import { adminNavItems } from "@/lib/mobile/nav-config";
+import { adminFinanceNavItems } from "@/lib/mobile/nav-config";
+import {
+  DASHBOARD_NAV,
+  filterDashboardNav,
+  isDashboardNavGroup,
+  RENEWAL_ONLY_NAV,
+  type DashboardNavEntry,
+  type DashboardNavGroup,
+  type DashboardNavItem,
+} from "@/lib/mobile/dashboard-nav";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { cn } from "@/lib/utils";
 import { MobileBackHandler } from "@/components/layout/mobile-back-handler";
-import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import {
+  FinanceAppHeader,
+  FinanceBottomNav,
+  FinanceMobileInit,
+} from "@/components/mobile/finance";
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  roles?: readonly string[];
-  /** Fitur paket SaaS yang wajib aktif (mis. whatsapp). */
-  requiredFeature?: string;
+function isNavGroup(entry: DashboardNavEntry): entry is DashboardNavGroup {
+  return isDashboardNavGroup(entry);
 }
 
-interface NavGroup {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  children: NavItem[];
-}
-
-type DashboardNavEntry = NavItem | NavGroup;
-
-function isNavGroup(entry: DashboardNavEntry): entry is NavGroup {
-  return "children" in entry;
-}
-
-const NAV: Record<string, NavItem[]> = {
+const NAV: Record<string, DashboardNavItem[]> = {
   superadmin: [
     { href: "/superadmin", label: "Dashboard", icon: LayoutDashboard },
     { href: "/superadmin/tenants", label: "Tenant", icon: Building2 },
@@ -91,85 +85,6 @@ const NAV: Record<string, NavItem[]> = {
     { href: "/kolektor/kontributor", label: "Kontributor", icon: Heart },
   ],
 };
-
-const DASHBOARD_NAV: DashboardNavEntry[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/pelanggan", label: "Pelanggan", icon: Users },
-  { href: "/dashboard/tagihan", label: "Tagihan Pelanggan", icon: CreditCard },
-  { href: "/dashboard/peta", label: "Peta", icon: Map },
-  { href: "/dashboard/paket", label: "Paket Internet", icon: Package },
-  { href: "/dashboard/router", label: "Router", icon: RouterIcon },
-  { href: "/dashboard/invoice", label: "Nota", icon: FileText },
-  { href: "/dashboard/pesan", label: "Pesan", icon: MessageSquare, roles: ["owner", "admin"], requiredFeature: "whatsapp" },
-  { href: "/dashboard/laporan", label: "Laporan", icon: BarChart3 },
-  {
-    id: "administrator",
-    label: "Administrator",
-    icon: Shield,
-    children: [
-      { href: "/dashboard/staf", label: "Staf", icon: UserCog, roles: ["owner"] },
-      {
-        href: "/dashboard/kolektor-pelanggan",
-        label: "Area Kolektor",
-        icon: UserCheck,
-        roles: ["owner", "admin"],
-      },
-      { href: "/dashboard/tiket", label: "Tiket", icon: Ticket },
-    ],
-  },
-  {
-    href: "/dashboard/integrasi",
-    label: "Integrasi",
-    icon: Plug,
-    roles: ["owner", "admin"],
-  },
-  {
-    href: "/dashboard/referral",
-    label: "Referral",
-    icon: UserPlus,
-    roles: ["owner", "admin"],
-  },
-  {
-    href: "/dashboard/pengaturan",
-    label: "Pengaturan",
-    icon: Settings,
-    roles: ["owner", "admin"],
-  },
-  { href: "/dashboard/community", label: "Community", icon: HandCoins },
-  { href: "/dashboard/kontributor", label: "Kontributor", icon: Heart },
-  { href: "/dashboard/langganan", label: "Langganan SaaS", icon: CreditCard, roles: ["owner", "admin"] },
-];
-
-const RENEWAL_ONLY_NAV: NavItem[] = [
-  { href: "/dashboard/langganan", label: "Langganan SaaS", icon: CreditCard },
-];
-
-function canSeeNavItem(item: NavItem, userRole: string, packageFeatures?: string[]): boolean {
-  if (item.roles && !item.roles.includes(userRole)) return false;
-  if (item.requiredFeature && packageFeatures && !packageFeatures.includes(item.requiredFeature)) {
-    return false;
-  }
-  return true;
-}
-
-function filterDashboardNav(
-  entries: DashboardNavEntry[],
-  userRole: string,
-  packageFeatures?: string[]
-): DashboardNavEntry[] {
-  return entries
-    .map((entry) => {
-      if (!isNavGroup(entry)) {
-        return canSeeNavItem(entry, userRole, packageFeatures) ? entry : null;
-      }
-      const children = entry.children.filter((child) =>
-        canSeeNavItem(child, userRole, packageFeatures)
-      );
-      if (children.length === 0) return null;
-      return { ...entry, children };
-    })
-    .filter((entry): entry is DashboardNavEntry => entry !== null);
-}
 
 export function AppShell({
   variant,
@@ -200,7 +115,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const hasMobileBottomNav = variant === "dashboard" || variant === "kolektor";
-  const mobileNavItems = hasMobileBottomNav ? adminNavItems(userRole) : [];
+  const financeNavItems = hasMobileBottomNav ? adminFinanceNavItems(userRole) : [];
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [navReady, setNavReady] = useState(false);
@@ -276,11 +191,12 @@ export function AppShell({
     setExpandedGroups((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const groupChildActive = (group: NavGroup) =>
+  const groupChildActive = (group: DashboardNavGroup) =>
     group.children.some((child) => isActivePath(child.href));
 
   return (
     <div className="flex min-h-screen">
+      <FinanceMobileInit />
       <MobileBackHandler />
       {/* Sidebar desktop — tidak di-render di mobile agar tidak menangkap tap */}
       <aside className="hidden md:sticky md:top-0 md:z-30 md:flex md:h-screen md:w-64 md:shrink-0 md:flex-col border-r bg-card print:hidden">
@@ -368,7 +284,31 @@ export function AppShell({
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="nm-mobile-chrome nm-mobile-chrome-top sticky top-0 z-[400] flex h-14 shrink-0 items-center border-b bg-background px-4 print:hidden md:z-[100] md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80">
+        {hasMobileBottomNav && (
+          <FinanceAppHeader
+            className="md:hidden"
+            app="admin"
+            title={brandName}
+            subtitle={`${userName} · ${userRole}`}
+            logo={
+              brandLogoUrl ? (
+                <BrandLogo
+                  logoUrl={brandLogoUrl}
+                  name={brandName}
+                  className="size-8 shrink-0 rounded-full object-cover ring-2 ring-white/30"
+                />
+              ) : (
+                <Network className="size-8 shrink-0 text-white" />
+              )
+            }
+          />
+        )}
+        <header
+          className={cn(
+            "nm-mobile-chrome nm-mobile-chrome-top sticky top-0 z-[400] flex h-14 shrink-0 items-center border-b bg-background px-4 print:hidden md:z-[100] md:bg-background/95 md:backdrop-blur md:supports-[backdrop-filter]:bg-background/80",
+            hasMobileBottomNav && "hidden md:flex"
+          )}
+        >
           {slimMobileHeader && (
             <div className="flex w-full items-center justify-between gap-3 md:hidden">
               <Link
@@ -387,7 +327,6 @@ export function AppShell({
                 )}
                 <span className="truncate">{brandName}</span>
               </Link>
-              <MobileThemeToggle />
             </div>
           )}
 
@@ -485,7 +424,7 @@ export function AppShell({
         <main
           className={cn(
             "flex-1 p-4 md:p-6",
-            hasMobileBottomNav && "max-md:pb-20 nm-main-with-bottom-nav"
+            hasMobileBottomNav && "max-md:pb-20 nm-main-with-bottom-nav fm-main-with-fab-nav"
           )}
         >
           {children}
@@ -497,10 +436,12 @@ export function AppShell({
         />
       </div>
       {hasMobileBottomNav && (
-        <MobileBottomNav
-          items={mobileNavItems}
+        <FinanceBottomNav
+          items={financeNavItems}
           onAction={(id) => {
-            if (id === "menu") setOpen(true);
+            if (id === "navigate") {
+              window.dispatchEvent(new CustomEvent("nm-kolektor-navigate"));
+            }
           }}
         />
       )}

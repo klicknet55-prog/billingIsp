@@ -93,7 +93,7 @@ async function main() {
       nama: "Free",
       hargaBulanan: 0,
       diskonTahunanPersen: 0,
-      limitasi: { maxPelanggan: 25, maxRouter: 1, fitur: ["pelanggan", "invoice"] },
+      limitasi: { maxPelanggan: 25, maxRouter: 1, maxVpn: 0, fitur: ["pelanggan", "invoice"] },
     },
     {
       id: pkgStandard,
@@ -103,6 +103,7 @@ async function main() {
       limitasi: {
         maxPelanggan: 250,
         maxRouter: 5,
+        maxVpn: 0,
         fitur: [
           "pelanggan",
           "invoice",
@@ -121,6 +122,7 @@ async function main() {
       limitasi: {
         maxPelanggan: 2000,
         maxRouter: 50,
+        maxVpn: 3,
         fitur: [
           "pelanggan",
           "invoice",
@@ -129,6 +131,7 @@ async function main() {
           "laporan_keuangan",
           "whatsapp",
           "payment_gateway",
+          "vpn_mikrotik",
         ],
       },
     },

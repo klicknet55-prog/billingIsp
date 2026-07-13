@@ -13,6 +13,7 @@ import { pelanggan, tagihan } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth";
 import { formatRupiah } from "@/lib/utils";
 import { and, eq, inArray } from "drizzle-orm";
+import { DashboardMobileHome } from "./dashboard-mobile-home";
 
 function OutstandingList({
   rows,
@@ -106,8 +107,17 @@ export default async function IspDashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" description="Ringkasan operasional ISP Anda." />
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+      <DashboardMobileHome
+        pendapatan={pendapatan}
+        totalBulanIni={totalBulanIni}
+        totalTunggakan={totalTunggakan}
+        totalPelanggan={customers.length}
+        isolir={isolir}
+      />
+
+      <div className="fm-desktop-only space-y-6">
+        <PageHeader title="Dashboard" description="Ringkasan operasional ISP Anda." />
+        <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
         <StatCard compact label="Total Pelanggan" value={customers.length} icon={Users} />
         <StatCard compact label="Aktif" value={customers.length - isolir} icon={Wifi} />
         <StatCard compact label="Terisolir" value={isolir} icon={WifiOff} />
@@ -165,6 +175,7 @@ export default async function IspDashboard() {
             <OutstandingList rows={tunggakanRows} emptyLabel="Tidak ada tunggakan." />
           </CardContent>
         </Card>
+      </div>
       </div>
     </>
   );

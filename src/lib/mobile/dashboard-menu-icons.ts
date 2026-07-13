@@ -1,0 +1,91 @@
+import {
+  BarChart3,
+  CreditCard,
+  FileText,
+  HandCoins,
+  Heart,
+  LayoutDashboard,
+  Map,
+  MessageSquare,
+  Network,
+  Package,
+  Plug,
+  Router as RouterIcon,
+  Settings,
+  Ticket,
+  UserCheck,
+  UserCog,
+  UserPlus,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+
+export const DASHBOARD_MENU_ICON_KEYS = [
+  "layout-dashboard",
+  "users",
+  "credit-card",
+  "map",
+  "package",
+  "router",
+  "network",
+  "file-text",
+  "message-square",
+  "bar-chart-3",
+  "user-cog",
+  "user-check",
+  "ticket",
+  "plug",
+  "user-plus",
+  "settings",
+  "hand-coins",
+  "heart",
+] as const;
+
+export type DashboardMenuIconKey = (typeof DASHBOARD_MENU_ICON_KEYS)[number];
+
+export const DASHBOARD_MENU_ICONS: Record<DashboardMenuIconKey, LucideIcon> = {
+  "layout-dashboard": LayoutDashboard,
+  users: Users,
+  "credit-card": CreditCard,
+  map: Map,
+  package: Package,
+  router: RouterIcon,
+  network: Network,
+  "file-text": FileText,
+  "message-square": MessageSquare,
+  "bar-chart-3": BarChart3,
+  "user-cog": UserCog,
+  "user-check": UserCheck,
+  ticket: Ticket,
+  plug: Plug,
+  "user-plus": UserPlus,
+  settings: Settings,
+  "hand-coins": HandCoins,
+  heart: Heart,
+};
+
+export const DASHBOARD_HREF_ICON_KEY: Record<string, DashboardMenuIconKey> = {
+  "/dashboard": "layout-dashboard",
+  "/dashboard/pelanggan": "users",
+  "/dashboard/tagihan": "credit-card",
+  "/dashboard/peta": "map",
+  "/dashboard/paket": "package",
+  "/dashboard/router": "router",
+  "/dashboard/vpn": "network",
+  "/dashboard/invoice": "file-text",
+  "/dashboard/pesan": "message-square",
+  "/dashboard/laporan": "bar-chart-3",
+  "/dashboard/staf": "user-cog",
+  "/dashboard/kolektor-pelanggan": "user-check",
+  "/dashboard/tiket": "ticket",
+  "/dashboard/integrasi": "plug",
+  "/dashboard/referral": "user-plus",
+  "/dashboard/pengaturan": "settings",
+  "/dashboard/community": "hand-coins",
+  "/dashboard/kontributor": "heart",
+  "/dashboard/langganan": "credit-card",
+};
+
+export function dashboardMenuIconKey(href: string): DashboardMenuIconKey {
+  return DASHBOARD_HREF_ICON_KEY[href] ?? "layout-dashboard";
+}

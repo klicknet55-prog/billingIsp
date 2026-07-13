@@ -4,7 +4,7 @@ import { CapacitorSystemChrome } from "@/components/mobile/capacitor-system-chro
 import { PortalDeepLinkBootstrap } from "@/components/mobile/portal-deep-link-bootstrap";
 import { PushNotificationBootstrap } from "@/components/mobile/push-notification-bootstrap";
 import { ThemeProvider } from "@/components/theme/theme-provider";
-import { THEME_INIT_SCRIPT } from "@/components/theme/theme-script";
+import { ThemeInitScript } from "@/components/theme/theme-init-script";
 import { ToastProvider } from "@/components/ui/toast";
 import { getPlatformBrand } from "@/features/platform-settings/service";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
@@ -49,10 +49,8 @@ export default async function RootLayout({
 
   return (
     <html lang="id" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
-      </head>
       <body className="min-h-screen antialiased">
+        <ThemeInitScript />
         <ThemeProvider
           defaultPreset={tenant?.themePreset ?? "default"}
           defaultMode={tenant?.themeMode ?? "light"}

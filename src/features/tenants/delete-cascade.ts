@@ -26,6 +26,7 @@ import {
   tagihan,
   tenantApiKeys,
   tenantDuitkuConfigs,
+  tenantVpnAccounts,
   tenantWebhooks,
   tenantWhatsAppConfigs,
   ticketAssignments,
@@ -33,6 +34,7 @@ import {
   users,
   webhookDeliveryLogs,
 } from "@/lib/db/schema";
+import { purgeTenantVpnAccounts } from "@/features/tenant-vpn/service";
 
 type DbClient = Pick<typeof db, "query" | "delete">;
 
@@ -105,6 +107,8 @@ export async function deleteTenantRelatedData(
   await client.delete(kategoriPengeluaran).where(eq(kategoriPengeluaran.tenantId, tenantId));
   await client.delete(paketInternet).where(eq(paketInternet.tenantId, tenantId));
   await client.delete(routers).where(eq(routers.tenantId, tenantId));
+  await purgeTenantVpnAccounts(tenantId);
+  await client.delete(tenantVpnAccounts).where(eq(tenantVpnAccounts.tenantId, tenantId));
   if (!opts?.keepSubscriptions) {
     await client.delete(subscriptions).where(eq(subscriptions.tenantId, tenantId));
   }

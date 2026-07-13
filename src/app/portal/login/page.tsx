@@ -8,8 +8,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FinanceMobileInit } from "@/components/mobile/finance";
 import { redirectIfAuthenticatedFromPortalLogin } from "@/lib/auth";
-import { PortalLoginForm } from "./portal-login-form";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
+import { getCurrentTenant } from "@/lib/tenant";
+import { PortalLoginDesktop, PortalLoginMobile } from "./portal-login-mobile";
 
 function loginErrorMessage(error?: string): string | null {
   switch (error) {
@@ -34,28 +37,35 @@ export default async function PortalLoginPage({
 
   const { error } = await searchParams;
   const errorMessage = loginErrorMessage(error);
+  const tenant = await getCurrentTenant();
+  const brandName = tenant?.namaUsaha ?? DEFAULT_BRAND_NAME;
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="nm-mobile-chrome-top flex items-center justify-between px-6 py-4">
-        <SiteBrand />
-        <ThemeSwitcher />
-      </header>
-      <main className="nm-page-safe-bottom flex flex-1 items-center justify-center p-6">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-xl">Portal Pelanggan</CardTitle>
-            <CardDescription>Masuk tanpa password menggunakan OTP WhatsApp.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {errorMessage && (
-              <p className="mb-4 text-sm text-destructive">{errorMessage}</p>
-            )}
-            <PortalLoginForm />
-          </CardContent>
-        </Card>
-      </main>
-      <SiteFooter />
-    </div>
+    <>
+      <FinanceMobileInit />
+      <PortalLoginMobile brandName={brandName} />
+
+      <div className="fm-desktop-only flex min-h-screen flex-col">
+        <header className="nm-mobile-chrome-top flex items-center justify-between px-6 py-4">
+          <SiteBrand />
+          <ThemeSwitcher />
+        </header>
+        <main className="nm-page-safe-bottom flex flex-1 items-center justify-center p-6">
+          <Card className="w-full max-w-sm">
+            <CardHeader>
+              <CardTitle className="text-xl">Portal Pelanggan</CardTitle>
+              <CardDescription>Masuk tanpa password menggunakan OTP WhatsApp.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {errorMessage && (
+                <p className="mb-4 text-sm text-destructive">{errorMessage}</p>
+              )}
+              <PortalLoginDesktop errorMessage={errorMessage} />
+            </CardContent>
+          </Card>
+        </main>
+        <SiteFooter />
+      </div>
+    </>
   );
 }

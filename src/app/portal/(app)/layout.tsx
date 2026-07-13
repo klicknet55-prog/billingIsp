@@ -28,7 +28,9 @@ export default async function PortalAppLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <PortalShell namaUsaha={brandName}>{children}</PortalShell>
-      <SiteFooterContent appOrigin={appOrigin} brandName={brandName} />
+      <div className="fm-desktop-only">
+        <SiteFooterContent appOrigin={appOrigin} brandName={brandName} />
+      </div>
     </div>
   );
 }

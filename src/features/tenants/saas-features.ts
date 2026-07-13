@@ -29,7 +29,7 @@ export const SAAS_ALL_FEATURE_KEYS = [
 export type SaasFeatureKey = (typeof SAAS_ALL_FEATURE_KEYS)[number];
 
 /** Integrasi yang belum diimplementasi — tidak bisa dicentang di form paket. */
-export const SAAS_INTEGRATION_COMING_SOON: readonly SaasIntegrationFeatureKey[] = ["vpn_mikrotik"];
+export const SAAS_INTEGRATION_COMING_SOON: readonly SaasIntegrationFeatureKey[] = [];
 
 export const SAAS_FEATURE_CATALOG: Record<
   SaasFeatureKey,

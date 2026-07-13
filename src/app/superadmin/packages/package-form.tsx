@@ -21,7 +21,7 @@ interface Pkg {
   nama: string;
   hargaBulanan: number;
   diskonTahunanPersen: number;
-  limitasi: { maxPelanggan: number; maxRouter: number; fitur: string[] };
+  limitasi: { maxPelanggan: number; maxRouter: number; maxVpn?: number; fitur: string[] };
   isActive: boolean;
 }
 
@@ -99,7 +99,7 @@ function FormBody({ pkg, close }: { pkg?: Pkg; close: () => void }) {
       <Field id="nama" label="Nama paket" error={fe.nama}>
         <Input id="nama" name="nama" defaultValue={pkg?.nama} placeholder="Standard" />
       </Field>
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-5">
         <Field id="hargaBulanan" label="Harga / bln" error={fe.hargaBulanan}>
           <Input id="hargaBulanan" name="hargaBulanan" type="number" defaultValue={pkg?.hargaBulanan ?? 0} />
         </Field>
@@ -118,6 +118,9 @@ function FormBody({ pkg, close }: { pkg?: Pkg; close: () => void }) {
         </Field>
         <Field id="maxRouter" label="Max router" error={fe.maxRouter}>
           <Input id="maxRouter" name="maxRouter" type="number" defaultValue={pkg?.limitasi.maxRouter ?? 1} />
+        </Field>
+        <Field id="maxVpn" label="Max VPN" error={fe.maxVpn}>
+          <Input id="maxVpn" name="maxVpn" type="number" min={0} defaultValue={pkg?.limitasi.maxVpn ?? 0} />
         </Field>
       </div>
 

@@ -14,6 +14,7 @@ import {
   paymentGatewayLogs,
   routers,
   subscriptions,
+  tenantVpnAccounts,
   tenants,
   users,
   type PackageTenant,
@@ -113,6 +114,7 @@ export interface SaasPackageInput {
   diskonTahunanPersen: number;
   maxPelanggan: number;
   maxRouter: number;
+  maxVpn: number;
   fitur: string[];
   isActive: boolean;
 }
@@ -126,6 +128,7 @@ export async function createSaasPackage(input: SaasPackageInput) {
     limitasi: {
       maxPelanggan: input.maxPelanggan,
       maxRouter: input.maxRouter,
+      maxVpn: input.maxVpn,
       fitur: input.fitur,
     },
     isActive: input.isActive,
@@ -143,6 +146,7 @@ export async function updateSaasPackage(id: string, input: SaasPackageInput) {
       limitasi: {
         maxPelanggan: input.maxPelanggan,
         maxRouter: input.maxRouter,
+        maxVpn: input.maxVpn,
         fitur: input.fitur,
       },
       isActive: input.isActive,
@@ -185,8 +189,10 @@ export interface TenantQuotaSnapshot {
   paketNama: string;
   totalPelanggan: number;
   totalRouter: number;
+  totalVpn: number;
   maxPelanggan: number | null;
   maxRouter: number | null;
+  maxVpn: number | null;
   fitur: string[];
   isFreePackage: boolean;
 }
@@ -205,18 +211,21 @@ export async function getTenantQuotaSnapshot(
   });
   if (!pkg) return null;
 
-  const [totalPelanggan, totalRouter] = await Promise.all([
+  const [totalPelanggan, totalRouter, totalVpn] = await Promise.all([
     db.$count(pelanggan, eq(pelanggan.tenantId, tenantId)),
     db.$count(routers, eq(routers.tenantId, tenantId)),
+    db.$count(tenantVpnAccounts, eq(tenantVpnAccounts.tenantId, tenantId)),
   ]);
 
   return {
     paketNama: pkg.nama,
     totalPelanggan,
     totalRouter,
+    totalVpn,
     maxPelanggan:
       typeof pkg.limitasi?.maxPelanggan === "number" ? pkg.limitasi.maxPelanggan : null,
     maxRouter: typeof pkg.limitasi?.maxRouter === "number" ? pkg.limitasi.maxRouter : null,
+    maxVpn: typeof pkg.limitasi?.maxVpn === "number" ? pkg.limitasi.maxVpn : null,
     fitur: pkg.limitasi?.fitur ?? [],
     isFreePackage: pkg.hargaBulanan <= 0,
   };

@@ -196,6 +196,7 @@ const saasPackageSchema = z.object({
   diskonTahunanPersen: z.coerce.number().int().min(0, "Minimal 0").max(100, "Maksimal 100"),
   maxPelanggan: z.coerce.number().int().min(1, "Minimal 1"),
   maxRouter: z.coerce.number().int().min(1, "Minimal 1"),
+  maxVpn: z.coerce.number().int().min(0, "Minimal 0"),
   isActive: z.string().optional(),
 });
 
@@ -214,6 +215,7 @@ export async function saveSaasPackageAction(
     diskonTahunanPersen: parsed.data.diskonTahunanPersen,
     maxPelanggan: parsed.data.maxPelanggan,
     maxRouter: parsed.data.maxRouter,
+    maxVpn: parsed.data.maxVpn,
     fitur: parsePackageFeaturesFromForm(formData),
     isActive: parsed.data.isActive === "on",
   };

@@ -32,7 +32,7 @@ export async function seedFreshPlatformData(databaseUrl: string): Promise<void> 
           nama: "Free",
           hargaBulanan: 0,
           diskonTahunanPersen: 0,
-          limitasi: { maxPelanggan: 25, maxRouter: 1, fitur: ["pelanggan", "invoice"] },
+          limitasi: { maxPelanggan: 25, maxRouter: 1, maxVpn: 0, fitur: ["pelanggan", "invoice"] },
         },
         {
           id: newId("pkg"),
@@ -42,6 +42,7 @@ export async function seedFreshPlatformData(databaseUrl: string): Promise<void> 
           limitasi: {
             maxPelanggan: 250,
             maxRouter: 5,
+            maxVpn: 0,
             fitur: [
               "pelanggan",
               "invoice",
@@ -60,6 +61,7 @@ export async function seedFreshPlatformData(databaseUrl: string): Promise<void> 
           limitasi: {
             maxPelanggan: 2000,
             maxRouter: 50,
+            maxVpn: 3,
             fitur: [
               "pelanggan",
               "invoice",
@@ -68,6 +70,7 @@ export async function seedFreshPlatformData(databaseUrl: string): Promise<void> 
               "laporan_keuangan",
               "whatsapp",
               "payment_gateway",
+              "vpn_mikrotik",
             ],
           },
         },

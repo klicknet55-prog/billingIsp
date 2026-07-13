@@ -10,12 +10,12 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="nm-mobile-chrome-top flex items-center justify-between px-6 py-4">
+      <header className="nm-mobile-chrome-top fm-desktop-only flex items-center justify-between px-6 py-4">
         <PlatformSiteBrand />
         <ThemeSwitcher />
       </header>
       <main className="nm-page-safe-bottom flex flex-1 items-center justify-center p-6">{children}</main>
-      <SiteFooter brandName={brand.name} />
+      <SiteFooter brandName={brand.name} className="fm-desktop-only" />
     </div>
   );
 }

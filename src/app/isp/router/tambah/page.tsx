@@ -4,15 +4,30 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { RouterCreateForm } from "@/features/routers/components/router-create-form";
+import { normalizeRouterEndpoint } from "@/features/routers/endpoint";
 import { requireUser } from "@/lib/auth";
 
 export default async function TambahRouterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{
+    error?: string;
+    ip?: string;
+    port?: string;
+    connectionMode?: string;
+  }>;
 }) {
   const qs = await searchParams;
   const error = qs.error ? decodeURIComponent(qs.error) : "";
+  const rawIp = qs.ip ? decodeURIComponent(qs.ip) : undefined;
+  const rawPort = qs.port ? decodeURIComponent(qs.port) : undefined;
+  const normalized = normalizeRouterEndpoint(rawIp ?? "", rawPort ?? "443");
+  const connectionMode =
+    qs.connectionMode === "legacy_api"
+      ? "legacy_api"
+      : qs.connectionMode === "rest"
+        ? "rest"
+        : undefined;
   await requireUser(["owner", "admin"]);
 
   return (
@@ -36,7 +51,14 @@ export default async function TambahRouterPage({
 
       <Card>
         <CardContent className="p-4 md:p-5">
-          <RouterCreateForm cancelHref="/dashboard/router" />
+          <RouterCreateForm
+            cancelHref="/dashboard/router"
+            defaults={{
+              ipAddress: normalized.ipAddress || undefined,
+              apiPort: normalized.apiPort || undefined,
+              connectionMode,
+            }}
+          />
         </CardContent>
       </Card>
     </>

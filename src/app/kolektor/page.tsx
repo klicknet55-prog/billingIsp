@@ -7,6 +7,7 @@ import { listOutstandingForKolektor } from "@/features/billing/tagihan-service";
 import { requireUser } from "@/lib/auth";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
+import { KolektorMobileHome } from "./kolektor-mobile-home";
 
 export default async function KolektorPage() {
   const user = await requireUser(["kolektor"]);
@@ -57,12 +58,31 @@ export default async function KolektorPage() {
     hasTunggakan: p.summary.tunggakan.length > 0,
   }));
 
+  const totalTunggakan = tasks.reduce(
+    (sum, t) => sum + (t.hasTunggakan ? t.tunggakanTotal : 0) + (t.hasBulanIni ? t.bulanIniAmount : 0),
+    0
+  );
+  const bulanIniTotal = tasks.reduce((sum, t) => sum + (t.hasBulanIni ? t.bulanIniAmount : 0), 0);
+  const terkumpulEstimate = Math.max(0, bulanIniTotal);
+
   return (
     <>
-      <PageHeader
-        title="Tugas Penagihan"
-        description="Tagihan belum lunas pada pelanggan area Anda."
+      <KolektorMobileHome
+        totalTunggakan={totalTunggakan}
+        taskCount={tasks.length}
+        bulanIniTotal={bulanIniTotal}
+        terkumpulEstimate={terkumpulEstimate}
       />
+
+      <div className="fm-desktop-only">
+        <PageHeader
+          title="Tugas Penagihan"
+          description="Tagihan belum lunas pada pelanggan area Anda."
+        />
+      </div>
+      <h1 className="fm-mobile-only mb-4 text-lg font-bold" id="tugas-kolektor">
+        Daftar Tugas
+      </h1>
       <Suspense fallback={<Card><CardContent className="p-8 text-center text-muted-foreground">Memuat...</CardContent></Card>}>
         <KolektorTasksClient
           tasks={tasks}

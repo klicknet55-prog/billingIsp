@@ -51,7 +51,7 @@ export const packageTenants = pgTable("package_tenant", {
   hargaBulanan: integer("harga_bulanan").notNull().default(0),
   diskonTahunanPersen: integer("diskon_tahunan_persen").notNull().default(0),
   limitasi: jsonb("limitasi")
-    .$type<{ maxPelanggan: number; maxRouter: number; fitur: string[] }>()
+    .$type<{ maxPelanggan: number; maxRouter: number; maxVpn?: number; fitur: string[] }>()
     .notNull(),
   isActive: boolean("is_active").notNull().default(true),
 });
@@ -341,6 +341,33 @@ export const tenantWhatsAppConfigs = pgTable("tenant_whatsapp_config", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const tenantVpnAccounts = pgTable(
+  "tenant_vpn_account",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    label: text("label"),
+    vpnUsername: text("vpn_username").notNull(),
+    passwordEncrypted: text("password_encrypted").notNull(),
+    staticIp: text("static_ip").notNull(),
+    portForwardName: text("port_forward_name").notNull(),
+    listenPort: integer("listen_port").notNull(),
+    destinationPort: integer("destination_port").notNull(),
+    status: text("status", { enum: ["active", "disabled"] })
+      .notNull()
+      .default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("tenant_vpn_account_username_idx").on(t.vpnUsername),
+    uniqueIndex("tenant_vpn_account_pf_name_idx").on(t.portForwardName),
+    uniqueIndex("tenant_vpn_account_listen_port_idx").on(t.listenPort),
+  ]
+);
 
 export const tenantApiKeys = pgTable("tenant_api_key", {
   id: text("id").primaryKey(),
@@ -654,6 +681,7 @@ export const pgSchema = {
   paymentGatewayLogs,
   tenantDuitkuConfigs,
   tenantWhatsAppConfigs,
+  tenantVpnAccounts,
   tenantApiKeys,
   tenantWebhooks,
   webhookDeliveryLogs,

@@ -9,6 +9,7 @@ import { tenantHasSaasFeature } from "@/features/tenants/saas-access";
 import { requirePelanggan } from "@/lib/auth";
 import { formatDate, formatRupiah } from "@/lib/utils";
 import Link from "next/link";
+import { PortalRiwayatSection, PortalTagihanMobileHero } from "./portal-tagihan-mobile";
 
 export default async function TagihanPage({
   searchParams,
@@ -28,9 +29,22 @@ export default async function TagihanPage({
     hasPgFeature &&
     (process.env.DUITKU_DRIVER !== "real" || (await isTenantDuitkuConfigured(cust.tenantId)));
 
+  const primaryAmount =
+    summary.totalTunggakan +
+    (summary.bulanIni ? tagihanBalance(summary.bulanIni) : 0);
+
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold">Tagihan</h1>
+      <PortalTagihanMobileHero
+        primaryLabel="Total Tagihan Aktif"
+        primaryAmount={primaryAmount}
+      />
+
+      <div className="fm-desktop-only">
+        <PageHeader title="Tagihan" />
+      </div>
+      <h1 className="fm-mobile-only text-lg font-bold">Bayar Tagihan</h1>
+
       {error && (
         <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
@@ -51,7 +65,7 @@ export default async function TagihanPage({
       />
 
       {(summary.hasBulanIni || summary.tunggakan.length > 0) && (
-        <Card>
+        <Card className="fm-desktop-only">
           <CardContent className="p-4 text-sm text-muted-foreground">
             {summary.bulanIni && tagihanBalance(summary.bulanIni) > 0 && (
               <p>
@@ -74,10 +88,9 @@ export default async function TagihanPage({
       )}
 
       {receipts.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="font-semibold">Riwayat Pembayaran</h2>
+        <PortalRiwayatSection>
           {receipts.map((r) => (
-            <Card key={r.id}>
+            <Card key={r.id} className="fm-surface-card">
               <CardContent className="flex items-center justify-between p-4">
                 <div>
                   <p className="font-mono text-xs text-muted-foreground">{r.noInvoice}</p>
@@ -90,7 +103,7 @@ export default async function TagihanPage({
               </CardContent>
             </Card>
           ))}
-        </div>
+        </PortalRiwayatSection>
       )}
     </div>
   );

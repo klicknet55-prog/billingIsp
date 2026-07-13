@@ -44,6 +44,9 @@ export default async function RouterPage({
   const routerQuotaText = quota
     ? `${quota.totalRouter}/${quota.maxRouter ?? "∞"}`
     : `${rows.length}/-`;
+  const hasVpnFeature = quota?.fitur.includes("vpn_mikrotik") ?? false;
+  const vpnQuotaText =
+    hasVpnFeature && quota ? `${quota.totalVpn}/${quota.maxVpn ?? 0}` : null;
 
   const errorLower = error.toLowerCase();
   const showPelangganLink =
@@ -55,12 +58,17 @@ export default async function RouterPage({
     <>
       <PageHeader
         title="Router Mikrotik"
-        description={`Kelola perangkat. Kuota: ${routerQuotaText}${
-          quota ? ` (Paket ${quota.paketNama})` : ""
-        }`}
+        description={`Kelola perangkat. Kuota router: ${routerQuotaText}${
+          vpnQuotaText ? ` · VPN: ${vpnQuotaText}` : ""
+        }${quota ? ` (Paket ${quota.paketNama})` : ""}`}
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <TunnelhostServiceLinks />
+            <TunnelhostServiceLinks showVpn={!hasVpnFeature} />
+            {hasVpnFeature && (user.role === "owner" || user.role === "admin") && (
+              <Button asChild variant="outline" size="sm">
+                <Link href="/dashboard/vpn">Kelola VPN</Link>
+              </Button>
+            )}
             {(user.role === "owner" || user.role === "admin") && (
               <>
                 <Button asChild size="sm" className="md:hidden">

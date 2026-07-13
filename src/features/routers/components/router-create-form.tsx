@@ -8,11 +8,17 @@ import { createRouterAction } from "@/features/routers/actions";
 export function RouterCreateForm({
   cancelHref,
   onCancel,
+  defaults,
 }: {
   /** Halaman penuh mobile — error redirect kembali ke sini */
   cancelHref?: string;
   /** Modal desktop — tutup dialog */
   onCancel?: () => void;
+  defaults?: {
+    ipAddress?: string;
+    apiPort?: string;
+    connectionMode?: "rest" | "legacy_api";
+  };
 }) {
   return (
     <form action={createRouterAction} className="grid gap-4 sm:grid-cols-2">
@@ -23,18 +29,28 @@ export function RouterCreateForm({
       </div>
       <div className="space-y-2">
         <Label htmlFor="connectionMode">Mode Koneksi</Label>
-        <Select id="connectionMode" name="connectionMode" defaultValue="rest">
+        <Select
+          id="connectionMode"
+          name="connectionMode"
+          defaultValue={defaults?.connectionMode ?? "rest"}
+        >
           <option value="rest">REST API (RouterOS v7)</option>
           <option value="legacy_api">Legacy API (8728/8729)</option>
         </Select>
       </div>
       <div className="space-y-2">
         <Label htmlFor="ipAddress">IP Address</Label>
-        <Input id="ipAddress" name="ipAddress" required placeholder="192.168.88.1 atau hostname DDNS" />
+        <Input
+          id="ipAddress"
+          name="ipAddress"
+          required
+          placeholder="192.168.88.1 atau hostname DDNS"
+          defaultValue={defaults?.ipAddress}
+        />
       </div>
       <div className="space-y-2">
         <Label htmlFor="apiPort">Port API / HTTPS</Label>
-        <Input id="apiPort" name="apiPort" defaultValue="443" />
+        <Input id="apiPort" name="apiPort" defaultValue={defaults?.apiPort ?? "443"} />
       </div>
       <div className="space-y-2">
         <Label htmlFor="username">Username</Label>

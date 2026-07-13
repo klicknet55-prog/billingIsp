@@ -284,6 +284,27 @@ export function applyAppSchemaMigrations(
     if (log) console.log("[ok]   tabel community_donation dibuat");
   }
 
+  if (!hasDbTable(db, "tenant_vpn_account")) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS tenant_vpn_account (
+        id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        label TEXT,
+        vpn_username TEXT NOT NULL UNIQUE,
+        password_encrypted TEXT NOT NULL,
+        static_ip TEXT NOT NULL,
+        port_forward_name TEXT NOT NULL UNIQUE,
+        listen_port INTEGER NOT NULL UNIQUE,
+        destination_port INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'active',
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel tenant_vpn_account dibuat");
+  }
+
   if (hasDbTable(db, "pelanggan") && hasColumn(db, "pelanggan", "tgl_daftar")) {
     const backfill = db
       .prepare("UPDATE pelanggan SET tgl_daftar = created_at WHERE tgl_daftar IS NULL")

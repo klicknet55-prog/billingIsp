@@ -110,6 +110,37 @@ export function KolektorTasksClient({
     );
   }, []);
 
+  const openNearestNavigation = useCallback(() => {
+    const list = tasks.map((t) => {
+      let jarakKm: number | null = null;
+      if (coords && t.lat != null && t.lng != null) {
+        jarakKm = haversineKm(coords.lat, coords.lng, t.lat, t.lng);
+      }
+      return { ...t, jarakKm };
+    });
+    const ordered =
+      coords && sort === "terdekat"
+        ? [...list].sort((a, b) => {
+            if (a.jarakKm == null && b.jarakKm == null) return a.nama.localeCompare(b.nama, "id");
+            if (a.jarakKm == null) return 1;
+            if (b.jarakKm == null) return -1;
+            return a.jarakKm - b.jarakKm;
+          })
+        : [...list].sort((a, b) => a.nama.localeCompare(b.nama, "id"));
+
+    const target = ordered.find((t) => mapsUrl(t.lat, t.lng, t.alamat));
+    const url = target ? mapsUrl(target.lat, target.lng, target.alamat) : null;
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  }, [tasks, coords, sort]);
+
+  useEffect(() => {
+    const handler = () => openNearestNavigation();
+    window.addEventListener("nm-kolektor-navigate", handler);
+    return () => window.removeEventListener("nm-kolektor-navigate", handler);
+  }, [openNearestNavigation]);
+
   const sorted = useMemo(() => {
     const list = tasks.map((t) => {
       let jarakKm: number | null = null;
@@ -210,7 +241,7 @@ export function KolektorTasksClient({
                 ? `Bulan ini: ${formatRupiah(p.bulanIniAmount)}`
                 : null;
           return (
-            <Card key={p.pelangganId}>
+            <Card key={p.pelangganId} className="fm-surface-card border-0 shadow-none">
               <CardContent className="p-4">
                 <div className="mb-1 flex items-start justify-between gap-2">
                   <p className="font-medium">{p.nama}</p>
@@ -268,7 +299,7 @@ export function KolektorTasksClient({
           );
         })}
         {sorted.length === 0 && (
-          <Card>
+          <Card className="fm-surface-card border-0 shadow-none">
             <CardContent className="py-10 text-center text-muted-foreground">
               Tidak ada tagihan outstanding di area Anda.
             </CardContent>

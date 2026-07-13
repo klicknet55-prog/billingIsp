@@ -3,12 +3,30 @@
 import { z } from "zod";
 import { getCurrentActor } from "@/lib/auth";
 import { registerDevicePushToken } from "./device-push-token-service";
+import { listMobileNotificationsForActor } from "./notification-feed";
 
 const registerTokenSchema = z.object({
   token: z.string().trim().min(16),
   app: z.enum(["admin", "portal"]),
   platform: z.enum(["android"]).default("android"),
 });
+
+const listSchema = z.object({
+  app: z.enum(["admin", "portal"]),
+});
+
+export async function listMobileNotificationsAction(input: {
+  app: "admin" | "portal";
+}) {
+  const parsed = listSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: "invalid_payload", items: [] };
+
+  const actor = await getCurrentActor();
+  if (!actor) return { ok: false as const, error: "unauthorized", items: [] };
+
+  const items = await listMobileNotificationsForActor(parsed.data.app);
+  return { ok: true as const, items };
+}
 
 export async function registerDevicePushTokenAction(input: {
   token: string;

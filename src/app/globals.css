@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "../components/mobile/finance/finance-theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -128,6 +129,11 @@ html.nm-capacitor-shell .nm-bottom-nav {
 
 html.nm-capacitor-shell .nm-main-with-bottom-nav {
   padding-bottom: calc(var(--nm-mobile-nav-h) + var(--nm-safe-bottom) + 1rem) !important;
+}
+
+html.nm-finance-mobile .nm-main-with-bottom-nav,
+html.nm-finance-mobile .fm-main-with-fab-nav {
+  padding-bottom: calc(var(--fm-nav-h) + var(--nm-safe-bottom) + 1.75rem) !important;
 }
 
 html.nm-capacitor-shell .nm-page-safe-bottom {

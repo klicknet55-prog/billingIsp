@@ -53,9 +53,9 @@ export const packageTenants = sqliteTable("package_tenant", {
   nama: text("nama").notNull(),
   hargaBulanan: integer("harga_bulanan").notNull().default(0),
   diskonTahunanPersen: integer("diskon_tahunan_persen").notNull().default(0),
-  // limitasi: { maxPelanggan, maxRouter, fitur: string[] }
+  // limitasi: { maxPelanggan, maxRouter, maxVpn?, fitur: string[] }
   limitasi: text("limitasi", { mode: "json" })
-    .$type<{ maxPelanggan: number; maxRouter: number; fitur: string[] }>()
+    .$type<{ maxPelanggan: number; maxRouter: number; maxVpn?: number; fitur: string[] }>()
     .notNull(),
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
 });
@@ -358,6 +358,28 @@ export const tenantWhatsAppConfigs = sqliteTable("tenant_whatsapp_config", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
 });
+
+export const tenantVpnAccounts = sqliteTable(
+  "tenant_vpn_account",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    label: text("label"),
+    vpnUsername: text("vpn_username").notNull().unique(),
+    passwordEncrypted: text("password_encrypted").notNull(),
+    staticIp: text("static_ip").notNull(),
+    portForwardName: text("port_forward_name").notNull().unique(),
+    listenPort: integer("listen_port").notNull().unique(),
+    destinationPort: integer("destination_port").notNull(),
+    status: text("status", { enum: ["active", "disabled"] })
+      .notNull()
+      .default("active"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+  }
+);
 
 /** API key tenant untuk REST API v1 (hash only, plain key shown once at create). */
 export const tenantApiKeys = sqliteTable("tenant_api_key", {
@@ -704,6 +726,7 @@ export type KategoriPengeluaran = typeof kategoriPengeluaran.$inferSelect;
 export type PaymentGatewayLog = typeof paymentGatewayLogs.$inferSelect;
 export type TenantDuitkuConfig = typeof tenantDuitkuConfigs.$inferSelect;
 export type TenantWhatsAppConfig = typeof tenantWhatsAppConfigs.$inferSelect;
+export type TenantVpnAccount = typeof tenantVpnAccounts.$inferSelect;
 export type Session = typeof sessions.$inferSelect;
 export type PlatformSettings = typeof platformSettings.$inferSelect;
 export type MessageTemplate = typeof messageTemplates.$inferSelect;
