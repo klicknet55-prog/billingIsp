@@ -1,6 +1,5 @@
 // Service worker NetManage: cache app shell + network-first untuk halaman.
-// Mendukung kebutuhan offline dasar kolektor (lihat daftar tugas terakhir).
-const CACHE = "netmanage-v5";
+const CACHE = "netmanage-v6";
 const SHELL = ["/", "/kolektor", "/offline"];
 const OFFLINE_URL = "/offline";
 
@@ -33,6 +32,12 @@ function offlineResponse() {
   );
 }
 
+function asResponse(value) {
+  return value instanceof Response
+    ? value
+    : new Response("Service Unavailable", { status: 503, statusText: "Service Unavailable" });
+}
+
 function networkFirst(request, offlineFallback) {
   return fetch(request)
     .then((res) => {
@@ -42,25 +47,35 @@ function networkFirst(request, offlineFallback) {
     .catch(() =>
       caches.match(request).then((cached) => {
         if (cached) return cached;
-        return offlineFallback ? offlineResponse() : undefined;
+        if (offlineFallback) return offlineResponse();
+        return new Response(null, { status: 504, statusText: "Gateway Timeout" });
       })
-    );
+    )
+    .then(asResponse);
 }
 
 function networkOnly(request, offlineFallback) {
-  return fetch(request).catch(() => (offlineFallback ? offlineResponse() : undefined));
+  return fetch(request)
+    .catch(() => {
+      if (offlineFallback) return offlineResponse();
+      return new Response(null, { status: 504, statusText: "Gateway Timeout" });
+    })
+    .then(asResponse);
 }
 
 function cacheFirst(request) {
-  return caches.match(request).then((cached) => {
-    if (cached) return cached;
-    return fetch(request)
-      .then((res) => {
-        cachePut(request, res);
-        return res;
-      })
-      .catch(() => undefined);
-  });
+  return caches
+    .match(request)
+    .then((cached) => {
+      if (cached) return cached;
+      return fetch(request)
+        .then((res) => {
+          cachePut(request, res);
+          return res;
+        })
+        .catch(() => new Response(null, { status: 404, statusText: "Not Found" }));
+    })
+    .then(asResponse);
 }
 
 self.addEventListener("install", (event) => {
@@ -85,30 +100,23 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname === "/manifest.webmanifest" || url.pathname.startsWith("/api/")) return;
 
-  // Jangan cache flight RSC — sumber halaman kosong saat navigasi client-side.
-  if (isRscRequest(request)) {
-    event.respondWith(networkOnly(request, false));
-    return;
-  }
+  // Jangan intercept flight RSC — biarkan browser/Next.js menanganinya langsung.
+  if (isRscRequest(request)) return;
 
-  // Network-first untuk chunk Next.js — hindari JS lama di cache (tab/filter tidak responsif).
   if (url.pathname.startsWith("/_next/")) {
     event.respondWith(networkFirst(request, false));
     return;
   }
 
-  // Dashboard: selalu ambil data segar; hindari cache HTML/RSC usang.
   if (request.mode === "navigate" && isDashboardPath(url.pathname)) {
     event.respondWith(networkOnly(request, true));
     return;
   }
 
-  // Network-first untuk navigasi publik; fallback ke cache lalu halaman offline.
   if (request.mode === "navigate") {
     event.respondWith(networkFirst(request, true));
     return;
   }
 
-  // Cache-first untuk aset statis.
   event.respondWith(cacheFirst(request));
 });

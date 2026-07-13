@@ -211,10 +211,16 @@ export async function getTenantQuotaSnapshot(
   });
   if (!pkg) return null;
 
-  const [totalPelanggan, totalRouter, totalVpn] = await Promise.all([
+  let totalVpn = 0;
+  try {
+    totalVpn = await db.$count(tenantVpnAccounts, eq(tenantVpnAccounts.tenantId, tenantId));
+  } catch {
+    totalVpn = 0;
+  }
+
+  const [totalPelanggan, totalRouter] = await Promise.all([
     db.$count(pelanggan, eq(pelanggan.tenantId, tenantId)),
     db.$count(routers, eq(routers.tenantId, tenantId)),
-    db.$count(tenantVpnAccounts, eq(tenantVpnAccounts.tenantId, tenantId)),
   ]);
 
   return {

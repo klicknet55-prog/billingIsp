@@ -103,34 +103,38 @@ export async function listOdpFormOptions(
   tenantId: string,
   excludePelangganId?: string
 ): Promise<OdpFormOption[]> {
-  const [odpRows, pelangganRows] = await Promise.all([
-    db.query.odp.findMany({
-      where: eq(odp.tenantId, tenantId),
-      columns: { id: true, kode: true, nama: true, kapasitasPort: true, isActive: true },
-      orderBy: [asc(odp.kode)],
-    }),
-    db.query.pelanggan.findMany({
-      where: eq(pelanggan.tenantId, tenantId),
-      columns: { id: true, odpId: true, odpPort: true },
-    }),
-  ]);
+  try {
+    const [odpRows, pelangganRows] = await Promise.all([
+      db.query.odp.findMany({
+        where: eq(odp.tenantId, tenantId),
+        columns: { id: true, kode: true, nama: true, kapasitasPort: true, isActive: true },
+        orderBy: [asc(odp.kode)],
+      }),
+      db.query.pelanggan.findMany({
+        where: eq(pelanggan.tenantId, tenantId),
+        columns: { id: true, odpId: true, odpPort: true },
+      }),
+    ]);
 
-  const usedByOdp = new Map<string, string[]>();
-  for (const row of pelangganRows) {
-    if (!row.odpId || !row.odpPort?.trim()) continue;
-    if (excludePelangganId && row.id === excludePelangganId) continue;
-    const ports = usedByOdp.get(row.odpId) ?? [];
-    ports.push(normalizeOdpPort(row.odpPort));
-    usedByOdp.set(row.odpId, ports);
+    const usedByOdp = new Map<string, string[]>();
+    for (const row of pelangganRows) {
+      if (!row.odpId || !row.odpPort?.trim()) continue;
+      if (excludePelangganId && row.id === excludePelangganId) continue;
+      const ports = usedByOdp.get(row.odpId) ?? [];
+      ports.push(normalizeOdpPort(row.odpPort));
+      usedByOdp.set(row.odpId, ports);
+    }
+
+    return odpRows.map((row) => ({
+      id: row.id,
+      kode: row.kode,
+      nama: row.nama,
+      kapasitasPort: row.kapasitasPort,
+      usedPorts: usedByOdp.get(row.id) ?? [],
+    }));
+  } catch {
+    return [];
   }
-
-  return odpRows.map((row) => ({
-    id: row.id,
-    kode: row.kode,
-    nama: row.nama,
-    kapasitasPort: row.kapasitasPort,
-    usedPorts: usedByOdp.get(row.id) ?? [],
-  }));
 }
 
 export async function getOdp(tenantId: string, id: string) {
