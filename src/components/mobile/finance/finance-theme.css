@@ -29,6 +29,15 @@ html.nm-finance-mobile {
   box-shadow: var(--fm-card-shadow);
 }
 
+@keyframes fm-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
 .fm-main-with-fab-nav {
   padding-bottom: calc(var(--fm-nav-h) + var(--nm-safe-bottom, 0px) + 1.5rem) !important;
 }

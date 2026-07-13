@@ -6,10 +6,14 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
-import { useState } from "react";
-import { FinanceWelcomeScreen, type FinanceQuickItem } from "@/components/mobile/finance";
-import { LoginForm } from "./login-form";
 import Link from "next/link";
+import { useState } from "react";
+import {
+  FinanceMobileSheet,
+  FinanceWelcomeScreen,
+  type FinanceQuickItem,
+} from "@/components/mobile/finance";
+import { LoginForm } from "./login-form";
 
 export function StaffLoginMobile({
   brandName = "NetManage",
@@ -22,7 +26,9 @@ export function StaffLoginMobile({
   forbidden?: boolean;
   resetOk?: boolean;
 }) {
-  const [showForm, setShowForm] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  const openLogin = () => setLoginOpen(true);
 
   const fastMenu: FinanceQuickItem[] = [
     { id: "pelanggan", label: "Pelanggan", icon: Users },
@@ -31,56 +37,51 @@ export function StaffLoginMobile({
     { id: "laporan", label: "Laporan", icon: BarChart3 },
   ];
 
-  if (!showForm) {
-    return (
+  return (
+    <>
       <FinanceWelcomeScreen
+        layout="fullscreen"
         brandTitle={brandName}
         greeting="Selamat Datang!"
         subtitle="Dashboard Admin ISP — kelola pelanggan & billing."
         fastMenuItems={fastMenu.map((item) => ({
           ...item,
-          onClick: () => setShowForm(true),
+          onClick: openLogin,
         }))}
-        onLogin={() => setShowForm(true)}
+        onLogin={openLogin}
         loginLabel="Login"
       />
-    );
-  }
 
-  return (
-    <div className="fm-mobile-only min-h-[100dvh] bg-background px-4 py-6">
-      <div className="mx-auto max-w-sm space-y-4">
-        <h1 className="text-xl font-bold">Masuk Dashboard</h1>
-        {suspended && (
-          <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            Akun ISP ditangguhkan. Hubungi support platform.
+      <FinanceMobileSheet
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        title="Masuk Dashboard"
+      >
+        <div className="space-y-4 px-4 py-4">
+          {suspended && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              Akun ISP ditangguhkan. Hubungi support platform.
+            </p>
+          )}
+          {forbidden && (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              Anda tidak memiliki akses ke halaman tersebut.
+            </p>
+          )}
+          {resetOk && (
+            <p className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-primary">
+              Kata sandi berhasil diubah. Silakan masuk.
+            </p>
+          )}
+          <LoginForm />
+          <p className="text-center text-sm text-muted-foreground">
+            Pelanggan?{" "}
+            <Link href="/portal/login" className="text-primary hover:underline">
+              Masuk portal
+            </Link>
           </p>
-        )}
-        {forbidden && (
-          <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            Anda tidak memiliki akses ke halaman tersebut.
-          </p>
-        )}
-        {resetOk && (
-          <p className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm text-primary">
-            Kata sandi berhasil diubah. Silakan masuk.
-          </p>
-        )}
-        <LoginForm />
-        <p className="text-center text-sm text-muted-foreground">
-          Pelanggan?{" "}
-          <Link href="/portal/login" className="text-primary hover:underline">
-            Masuk portal
-          </Link>
-        </p>
-        <button
-          type="button"
-          className="w-full text-center text-sm text-muted-foreground underline"
-          onClick={() => setShowForm(false)}
-        >
-          Kembali
-        </button>
-      </div>
-    </div>
+        </div>
+      </FinanceMobileSheet>
+    </>
   );
 }

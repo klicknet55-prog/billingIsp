@@ -11,7 +11,8 @@ import { listReceipts } from "@/features/invoices/service";
 import { db } from "@/lib/db";
 import { pelanggan, tagihan } from "@/lib/db/schema";
 import { requireUser } from "@/lib/auth";
-import { formatRupiah } from "@/lib/utils";
+import { formatRupiah, formatDate } from "@/lib/utils";
+import { getTenantSubscriptionStatus } from "@/features/tenants/service";
 import { and, eq, inArray } from "drizzle-orm";
 import { DashboardMobileHome } from "./dashboard-mobile-home";
 
@@ -75,6 +76,7 @@ function OutstandingList({
 export default async function IspDashboard() {
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
+  const subscription = await getTenantSubscriptionStatus(tenantId);
   const [customers, receipts, outstandingRows] = await Promise.all([
     listPelanggan(tenantId),
     listReceipts(tenantId),
@@ -105,9 +107,21 @@ export default async function IspDashboard() {
   const totalBulanIni = bulanIniRows.reduce((s, r) => s + r.amount, 0);
   const totalTunggakan = tunggakanRows.reduce((s, r) => s + r.amount, 0);
 
+  const subscriptionInfo = subscription
+    ? {
+        packageName: subscription.packageName,
+        status: subscription.status,
+        expiresAt: formatDate(subscription.akhir),
+      }
+    : null;
+
   return (
     <>
       <DashboardMobileHome
+        userName={user.nama}
+        userRole={user.role}
+        subscriptionInfo={subscriptionInfo}
+        showSubscriptionActions={user.role === "owner" || user.role === "admin"}
         pendapatan={pendapatan}
         totalBulanIni={totalBulanIni}
         totalTunggakan={totalTunggakan}

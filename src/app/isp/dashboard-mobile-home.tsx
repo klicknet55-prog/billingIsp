@@ -10,19 +10,30 @@ import {
 import {
   FinanceBalanceHero,
   FinanceBalanceHeroAction,
+  FinancePageHero,
   FinanceQuickGrid,
   FinanceSummaryCard,
+  FinanceUserAccountCard,
   type FinanceQuickItem,
+  type FinanceUserSubscriptionInfo,
 } from "@/components/mobile/finance";
 import { formatRupiah } from "@/lib/utils";
 
 export function DashboardMobileHome({
+  userName,
+  userRole,
+  subscriptionInfo,
+  showSubscriptionActions,
   pendapatan,
   totalBulanIni,
   totalTunggakan,
   totalPelanggan,
   isolir,
 }: {
+  userName: string;
+  userRole: string;
+  subscriptionInfo?: FinanceUserSubscriptionInfo | null;
+  showSubscriptionActions?: boolean;
   pendapatan: number;
   totalBulanIni: number;
   totalTunggakan: number;
@@ -42,6 +53,15 @@ export function DashboardMobileHome({
 
   return (
     <div className="fm-mobile-only -mx-4 -mt-4 space-y-0">
+      <FinancePageHero title="Dashboard" subtitle="Ringkasan operasional ISP Anda.">
+        <FinanceUserAccountCard
+          userName={userName}
+          userRole={userRole}
+          subscriptionInfo={subscriptionInfo}
+          showSubscriptionActions={showSubscriptionActions}
+        />
+      </FinancePageHero>
+
       <FinanceBalanceHero
         label="Pendapatan Lunas"
         amount={formatRupiah(pendapatan)}

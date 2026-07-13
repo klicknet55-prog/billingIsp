@@ -70,7 +70,7 @@ export function FinanceQuickGrid({
 }) {
   return (
     <section className={cn("fm-mobile-only px-4 py-4", className)}>
-      <div className="fm-surface-card mx-auto max-w-lg bg-card p-4">
+      <div className="fm-surface-card mx-auto max-w-lg bg-card p-4 text-card-foreground">
         {title && <h2 className="mb-3 text-sm font-semibold">{title}</h2>}
         <div className="grid grid-cols-4 gap-2">
           {items.map((item, i) => (

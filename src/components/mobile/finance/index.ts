@@ -7,6 +7,9 @@ export type { FinanceNavAction, FinanceNavFab, FinanceNavItem, FinanceNavLink } 
 export { FinanceHorizontalCards } from "./finance-horizontal-cards";
 export type { FinanceHorizontalItem } from "./finance-horizontal-cards";
 export { FinanceMobileInit } from "./finance-mobile-init";
+export { FinancePageHero } from "./finance-page-hero";
+export { FinanceUserAccountCard } from "./finance-user-account-card";
+export type { FinanceUserSubscriptionInfo } from "./finance-user-account-card";
 export { FinanceQuickGrid } from "./finance-quick-grid";
 export type { FinanceQuickItem } from "./finance-quick-grid";
 export { FinanceSummaryCard } from "./finance-summary-card";

@@ -11,7 +11,6 @@ import {
   RENEWAL_ONLY_NAV,
 } from "@/lib/mobile/dashboard-nav";
 import { DASHBOARD_MENU_ICONS } from "@/lib/mobile/dashboard-menu-icons";
-import { formatDate } from "@/lib/utils";
 
 export default async function DashboardMenuPage() {
   const user = await requireUser(["owner", "admin", "teknisi"], { allowRenewalOnly: true });
@@ -24,23 +23,9 @@ export default async function DashboardMenuPage() {
     : filterDashboardNav(DASHBOARD_NAV, user.role, subscription?.fitur);
   const sections = buildDashboardMenuSections(entries);
 
-  const subscriptionInfo = subscription
-    ? {
-        packageName: subscription.packageName,
-        status: subscription.status,
-        expiresAt: formatDate(subscription.akhir),
-      }
-    : null;
-
   return (
     <>
-      <DashboardMobileMenu
-        sections={sections}
-        userName={user.nama}
-        userRole={user.role}
-        subscriptionInfo={subscriptionInfo}
-        showSubscriptionActions={user.role === "owner" || user.role === "admin"}
-      />
+      <DashboardMobileMenu sections={sections} />
 
       <div className="fm-desktop-only space-y-6">
         <PageHeader title="Menu" description="Akses cepat ke semua fitur dashboard." />

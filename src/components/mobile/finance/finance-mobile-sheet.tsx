@@ -48,6 +48,7 @@ export function FinanceMobileSheet({
         className={cn(
           "fixed inset-x-0 bottom-0 z-[910] mx-auto max-h-[85dvh] w-full max-w-lg rounded-t-[1.5rem] border bg-background shadow-[0_-8px_30px_rgba(0,0,0,0.15)]",
           "pb-[env(safe-area-inset-bottom,0px)]",
+          "animate-[fm-sheet-up_0.28s_ease-out]",
           className
         )}
       >

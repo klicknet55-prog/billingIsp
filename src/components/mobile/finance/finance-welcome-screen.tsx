@@ -13,6 +13,7 @@ export function FinanceWelcomeScreen({
   fastMenuItems,
   onLogin,
   loginLabel = "Login",
+  layout = "split",
   children,
   className,
 }: {
@@ -23,9 +24,45 @@ export function FinanceWelcomeScreen({
   fastMenuItems?: FinanceQuickItem[];
   onLogin?: () => void;
   loginLabel?: string;
+  layout?: "split" | "fullscreen";
   children?: ReactNode;
   className?: string;
 }) {
+  if (layout === "fullscreen") {
+    return (
+      <div className={cn("fm-mobile-only fixed inset-0 z-[60] flex flex-col", className)}>
+        <div className="fm-header-gradient flex min-h-0 flex-1 flex-col px-4 pb-[max(1.25rem,var(--nm-safe-bottom,0px))] pt-[max(1rem,var(--nm-safe-top,0px))] text-white">
+          <div className="mx-auto w-full max-w-lg text-center">
+            <p className="text-lg font-bold tracking-tight">{brandTitle}</p>
+            {greeting && <p className="mt-4 text-base font-medium">{greeting}</p>}
+            {subtitle && <p className="mt-1 text-sm text-white/85">{subtitle}</p>}
+          </div>
+
+          <div className="mx-auto mt-6 flex max-h-36 w-full max-w-xs shrink-0 items-center justify-center">
+            {illustration ?? <DefaultIllustration />}
+          </div>
+
+          {fastMenuItems && fastMenuItems.length > 0 && (
+            <div className="-mx-2 mb-4 shrink-0">
+              <FinanceQuickGrid title="Menu Cepat" items={fastMenuItems} className="px-0 py-0" />
+            </div>
+          )}
+
+          {children}
+
+          {onLogin && (
+            <Button
+              className="mt-auto h-12 w-full max-w-lg self-center rounded-full border-0 bg-white text-base font-semibold text-primary hover:bg-white/90"
+              onClick={onLogin}
+            >
+              {loginLabel}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={cn("fm-mobile-only flex min-h-[100dvh] flex-col", className)}>
       <div className="fm-header-gradient flex flex-1 flex-col px-4 pb-28 pt-[max(1rem,var(--nm-safe-top))] text-white">

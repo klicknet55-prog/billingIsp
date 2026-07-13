@@ -40,7 +40,7 @@ export default async function LoginPage({
         resetOk={resetOk}
       />
 
-      <div className="fm-desktop-only w-full">
+      <div className="fm-desktop-only flex w-full justify-center">
         <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl">Masuk Dashboard</CardTitle>
