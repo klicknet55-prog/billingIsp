@@ -68,7 +68,7 @@ export default async function IspLayout({ children }: { children: React.ReactNod
       }
     >
       {renewalOnly && (
-        <Card className="mb-4 border-amber-500/30 bg-amber-500/5">
+        <Card className="fm-desktop-only mb-4 border-amber-500/30 bg-amber-500/5">
           <CardContent className="p-3 text-sm text-amber-900 dark:text-amber-200">
             Langganan paket Free telah berakhir. Anda hanya dapat mengakses halaman perpanjang
             langganan via donasi.
@@ -76,7 +76,7 @@ export default async function IspLayout({ children }: { children: React.ReactNod
         </Card>
       )}
       {showSubBanner && subscription!.status === "expired" && !renewalOnly && (
-        <Card className="mb-4 border-destructive/30 bg-destructive/5">
+        <Card className="fm-desktop-only mb-4 border-destructive/30 bg-destructive/5">
           <CardContent className="p-3 text-sm text-destructive">
             Langganan platform berakhir {formatDate(subscription!.akhir)}. Akses ISP ditangguhkan
             setelah cron berjalan —{" "}
@@ -88,7 +88,7 @@ export default async function IspLayout({ children }: { children: React.ReactNod
         </Card>
       )}
       {showSubBanner && subscription!.status === "active" && daysLeft <= 7 && (
-        <Card className="mb-4 border-amber-500/30 bg-amber-500/5">
+        <Card className="fm-desktop-only mb-4 border-amber-500/30 bg-amber-500/5">
           <CardContent className="p-3 text-sm text-amber-900 dark:text-amber-200">
             Langganan platform berakhir {formatDate(subscription!.akhir)}
             {daysLeft <= 0 ? " (hari ini)" : daysLeft === 1 ? " (besok)" : ` (${daysLeft} hari lagi)`}.{" "}

@@ -11,6 +11,10 @@ export function notificationHref(eventType: string): string | null {
       return PUSH_PATHS.adminTiket;
     case "whatsapp.integration.error":
       return PUSH_PATHS.adminIntegrasi;
+    case "subscription.expiring":
+    case "subscription.expired":
+    case "subscription.renewal_only":
+      return "/dashboard/langganan";
     default:
       return null;
   }

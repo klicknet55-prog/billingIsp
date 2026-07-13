@@ -124,7 +124,7 @@ export function FinanceNotificationsBell({ app }: { app: "admin" | "portal" }) {
               <div className="py-6 text-center text-xs text-muted-foreground">
                 <p>Belum ada notifikasi.</p>
                 <p className="mt-1.5 leading-snug">
-                  Muncul setelah login di APK Android dan ada event billing/tiket.
+                  Peringatan langganan dan event billing/tiket akan muncul di sini.
                 </p>
               </div>
             ) : (

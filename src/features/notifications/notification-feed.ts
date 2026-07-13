@@ -5,6 +5,7 @@ import { getCurrentActor } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { pushNotificationLogs } from "@/lib/db/schema";
 import { notificationHref } from "@/lib/mobile/notification-routes";
+import { listAdminSystemNotifications } from "./system-notifications";
 
 export type MobileNotificationItem = {
   id: string;
@@ -45,7 +46,7 @@ export async function listMobileNotificationsForActor(
     .orderBy(desc(pushNotificationLogs.createdAt))
     .limit(limit);
 
-  return rows.map((row) => ({
+  const pushItems = rows.map((row) => ({
     id: row.id,
     title: row.title,
     body: row.body,
@@ -54,4 +55,13 @@ export async function listMobileNotificationsForActor(
     createdAt:
       row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
   }));
+
+  if (app !== "admin") {
+    return pushItems;
+  }
+
+  const systemItems = await listAdminSystemNotifications();
+  return [...systemItems, ...pushItems]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, limit);
 }
