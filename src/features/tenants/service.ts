@@ -422,6 +422,8 @@ export async function registerTenant(
     id: tenantId,
     namaUsaha: input.namaUsaha.trim(),
     logoUrl: null,
+    alamat: null,
+    phone: null,
     domain,
     status: process.env.DUITKU_DRIVER === "real" ? "suspended" : "active",
     themePreset: "default",

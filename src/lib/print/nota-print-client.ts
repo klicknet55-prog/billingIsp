@@ -1,18 +1,18 @@
 import type { NotaDocumentData } from "./nota-document";
 import {
   buildNotaPrintDocument,
-  buildNotaPrintFragment,
+  buildNotaRows,
   notaPdfFilename,
 } from "./nota-document";
 
-function waitForImages(root: HTMLElement, timeoutMs = 2500): Promise<void> {
+function waitForImages(root: HTMLElement, timeoutMs = 3000): Promise<void> {
   const images = [...root.querySelectorAll("img")];
   if (images.length === 0) return Promise.resolve();
 
   const loads = images.map(
     (img) =>
       new Promise<void>((resolve) => {
-        if (img.complete) resolve();
+        if (img.complete && img.naturalWidth > 0) resolve();
         else {
           img.addEventListener("load", () => resolve(), { once: true });
           img.addEventListener("error", () => resolve(), { once: true });
@@ -26,26 +26,11 @@ function waitForImages(root: HTMLElement, timeoutMs = 2500): Promise<void> {
   ]);
 }
 
-function mountOffscreenNota(data: NotaDocumentData): HTMLElement {
-  const host = document.createElement("div");
-  host.setAttribute("aria-hidden", "true");
-  host.style.position = "fixed";
-  host.style.left = "-10000px";
-  host.style.top = "0";
-  host.style.width = "302px";
-  host.style.background = "#fff";
-  host.style.zIndex = "-1";
-  host.innerHTML = buildNotaPrintFragment(data, window.location.origin);
-  document.body.appendChild(host);
-  const article = host.querySelector("#nota-print");
-  if (!(article instanceof HTMLElement)) {
-    host.remove();
-    throw new Error("Gagal menyiapkan nota untuk cetak.");
-  }
-  return host;
+function waitTwoFrames(): Promise<void> {
+  return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 }
 
-/** Cetak langsung — iframe HTML inline (tanpa popup kosong). */
+/** Cetak via iframe tersembunyi — tanpa buka tab/halaman blank. */
 export async function printNotaDocument(
   data: NotaDocumentData,
   title?: string
@@ -57,75 +42,91 @@ export async function printNotaDocument(
   const html = buildNotaPrintDocument(data, window.location.origin, title);
   const iframe = document.createElement("iframe");
   iframe.setAttribute("title", "Cetak nota");
-  iframe.style.cssText =
-    "position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none;";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.style.cssText = [
+    "position:fixed",
+    "left:-10000px",
+    "top:0",
+    "width:800px",
+    "height:1200px",
+    "border:0",
+    "opacity:0",
+    "pointer-events:none",
+    "visibility:hidden",
+  ].join(";");
   document.body.appendChild(iframe);
 
   const win = iframe.contentWindow;
   const doc = iframe.contentDocument ?? win?.document;
   if (!doc || !win) {
     iframe.remove();
-    return mobilePrintFallback(html);
+    return { ok: false, message: "Gagal menyiapkan cetak nota." };
   }
 
   doc.open();
   doc.write(html);
   doc.close();
-
   await waitForImages(doc.body);
+  await waitTwoFrames();
 
-  return new Promise((resolve) => {
-    const cleanup = () => setTimeout(() => iframe.remove(), 800);
-
-    const runPrint = () => {
-      try {
-        win.focus();
-        win.print();
-        resolve({ ok: true });
-      } catch {
-        iframe.remove();
-        void mobilePrintFallback(html).then(resolve);
-        return;
-      }
-      cleanup();
+  try {
+    win.focus();
+    win.print();
+    const cleanup = () => {
+      setTimeout(() => iframe.remove(), 500);
     };
-
-    if (doc.readyState === "complete") {
-      setTimeout(runPrint, 150);
-    } else {
-      iframe.onload = () => setTimeout(runPrint, 150);
-      setTimeout(runPrint, 900);
+    if (typeof win.onafterprint !== "undefined") {
+      win.onafterprint = cleanup;
     }
-  });
-}
-
-async function mobilePrintFallback(
-  html: string
-): Promise<{ ok: boolean; message?: string }> {
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const opened = window.open(url, "_blank", "noopener,noreferrer");
-  if (!opened) {
-    URL.revokeObjectURL(url);
-    return {
-      ok: false,
-      message: "Izinkan popup/tab baru untuk mencetak nota di perangkat ini.",
-    };
+    setTimeout(cleanup, 60_000);
+    return { ok: true };
+  } catch {
+    iframe.remove();
+    return { ok: false, message: "Gagal mencetak nota." };
   }
-  opened.addEventListener("load", () => {
-    setTimeout(() => {
-      try {
-        opened.print();
-      } catch {
-        /* user can print manual dari menu browser */
-      }
-    }, 400);
-  });
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return { ok: true };
 }
 
-/** Unduh PDF langsung (html2canvas + jsPDF). */
+async function loadLogoDataUrl(logoUrl: string | null | undefined): Promise<string | null> {
+  if (!logoUrl?.trim()) return null;
+  const src =
+    logoUrl.startsWith("http://") || logoUrl.startsWith("https://")
+      ? logoUrl
+      : `${window.location.origin}${logoUrl.startsWith("/") ? logoUrl : `/${logoUrl}`}`;
+  try {
+    const res = await fetch(src, { credentials: "same-origin" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+type JsPdf = import("jspdf").jsPDF;
+
+function fitText(pdf: JsPdf, text: string, maxWidth: number): string {
+  const t = text.trim();
+  if (!t) return "";
+  if (pdf.getTextWidth(t) <= maxWidth) return t;
+  const chars = Array.from(t);
+  let out = "";
+  for (const ch of chars) {
+    const next = `${out}${ch}`;
+    if (pdf.getTextWidth(`${next}…`) > maxWidth) break;
+    out = next;
+  }
+  return out ? `${out}…` : "…";
+}
+
+/**
+ * PDF nota — ukuran nyaman (bukan stamp kecil), padding dalam aman,
+ * layout kiri/kanan tanpa spasi karakter tetap.
+ */
 export async function downloadNotaPdf(
   data: NotaDocumentData
 ): Promise<{ ok: boolean; message?: string }> {
@@ -133,44 +134,156 @@ export async function downloadNotaPdf(
     return { ok: false, message: "Unduh PDF hanya tersedia di browser." };
   }
 
-  let host: HTMLElement | null = null;
   try {
-    const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
-      import("html2canvas"),
-      import("jspdf"),
-    ]);
+    const { jsPDF } = await import("jspdf");
 
-    host = mountOffscreenNota(data);
-    const article = host.querySelector("#nota-print");
-    if (!(article instanceof HTMLElement)) {
-      throw new Error("Nota tidak ditemukan.");
+    const rows = buildNotaRows(data);
+    const brand = data.namaUsaha.trim() || "Nota";
+    const logoData = await loadLogoDataUrl(data.logoUrl);
+
+    // Ukuran tetap nyaman dibaca di layar / print (lebar struk besar)
+    const PAGE_W = 100; // mm
+    const BORDER = 4; // jarak kotak dari tepi halaman
+    const PAD = 8; // padding isi dari dinding kotak — mencegah teks menabrak garis
+    const contentLeft = BORDER + PAD;
+    const contentRight = PAGE_W - BORDER - PAD;
+    const contentW = contentRight - contentLeft;
+    const FONT = 10;
+    const FONT_BRAND = 12;
+    const LINE_H = 5.2;
+
+    // Probe ukuran teks
+    const pdf = new jsPDF({
+      orientation: "p",
+      unit: "mm",
+      format: [PAGE_W, 200],
+      compress: true,
+    });
+    pdf.setFont("courier", "normal");
+    pdf.setFontSize(FONT);
+
+    // Hitung tinggi konten dulu
+    let needH = BORDER + PAD;
+
+    if (logoData) needH += 12;
+
+    pdf.setFont("courier", "bold");
+    pdf.setFontSize(FONT_BRAND);
+    const brandLines = pdf.splitTextToSize(brand, contentW) as string[];
+    needH += brandLines.length * 5.5 + 3;
+
+    pdf.setFont("courier", "normal");
+    pdf.setFontSize(FONT);
+
+    for (const row of rows) {
+      if (row.kind === "line") {
+        needH += 4;
+      } else if (row.kind === "center") {
+        const wrap = pdf.splitTextToSize(row.text, contentW) as string[];
+        needH += wrap.length * LINE_H;
+      } else {
+        // pair bisa wrap kanan jika panjang
+        const leftW = Math.min(contentW * 0.45, pdf.getTextWidth(row.left || " ") + 1);
+        const rightMax = contentW - leftW - 2;
+        const rightWrap = pdf.splitTextToSize(row.right || " ", Math.max(10, rightMax)) as string[];
+        needH += Math.max(1, rightWrap.length) * LINE_H;
+      }
     }
 
-    await waitForImages(host);
+    needH += BORDER + PAD + 2;
+    const PAGE_H = Math.max(needH, 70);
 
-    const canvas = await html2canvas(article, {
-      scale: Math.min(2, window.devicePixelRatio || 1.5),
-      backgroundColor: "#ffffff",
-      useCORS: true,
-      logging: false,
+    // Buat ulang dengan tinggi yang tepat
+    const out = new jsPDF({
+      orientation: "p",
+      unit: "mm",
+      format: [PAGE_W, PAGE_H],
+      compress: true,
     });
 
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const margin = 12;
-    const imgWidth = pageWidth - margin * 2;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    pdf.addImage(imgData, "PNG", margin, margin, imgWidth, imgHeight);
-    pdf.save(notaPdfFilename(data.noNota));
+    out.setTextColor(20, 20, 20);
+    out.setDrawColor(20, 20, 20);
+    out.setLineWidth(0.4);
+    // Kotak pembatas — isi hanya di dalam PAD
+    out.rect(BORDER, BORDER, PAGE_W - BORDER * 2, PAGE_H - BORDER * 2);
 
+    let y = BORDER + PAD;
+
+    if (logoData) {
+      try {
+        const size = 10;
+        const format =
+          logoData.includes("image/jpeg") || logoData.includes("image/jpg")
+            ? "JPEG"
+            : logoData.includes("image/webp")
+              ? "WEBP"
+              : "PNG";
+        out.addImage(logoData, format, (PAGE_W - size) / 2, y, size, size);
+        y += size + 2;
+      } catch {
+        /* skip */
+      }
+    }
+
+    out.setFont("courier", "bold");
+    out.setFontSize(FONT_BRAND);
+    for (const line of brandLines) {
+      const tw = out.getTextWidth(line);
+      out.text(line, (PAGE_W - tw) / 2, y + 3.5);
+      y += 5.5;
+    }
+    y += 2;
+
+    out.setFont("courier", "normal");
+    out.setFontSize(FONT);
+
+    for (const row of rows) {
+      if (row.kind === "line") {
+        const ly = y + 1;
+        out.setLineWidth(0.3);
+        out.line(contentLeft, ly, contentRight, ly);
+        y += 4;
+        continue;
+      }
+
+      if (row.kind === "center") {
+        const wrap = out.splitTextToSize(row.text, contentW) as string[];
+        for (const line of wrap) {
+          const tw = out.getTextWidth(line);
+          out.text(line, (PAGE_W - tw) / 2, y + 3.5);
+          y += LINE_H;
+        }
+        continue;
+      }
+
+      // pair: kiri / kanan dalam area aman
+      const leftLabel = row.left || "";
+      const rightValue = row.right || "";
+      const colGap = 3;
+      const leftMax = contentW * 0.42;
+      const leftText = fitText(out, leftLabel, leftMax);
+      const leftW = leftText ? out.getTextWidth(leftText) : 0;
+      const rightMax = Math.max(12, contentW - leftW - colGap);
+      const rightLines = out.splitTextToSize(rightValue, rightMax) as string[];
+
+      if (leftText) {
+        out.text(leftText, contentLeft, y + 3.5);
+      }
+      for (let i = 0; i < rightLines.length; i++) {
+        const rl = rightLines[i]!;
+        const rw = out.getTextWidth(rl);
+        out.text(rl, contentRight - rw, y + 3.5);
+        if (i < rightLines.length - 1) y += LINE_H;
+      }
+      y += LINE_H;
+    }
+
+    out.save(notaPdfFilename(data.noNota));
     return { ok: true };
   } catch (err) {
     return {
       ok: false,
       message: err instanceof Error ? err.message : "Gagal membuat PDF.",
     };
-  } finally {
-    host?.remove();
   }
 }

@@ -55,27 +55,24 @@ export function ApiKeysPanel({ keys, appUrl }: { keys: KeyRow[]; appUrl: string 
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border bg-muted/40 p-4 text-sm">
+      <div className="min-w-0 overflow-hidden rounded-md border bg-muted/40 p-4 text-sm">
         <p className="font-medium">REST API v1 (read-only)</p>
-        <p className="mt-1 text-muted-foreground">
-          Autentikasi: header <code className="text-xs">Authorization: Bearer &lt;api_key&gt;</code>
+        <p className="mt-1 break-words text-muted-foreground">
+          Autentikasi: header{" "}
+          <code className="break-all text-xs">Authorization: Bearer &lt;api_key&gt;</code>
         </p>
-        <ul className="mt-2 list-inside list-disc space-y-0.5 text-muted-foreground">
-          <li>
-            <code className="text-xs">GET {base}/api/v1/health</code>
-          </li>
-          <li>
-            <code className="text-xs">GET {base}/api/v1/pelanggan</code>
-          </li>
-          <li>
-            <code className="text-xs">GET {base}/api/v1/tagihan</code>
-          </li>
-          <li>
-            <code className="text-xs">GET {base}/api/v1/invoice</code>
-          </li>
-          <li>
-            <code className="text-xs">GET {base}/api/v1/router</code>
-          </li>
+        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-muted-foreground">
+          {[
+            `${base}/api/v1/health`,
+            `${base}/api/v1/pelanggan`,
+            `${base}/api/v1/tagihan`,
+            `${base}/api/v1/invoice`,
+            `${base}/api/v1/router`,
+          ].map((url) => (
+            <li key={url} className="min-w-0 pl-1">
+              <code className="block break-all text-xs">GET {url}</code>
+            </li>
+          ))}
         </ul>
       </div>
 

@@ -179,11 +179,32 @@ html.nm-capacitor-shell .nm-page-safe-bottom {
   border-radius: 9999px;
 }
 
-/* Cetak nota dari popup — layout struk */
+/* Teks panjang / URL / code tidak keluar dari box (mobile & desktop) */
+code,
+.break-long {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+@media (max-width: 767px) {
+  main,
+  [data-slot="card"],
+  .fm-surface-card {
+    min-width: 0;
+  }
+}
+
+/* Cetak nota — hide chrome, jaga kotak struk utuh */
 @media print {
   html,
   body {
     background: #fff !important;
     color: #111 !important;
+  }
+
+  #nota-print {
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

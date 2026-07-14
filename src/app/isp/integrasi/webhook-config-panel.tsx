@@ -68,14 +68,14 @@ export function WebhookConfigPanel({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
-        <p>
+      <div className="min-w-0 overflow-hidden rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+        <p className="break-words">
           NetManage mengirim <code className="text-xs">POST</code> JSON ke URL Anda dengan header{" "}
-          <code className="text-xs">X-NetManage-Signature: sha256=…</code>.
+          <code className="break-all text-xs">X-NetManage-Signature: sha256=…</code>.
         </p>
-        <p className="mt-1">
+        <p className="mt-1 break-words">
           Verifikasi signature: lihat{" "}
-          <code className="text-xs">docs/webhook-verification.md</code> di repo.
+          <code className="break-all text-xs">docs/webhook-verification.md</code> di repo.
         </p>
       </div>
 

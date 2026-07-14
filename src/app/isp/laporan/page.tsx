@@ -1,5 +1,4 @@
-import { Download, TrendingDown, TrendingUp, Wallet } from "lucide-react";
-import { PageHeader } from "@/components/layout/page-header";
+import { TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { StatCard } from "@/components/layout/stat-card";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,65 +14,115 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { LaporanDownloadButtons, LaporanFilters } from "./laporan-export-bar";
 import { addPengeluaranAction } from "@/features/reports/actions";
 import {
-  getFinancialSummary,
-  listKategori,
-  listPengeluaran,
-} from "@/features/reports/service";
+  getLaporanKeuangan,
+  listLaporanPeriodOptions,
+  resolveLaporanRange,
+} from "@/features/reports/laporan-document";
+import { getFinancialSummary, listKategori } from "@/features/reports/service";
 import { requireUser } from "@/lib/auth";
 import { formatDate, formatRupiah } from "@/lib/utils";
 
-export default async function LaporanPage() {
+export default async function LaporanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+}) {
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
-  const [summary, spend, kategori] = await Promise.all([
+  const qs = await searchParams;
+  const range = resolveLaporanRange({
+    period: qs.period,
+    from: qs.from,
+    to: qs.to,
+  });
+  const periodOptions = listLaporanPeriodOptions(12);
+
+  const [summary, kategori, laporan] = await Promise.all([
     getFinancialSummary(tenantId),
-    listPengeluaran(tenantId),
     listKategori(tenantId),
+    getLaporanKeuangan(tenantId, range),
   ]);
 
   return (
     <>
-      <PageHeader
-        title="Laporan Keuangan"
-        description="Pemasukan, pengeluaran, dan laba rugi."
-        action={
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <a href="/dashboard/laporan/export?format=csv">
-                <Download /> CSV Invoice
-              </a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="/dashboard/laporan/export?format=xlsx">
-                <Download /> Excel Invoice
-              </a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="/dashboard/laporan/export?type=pnl&format=xlsx">
-                <Download /> Excel P&amp;L
-              </a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="/dashboard/laporan/print?type=invoice" target="_blank" rel="noopener noreferrer">
-                <Download /> PDF Invoice
-              </a>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <a href="/dashboard/laporan/print?type=pnl" target="_blank" rel="noopener noreferrer">
-                <Download /> PDF P&amp;L
-              </a>
-            </Button>
-          </div>
-        }
-      />
+      <div className="mb-4 flex min-w-0 max-w-full items-center justify-between gap-2">
+        <h1 className="min-w-0 truncate text-2xl font-bold tracking-tight">Laporan</h1>
+        <LaporanDownloadButtons
+          mode={range.mode}
+          period={range.period}
+          from={range.fromStr}
+          to={range.toStr}
+        />
+      </div>
+
+      <div className="mb-4 w-full min-w-0 max-w-full">
+        <LaporanFilters
+          mode={range.mode}
+          period={range.period}
+          from={range.fromStr}
+          to={range.toStr}
+          options={periodOptions}
+        />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Pemasukan" value={formatRupiah(summary.pemasukan)} icon={TrendingUp} hint={`${summary.invoiceLunas} invoice lunas`} />
-        <StatCard label="Pengeluaran" value={formatRupiah(summary.pengeluaran)} icon={TrendingDown} />
-        <StatCard label="Laba / Rugi" value={formatRupiah(summary.laba)} icon={Wallet} />
+        <StatCard
+          label="Pemasukan (periode)"
+          value={formatRupiah(laporan.jumlahPemasukan)}
+          icon={TrendingUp}
+          hint={`${laporan.transaksi.length} transaksi`}
+        />
+        <StatCard
+          label="Pengeluaran (periode)"
+          value={formatRupiah(laporan.jumlahPengeluaran)}
+          icon={TrendingDown}
+        />
+        <StatCard
+          label="Keuntungan (periode)"
+          value={formatRupiah(laporan.totalKeuntungan)}
+          icon={Wallet}
+          hint={`Semua waktu: ${formatRupiah(summary.laba)}`}
+        />
       </div>
+
+      <Card className="mt-6">
+        <CardContent className="overflow-x-auto p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nama pelanggan</TableHead>
+                <TableHead>Nama paket</TableHead>
+                <TableHead className="text-right">Harga</TableHead>
+                <TableHead>Tgl Bayar</TableHead>
+                <TableHead>Metode</TableHead>
+                <TableHead>Router</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {laporan.transaksi.map((r, idx) => (
+                <TableRow key={`${r.pelangganNama}-${idx}-${r.tglBayar?.getTime() ?? idx}`}>
+                  <TableCell className="font-medium">{r.pelangganNama}</TableCell>
+                  <TableCell>{r.paketNama}</TableCell>
+                  <TableCell className="text-right">{formatRupiah(r.harga)}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(r.tglBayar)}</TableCell>
+                  <TableCell>{r.metodeBayar}</TableCell>
+                  <TableCell>{r.routerNama}</TableCell>
+                </TableRow>
+              ))}
+              {laporan.transaksi.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
+                    Tidak ada transaksi di periode ini.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       <div className="mt-6">
         <Disclosure label="Catat Pengeluaran">
@@ -105,29 +154,27 @@ export default async function LaporanPage() {
       </div>
 
       <Card className="mt-6">
-        <CardContent className="p-0">
+        <CardContent className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Keperluan</TableHead>
+                <TableHead className="text-right">Biaya</TableHead>
                 <TableHead>Tanggal</TableHead>
-                <TableHead>Kategori</TableHead>
-                <TableHead>Catatan</TableHead>
-                <TableHead className="text-right">Jumlah</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {spend.map((p) => (
-                <TableRow key={p.id}>
+              {laporan.pengeluaran.map((p, idx) => (
+                <TableRow key={`${p.keperluan}-${idx}-${p.tanggal.getTime()}`}>
+                  <TableCell>{p.keperluan}</TableCell>
+                  <TableCell className="text-right">{formatRupiah(p.biaya)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(p.tanggal)}</TableCell>
-                  <TableCell>{p.kategoriNama ?? "Umum"}</TableCell>
-                  <TableCell>{p.catatan ?? "-"}</TableCell>
-                  <TableCell className="text-right">{formatRupiah(p.jumlah)}</TableCell>
                 </TableRow>
               ))}
-              {spend.length === 0 && (
+              {laporan.pengeluaran.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                    Belum ada pengeluaran.
+                  <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
+                    Tidak ada pengeluaran di periode ini.
                   </TableCell>
                 </TableRow>
               )}

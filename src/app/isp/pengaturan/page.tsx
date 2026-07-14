@@ -30,13 +30,15 @@ export default async function PengaturanPage() {
           <CardHeader>
             <CardTitle>Profil Perusahaan</CardTitle>
             <CardDescription>
-              Nama usaha dan logo di kiri atas dashboard owner/admin.
+              Nama, alamat, no. HP, dan logo untuk header laporan.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <CompanyProfileForm
               defaults={{
                 namaUsaha: tenant?.namaUsaha ?? DEFAULT_BRAND_NAME,
+                alamat: tenant?.alamat ?? null,
+                phone: tenant?.phone ?? null,
                 logoUrl: tenant?.logoUrl ?? null,
               }}
             />

@@ -20,6 +20,8 @@ const adminProfileSchema = z.object({
 
 const companyProfileSchema = z.object({
   namaUsaha: z.string().trim().min(1, "Nama usaha wajib diisi"),
+  alamat: z.string().trim().optional(),
+  phone: z.string().trim().optional(),
 });
 
 export async function saveAdminProfileAction(
@@ -122,6 +124,8 @@ export async function saveCompanyProfileAction(
 
   const parsed = companyProfileSchema.safeParse({
     namaUsaha: String(formData.get("namaUsaha") ?? ""),
+    alamat: String(formData.get("alamat") ?? ""),
+    phone: String(formData.get("phone") ?? ""),
   });
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
@@ -144,6 +148,8 @@ export async function saveCompanyProfileAction(
     .update(tenants)
     .set({
       namaUsaha: parsed.data.namaUsaha,
+      alamat: parsed.data.alamat?.trim() || null,
+      phone: parsed.data.phone?.trim() || null,
       ...(removeLogo ? { logoUrl: null } : {}),
       ...(logoUrl !== undefined ? { logoUrl } : {}),
     })
@@ -151,6 +157,7 @@ export async function saveCompanyProfileAction(
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/pengaturan");
+  revalidatePath("/dashboard/laporan");
   return { ok: true };
 }
 

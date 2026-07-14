@@ -16,6 +16,8 @@ export const tenants = pgTable("tenant", {
   id: text("id").primaryKey(),
   namaUsaha: text("nama_usaha").notNull(),
   logoUrl: text("logo_url"),
+  alamat: text("alamat"),
+  phone: text("phone"),
   domain: text("domain").notNull().unique(),
   status: text("status", { enum: ["active", "suspended"] })
     .notNull()

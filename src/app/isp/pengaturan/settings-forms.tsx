@@ -70,7 +70,12 @@ export function AdminProfileForm({
 export function CompanyProfileForm({
   defaults,
 }: {
-  defaults: { namaUsaha: string; logoUrl: string | null };
+  defaults: {
+    namaUsaha: string;
+    alamat: string | null;
+    phone: string | null;
+    logoUrl: string | null;
+  };
 }) {
   const [state, action] = useActionState(saveCompanyProfileAction, initial);
   const { toast } = useToast();
@@ -90,6 +95,24 @@ export function CompanyProfileForm({
           className="h-9 w-full rounded-md border px-3 text-sm"
         />
         {fe.namaUsaha && <p className="text-xs text-destructive">{fe.namaUsaha}</p>}
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">Alamat lengkap</label>
+        <input
+          name="alamat"
+          defaultValue={defaults.alamat ?? ""}
+          placeholder="Jl. Contoh No. 1"
+          className="h-9 w-full rounded-md border px-3 text-sm"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-sm font-medium">No. HP</label>
+        <input
+          name="phone"
+          defaultValue={defaults.phone ?? ""}
+          placeholder="0812xxxxxxx"
+          className="h-9 w-full rounded-md border px-3 text-sm"
+        />
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium">Upload Logo</label>

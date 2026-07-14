@@ -203,6 +203,16 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     column: "platform",
     sql: "ALTER TABLE device_push_token ADD COLUMN platform TEXT NOT NULL DEFAULT 'android'",
   },
+  {
+    table: "tenant",
+    column: "alamat",
+    sql: "ALTER TABLE tenant ADD COLUMN alamat TEXT",
+  },
+  {
+    table: "tenant",
+    column: "phone",
+    sql: "ALTER TABLE tenant ADD COLUMN phone TEXT",
+  },
 ];
 
 function hasColumn(db: Database.Database, table: string, column: string) {

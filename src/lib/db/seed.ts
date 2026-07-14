@@ -154,6 +154,8 @@ async function main() {
     id: tenantId,
     namaUsaha: "Demo Net",
     logoUrl: null,
+    alamat: "Jl. Contoh No. 1, Jakarta",
+    phone: "081234567890",
     domain: "demo",
     status: "active",
     themePreset: "ocean",

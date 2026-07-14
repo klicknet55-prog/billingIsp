@@ -42,7 +42,7 @@ export function CommunityPageContent({
           <CardTitle>Community</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="whitespace-pre-line text-sm text-muted-foreground">
+          <p className="whitespace-pre-line break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
             {settings.communityDescription?.trim() || "Deskripsi komunitas belum diisi superadmin."}
           </p>
           {!settings.communityDescription && (
@@ -58,10 +58,15 @@ export function CommunityPageContent({
           <CardHeader>
             <CardTitle>Download APK</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
             {settings.communityApkAdminUrl && (
-              <CommunityLinkButton href={settings.communityApkAdminUrl} mode="download" variant="outline">
-                <Download className="mr-1 h-4 w-4" />
+              <CommunityLinkButton
+                href={settings.communityApkAdminUrl}
+                mode="download"
+                variant="outline"
+                className="w-full justify-start sm:w-auto sm:max-w-full"
+              >
+                <Download className="mr-1 h-4 w-4 shrink-0" />
                 {apkDisplayLabelFromUrl(
                   settings.communityApkAdminUrl,
                   MOBILE_APP_NAMES.admin
@@ -69,8 +74,13 @@ export function CommunityPageContent({
               </CommunityLinkButton>
             )}
             {settings.communityApkPortalUrl && (
-              <CommunityLinkButton href={settings.communityApkPortalUrl} mode="download" variant="outline">
-                <Download className="mr-1 h-4 w-4" />
+              <CommunityLinkButton
+                href={settings.communityApkPortalUrl}
+                mode="download"
+                variant="outline"
+                className="w-full justify-start sm:w-auto sm:max-w-full"
+              >
+                <Download className="mr-1 h-4 w-4 shrink-0" />
                 {apkDisplayLabelFromUrl(
                   settings.communityApkPortalUrl,
                   MOBILE_APP_NAMES.portal

@@ -4,30 +4,32 @@ import { notFound } from "next/navigation";
 import { NotaPrintActions } from "@/components/billing/nota-print-actions";
 import { NotaReceipt } from "@/components/billing/nota-receipt";
 import { Button } from "@/components/ui/button";
+import { buildNotaDocumentForReceipt } from "@/features/billing/nota-document-builder";
 import { getReceiptDetail } from "@/features/billing/payment-service";
 import { requirePelanggan } from "@/lib/auth";
-import { toNotaDocumentData } from "@/lib/print/nota-serialize";
+import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { getCurrentTenant } from "@/lib/tenant";
 
 export default async function PortalNotaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const cust = await requirePelanggan();
   const tenant = await getCurrentTenant();
+
   const detail = await getReceiptDetail(cust.tenantId, id);
   if (!detail || detail.receipt.pelangganId !== cust.id) notFound();
-  const { receipt: inv } = detail;
 
-  const notaData = toNotaDocumentData({
-    namaUsaha: tenant?.namaUsaha ?? "ISP",
-    logoUrl: tenant?.logoUrl,
-    noNota: inv.noInvoice,
-    pelangganNama: cust.nama,
-    tglBayar: inv.tglLunas,
-    metodeBayar: inv.metodeBayar,
-    lineItems: inv.lineItems ?? [],
-    total: inv.totalTagihan,
+  const notaData = await buildNotaDocumentForReceipt({
+    tenantId: cust.tenantId,
+    receiptId: id,
+    tenant: {
+      namaUsaha: tenant?.namaUsaha ?? DEFAULT_BRAND_NAME,
+      logoUrl: tenant?.logoUrl,
+      alamat: tenant?.alamat,
+      phone: tenant?.phone,
+    },
     compactPelanggan: true,
   });
+  if (!notaData) notFound();
 
   return (
     <div className="mx-auto max-w-lg">
@@ -37,20 +39,10 @@ export default async function PortalNotaPage({ params }: { params: Promise<{ id:
             <ArrowLeft /> Kembali
           </Link>
         </Button>
-        <NotaPrintActions data={notaData} documentTitle={`Nota ${inv.noInvoice}`} />
+        <NotaPrintActions data={notaData} documentTitle={`Nota ${notaData.noNota}`} />
       </div>
 
-      <NotaReceipt
-        namaUsaha={tenant?.namaUsaha ?? "ISP"}
-        logoUrl={tenant?.logoUrl}
-        noNota={inv.noInvoice}
-        pelangganNama={cust.nama}
-        tglBayar={inv.tglLunas}
-        metodeBayar={inv.metodeBayar}
-        lineItems={inv.lineItems ?? []}
-        total={inv.totalTagihan}
-        compactPelanggan
-      />
+      <NotaReceipt {...notaData} />
     </div>
   );
 }

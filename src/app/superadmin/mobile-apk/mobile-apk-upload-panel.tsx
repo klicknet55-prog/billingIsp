@@ -47,7 +47,7 @@ function ApkUploadCard({
       <input type="hidden" name="app" value={app} />
       <div>
         <h3 className="font-medium">{appLabel}</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="mt-1 break-all text-xs text-muted-foreground">
           Nama file release: <code className="rounded bg-muted px-1">{releaseName}</code>
         </p>
       </div>

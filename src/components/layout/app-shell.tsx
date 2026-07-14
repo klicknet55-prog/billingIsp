@@ -423,7 +423,7 @@ export function AppShell({
         </header>
         <main
           className={cn(
-            "flex-1 p-4 md:p-6",
+            "min-w-0 flex-1 overflow-x-hidden p-4 md:p-6",
             hasMobileBottomNav && "max-md:pb-20 nm-main-with-bottom-nav fm-main-with-fab-nav"
           )}
         >

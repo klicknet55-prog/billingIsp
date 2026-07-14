@@ -16,6 +16,10 @@ export const tenants = sqliteTable("tenant", {
   id: text("id").primaryKey(),
   namaUsaha: text("nama_usaha").notNull(),
   logoUrl: text("logo_url"),
+  /** Alamat perusahaan untuk header laporan / nota. */
+  alamat: text("alamat"),
+  /** No. HP / WA perusahaan untuk header laporan. */
+  phone: text("phone"),
   domain: text("domain").notNull().unique(),
   status: text("status", { enum: ["active", "suspended"] })
     .notNull()
