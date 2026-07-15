@@ -1,49 +1,5 @@
 import { isNativeCapacitor, toCapacitorAbsoluteUrl } from "@/lib/mobile/capacitor-runtime";
 
-type BrowserPlugin = {
-  open: (options: { url: string }) => Promise<void>;
-};
-
-type FilesystemPlugin = {
-  writeFile: (options: {
-    path: string;
-    data: string;
-    directory: string;
-    recursive?: boolean;
-  }) => Promise<{ uri: string }>;
-};
-
-type SharePlugin = {
-  share: (options: {
-    title?: string;
-    text?: string;
-    url?: string;
-    files?: string[];
-    dialogTitle?: string;
-  }) => Promise<void>;
-};
-
-function getPlugins() {
-  if (typeof window === "undefined") {
-    return { browser: null, filesystem: null, share: null };
-  }
-  const plugins = (window as Window & {
-    Capacitor?: {
-      Plugins?: {
-        Browser?: BrowserPlugin;
-        Filesystem?: FilesystemPlugin;
-        Share?: SharePlugin;
-      };
-    };
-  }).Capacitor?.Plugins;
-
-  return {
-    browser: plugins?.Browser ?? null,
-    filesystem: plugins?.Filesystem ?? null,
-    share: plugins?.Share ?? null,
-  };
-}
-
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -70,8 +26,20 @@ function triggerBrowserDownload(blob: Blob, filename: string) {
 }
 
 /**
- * Simpan / bagikan file di APK Capacitor (Share sheet → Files / Drive / WhatsApp).
- * Di browser desktop: unduh via anchor download.
+ * Dynamic import plugin Capacitor dari paket npm (wajib agar bridge terdaftar di WebView remote).
+ * Jangan andalkan window.Capacitor.Plugins — sering kosong tanpa import.
+ */
+async function loadNativeSavePlugins() {
+  const [{ Filesystem, Directory }, { Share }] = await Promise.all([
+    import("@capacitor/filesystem"),
+    import("@capacitor/share"),
+  ]);
+  return { Filesystem, Directory, Share };
+}
+
+/**
+ * Simpan / bagikan file di APK (Filesystem + Share sheet).
+ * Browser: unduh via anchor blob.
  */
 export async function saveOrShareBlob(input: {
   blob: Blob;
@@ -79,80 +47,76 @@ export async function saveOrShareBlob(input: {
   title?: string;
 }): Promise<{ ok: boolean; message?: string }> {
   const { blob, filename, title } = input;
+  const safeName = filename.replace(/[^\w.\-() +\u00c0-\u024f]+/g, "_") || "unduh.bin";
 
   if (!isNativeCapacitor()) {
-    triggerBrowserDownload(blob, filename);
+    triggerBrowserDownload(blob, safeName);
     return { ok: true };
   }
 
-  const { filesystem, share } = getPlugins();
+  try {
+    const { Filesystem, Directory, Share } = await loadNativeSavePlugins();
+    const data = await blobToBase64(blob);
+    const path = `netmanage/${Date.now()}-${safeName}`;
 
-  // Prefer Filesystem + Share agar file benar-benar tersimpan / bisa dibagikan
-  if (filesystem?.writeFile && share?.share) {
-    try {
-      const data = await blobToBase64(blob);
-      const safeName = filename.replace(/[^\w.\-() +\u00c0-\u024f]+/g, "_");
-      const path = `netmanage/${Date.now()}-${safeName}`;
-      const written = await filesystem.writeFile({
-        path,
-        data,
-        directory: "CACHE",
-        recursive: true,
-      });
-      await share.share({
-        title: title ?? filename,
-        dialogTitle: title ?? "Simpan atau bagikan",
-        files: [written.uri],
-      });
+    const written = await Filesystem.writeFile({
+      path,
+      data,
+      directory: Directory.Cache,
+      recursive: true,
+    });
+
+    await Share.share({
+      title: title ?? safeName,
+      dialogTitle: title ?? "Simpan atau bagikan file",
+      files: [written.uri],
+    });
+
+    return {
+      ok: true,
+      message: "Pilih aplikasi untuk menyimpan (Files / Drive / WhatsApp).",
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/cancel|abort|dismiss|share canceled|User cancelled/i.test(msg)) {
       return { ok: true };
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      // User menutup sheet bagikan — bukan error fatal
-      if (/cancel|abort|dismiss|share canceled/i.test(msg)) {
-        return { ok: true };
-      }
-      console.warn("native share failed", err);
-      return {
-        ok: false,
-        message: "Gagal menyimpan file. Coba lagi atau bagikan ke Files/Downloads.",
-      };
     }
+    console.warn("native share failed", err);
+    return {
+      ok: false,
+      message:
+        msg.includes("plugin") || msg.includes("not implemented")
+          ? "Plugin unduh belum aktif. Rebuild APK (Filesystem + Share) lalu coba lagi."
+          : `Gagal menyimpan: ${msg}`,
+    };
   }
-
-  return {
-    ok: false,
-    message:
-      "Fitur unduh APK belum lengkap. Rebuild APK setelah menambahkan plugin Filesystem + Share (cap sync).",
-  };
 }
 
 /**
- * Unduh dari URL terautentikasi (cookie WebView).
- * Di APK: fetch → Share. Di browser: navigasi / anchor.
+ * Unduh file dari URL autentikasi (cookie session).
+ * APK: fetch blob → Share. Browser: blob download.
  */
 export async function downloadAuthenticatedUrl(input: {
   pathOrUrl: string;
   filename: string;
   title?: string;
 }): Promise<{ ok: boolean; message?: string }> {
-  const url = toCapacitorAbsoluteUrl(input.pathOrUrl);
-
-  if (!isNativeCapacitor()) {
-    // Desktop / mobile browser: navigasi attachment cukup
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = input.filename;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    return { ok: true };
+  // Prefer origin WebView saat ini (APK remote HTTPS) agar cookie session ikut
+  let url = input.pathOrUrl.trim();
+  if (!/^https?:\/\//i.test(url)) {
+    const path = url.startsWith("/") ? url : `/${url}`;
+    if (typeof window !== "undefined" && /^https?:$/i.test(window.location.protocol)) {
+      url = `${window.location.origin}${path}`;
+    } else {
+      url = toCapacitorAbsoluteUrl(path);
+    }
   }
 
   try {
     const res = await fetch(url, {
       credentials: "include",
       headers: { Accept: "*/*" },
+      cache: "no-store",
     });
     if (!res.ok) {
       return {
@@ -160,12 +124,12 @@ export async function downloadAuthenticatedUrl(input: {
         message: `Gagal unduh (${res.status}). Pastikan masih login lalu coba lagi.`,
       };
     }
+
     const blob = await res.blob();
     if (!blob.size) {
       return { ok: false, message: "File kosong dari server." };
     }
 
-    // Pakai filename dari Content-Disposition jika ada
     let filename = input.filename;
     const cd = res.headers.get("Content-Disposition");
     const match = cd?.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i);
@@ -183,19 +147,6 @@ export async function downloadAuthenticatedUrl(input: {
       title: input.title,
     });
   } catch (err) {
-    // Fallback Browser Custom Tab (Download Manager) — cookie domain sering ikut
-    const { browser } = getPlugins();
-    if (browser?.open) {
-      try {
-        await browser.open({ url });
-        return {
-          ok: true,
-          message: "Membuka unduhan di browser sistem. Simpan file dari sana.",
-        };
-      } catch {
-        /* fall through */
-      }
-    }
     return {
       ok: false,
       message: err instanceof Error ? err.message : "Gagal mengunduh file.",
@@ -203,38 +154,15 @@ export async function downloadAuthenticatedUrl(input: {
   }
 }
 
-/**
- * Buka dokumen HTML print (laporan PDF) di browser sistem — tidak menumpuk history WebView.
- */
-export async function openPrintDocumentUrl(pathOrUrl: string): Promise<{ ok: boolean; message?: string }> {
-  const url = toCapacitorAbsoluteUrl(pathOrUrl);
-
-  if (!isNativeCapacitor()) {
-    window.open(url, "_blank", "noopener,noreferrer");
-    return { ok: true };
-  }
-
-  const { browser } = getPlugins();
-  if (browser?.open) {
-    try {
-      await browser.open({ url });
-      return {
-        ok: true,
-        message: "Laporan dibuka di browser. Gunakan menu Cetak / Simpan sebagai PDF.",
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        message: err instanceof Error ? err.message : "Gagal membuka laporan.",
-      };
-    }
-  }
-
-  // Tanpa Browser plugin — jangan pakai location.assign (bikin back stuck)
-  return {
-    ok: false,
-    message: "Plugin Browser belum ada di APK. Rebuild setelah cap sync.",
-  };
+/** @deprecated — gunakan downloadAuthenticatedUrl ke export?format=pdf */
+export async function openPrintDocumentUrl(
+  pathOrUrl: string
+): Promise<{ ok: boolean; message?: string }> {
+  return downloadAuthenticatedUrl({
+    pathOrUrl,
+    filename: "laporan.pdf",
+    title: "Laporan Keuangan",
+  });
 }
 
 export { isNativeCapacitor };

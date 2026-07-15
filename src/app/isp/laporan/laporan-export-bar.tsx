@@ -6,10 +6,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import {
-  downloadAuthenticatedUrl,
-  openPrintDocumentUrl,
-} from "@/lib/mobile/native-download";
+import { downloadAuthenticatedUrl } from "@/lib/mobile/native-download";
 import { cn } from "@/lib/utils";
 
 const CUSTOM_VALUE = "custom";
@@ -51,19 +48,14 @@ export function LaporanDownloadButtons({
     setMessage(null);
     setBusy(kind);
     try {
-      if (kind === "pdf") {
-        const result = await openPrintDocumentUrl(`/dashboard/laporan/print?${qs}`);
-        if (result.message) setMessage(result.message);
-        if (!result.ok && result.message) setMessage(result.message);
-      } else {
-        const result = await downloadAuthenticatedUrl({
-          pathOrUrl: `/dashboard/laporan/export?format=xlsx&${qs}`,
-          filename: `laporan-keuangan.xlsx`,
-          title: "Laporan Keuangan",
-        });
-        if (result.message) setMessage(result.message);
-        if (!result.ok && result.message) setMessage(result.message);
-      }
+      const format = kind === "pdf" ? "pdf" : "xlsx";
+      const result = await downloadAuthenticatedUrl({
+        pathOrUrl: `/dashboard/laporan/export?format=${format}&${qs}`,
+        filename: kind === "pdf" ? "laporan-keuangan.pdf" : "laporan-keuangan.xlsx",
+        title: "Laporan Keuangan",
+      });
+      if (result.message) setMessage(result.message);
+      if (!result.ok && result.message) setMessage(result.message);
     } finally {
       setBusy(null);
     }

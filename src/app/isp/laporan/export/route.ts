@@ -4,10 +4,11 @@ import {
   laporanPeriodTitle,
   resolveLaporanRange,
 } from "@/features/reports/laporan-document";
+import { buildLaporanPdfBuffer } from "@/features/reports/laporan-pdf";
 import { formatDate, formatRupiah } from "@/lib/utils";
 import * as XLSX from "xlsx";
 
-/** Ekspor laporan transaksi ke Excel (layout A4). */
+/** Ekspor laporan: Excel (xlsx), CSV, atau PDF (jsPDF A4). */
 export async function GET(req: Request) {
   const user = await requireUser(["owner", "admin", "teknisi"]);
   const tenantId = user.tenantId!;
@@ -20,6 +21,18 @@ export async function GET(req: Request) {
   });
   const data = await getLaporanKeuangan(tenantId, range);
   const title = laporanPeriodTitle(data.range);
+  const basename = `laporan-${range.from.toISOString().slice(0, 10)}_${range.to.toISOString().slice(0, 10)}`;
+
+  if (format === "pdf") {
+    const buffer = buildLaporanPdfBuffer(data);
+    return new Response(new Uint8Array(buffer), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${basename}.pdf"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
 
   const rows: (string | number)[][] = [
     [data.header.namaUsaha],
@@ -50,8 +63,6 @@ export async function GET(req: Request) {
     ["Total Keuntungan", formatRupiah(data.totalKeuntungan)],
   ];
 
-  const basename = `laporan-${range.from.toISOString().slice(0, 10)}_${range.to.toISOString().slice(0, 10)}`;
-
   if (format === "csv") {
     const csv = rows
       .map((row) =>
@@ -69,6 +80,7 @@ export async function GET(req: Request) {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": `attachment; filename="${basename}.csv"`,
+        "Cache-Control": "no-store",
       },
     });
   }
@@ -83,7 +95,7 @@ export async function GET(req: Request) {
     { wch: 16 },
   ];
   sheet["!pageSetup"] = {
-    paperSize: 9, // A4
+    paperSize: 9,
     orientation: "portrait",
     fitToPage: true,
     fitToWidth: 1,
@@ -107,6 +119,7 @@ export async function GET(req: Request) {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${basename}.xlsx"`,
+      "Cache-Control": "no-store",
     },
   });
 }

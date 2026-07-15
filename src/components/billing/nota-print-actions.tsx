@@ -23,6 +23,7 @@ export function NotaPrintActions({ data, documentTitle }: NotaPrintActionsProps)
         action === "print"
           ? await printNotaDocument(data, documentTitle)
           : await downloadNotaPdf(data);
+      if (result.message) setMessage(result.message);
       if (!result.ok && result.message) setMessage(result.message);
     } finally {
       setBusy(null);
@@ -54,7 +55,7 @@ export function NotaPrintActions({ data, documentTitle }: NotaPrintActionsProps)
         </Button>
       </div>
       {message ? (
-        <p className="text-right text-xs text-amber-700 dark:text-amber-300 sm:max-w-[16rem]">
+        <p className="text-right text-xs text-muted-foreground sm:max-w-[18rem]">
           {message}
         </p>
       ) : null}
