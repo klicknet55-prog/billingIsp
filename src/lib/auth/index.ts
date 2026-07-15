@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { pelanggan, tenants, users, type Pelanggan, type User } from "@/lib/db/schema";
-import { redirectPortalShell } from "@/lib/mobile/capacitor-shell-redirect";
+import { redirectPortalShell, redirectStaffShell } from "@/lib/mobile/capacitor-shell-redirect";
 import { getRequestPathname } from "@/lib/request-pathname";
 import {
   getStaffAccessMode,
@@ -163,14 +163,15 @@ export async function redirectIfAuthenticatedFromStaffLogin(): Promise<void> {
     const actor = await getCurrentActor();
     if (!actor) return;
     if (actor.type === "pelanggan") {
-      redirect("/portal");
+      await redirectPortalShell("/portal");
     }
+    if (actor.type !== "user") return;
     const mode = await getStaffAccessMode(actor.user);
     if (mode === "renewal_only") {
-      redirect("/dashboard/langganan");
+      await redirectStaffShell("/dashboard/langganan");
     }
     if (mode === "blocked") return;
-    redirect(dashboardPathForRole(actor.user.role));
+    await redirectStaffShell(dashboardPathForRole(actor.user.role));
   } catch (err) {
     if (isNextRedirectError(err)) throw err;
   }

@@ -1,11 +1,11 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const base = (
-  process.env.CAPACITOR_SERVER_URL || "https://isp.tunnelhost.my.id"
+  process.env.CAPACITOR_SERVER_URL || "https://netmanage.tunnelhost.my.id"
 ).replace(/\/$/, "");
 const isDevServer = base.startsWith("http://");
 
-let appHost = "isp.tunnelhost.my.id";
+let appHost = "netmanage.tunnelhost.my.id";
 try {
   appHost = new URL(base).hostname;
 } catch {

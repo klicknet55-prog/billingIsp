@@ -8,10 +8,9 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
-const base = (process.env.CAPACITOR_SERVER_URL || "https://isp.tunnelhost.my.id").replace(
-  /\/$/,
-  ""
-);
+const base = (
+  process.env.CAPACITOR_SERVER_URL || "https://netmanage.tunnelhost.my.id"
+).replace(/\/$/, "");
 const origin = base;
 const loginUrl = `${origin}/portal/login?nm_app=portal`;
 

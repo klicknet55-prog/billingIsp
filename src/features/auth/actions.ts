@@ -2,7 +2,10 @@
 
 import { eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { redirectPortalShell } from "@/lib/mobile/capacitor-shell-redirect";
+import {
+  redirectPortalShell,
+  redirectStaffShell,
+} from "@/lib/mobile/capacitor-shell-redirect";
 import {
   dashboardPathForRole,
   loginPelanggan,
@@ -49,10 +52,10 @@ export async function loginStaffAction(
     const { getStaffAccessMode } = await import("@/features/tenants/saas-access");
     const mode = await getStaffAccessMode(user);
     if (mode === "renewal_only") {
-      redirect("/dashboard/langganan");
+      return await redirectStaffShell("/dashboard/langganan");
     }
   }
-  redirect(dashboardPathForRole(user.role));
+  return await redirectStaffShell(dashboardPathForRole(user.role));
 }
 
 export async function logoutAction() {

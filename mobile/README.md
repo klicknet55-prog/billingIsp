@@ -13,11 +13,12 @@ Dokumen terkait: [../docs/build-apk-tutorial.md](../docs/build-apk-tutorial.md) 
 
 ## Prasyarat
 
-1. **Web production HTTPS** sudah jalan (mis. `https://isp.tunnelhost.my.id`)
+1. **Web production HTTPS** sudah jalan (mis. `https://netmanage.tunnelhost.my.id`)
 2. **Node.js** 20+
 3. **Android Studio** + Android SDK (API 34+)
 4. `ANDROID_HOME` → SDK (mis. `%LOCALAPPDATA%\Android\Sdk`)
 5. `JAVA_HOME` → JBR Android Studio (disarankan, bukan JDK sistem)
+6. Build APK **wajib** pakai `--url=` domain production Anda (sama dengan `NEXT_PUBLIC_APP_URL` di server)
 
 ---
 
@@ -47,8 +48,10 @@ Satu perintah — generate asset, sync, signed release, salin ke `mobile/dist/`:
 ```powershell
 $env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
 $env:JAVA_HOME="C:\Program Files\Android\Android Studio\jbr"
-npm run mobile:apk
+npm run mobile:apk -- --url=https://netmanage.tunnelhost.my.id
 ```
+
+> **Penting:** Tanpa `--url=`, APK bisa mengarah ke domain lama dan setelah login muncul *"This page couldn't load"*. Samakan URL dengan `NEXT_PUBLIC_APP_URL` di server (`https://...`, **bukan** `localhost`).
 
 Output:
 

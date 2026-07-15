@@ -24,14 +24,14 @@ function resolveServerUrl() {
   if (urlArg) return urlArg.slice("--url=".length).replace(/\/$/, "");
   const fromEnv = process.env.CAPACITOR_SERVER_URL?.trim();
   if (fromEnv) return fromEnv.replace(/\/$/, "");
-  return "https://isp.tunnelhost.my.id";
+  return "https://netmanage.tunnelhost.my.id";
 }
 
 function hostnameFromUrl(url) {
   try {
     return new URL(url).hostname;
   } catch {
-    return "isp.tunnelhost.my.id";
+    return "netmanage.tunnelhost.my.id";
   }
 }
 
@@ -199,6 +199,9 @@ async function main() {
     run("npm", ["run", "mobile:assets:generate"], root, env);
   }
 
+  if (apps.includes("admin")) {
+    run("node", ["scripts/generate-admin-www.mjs"], root, env);
+  }
   if (apps.includes("portal")) {
     patchPortalAppLinkHost(appHost);
     run("node", ["scripts/generate-portal-www.mjs"], root, env);
