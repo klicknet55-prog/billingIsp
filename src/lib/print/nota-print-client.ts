@@ -1,3 +1,4 @@
+import { isNativeCapacitor, saveOrShareBlob } from "@/lib/mobile/native-download";
 import type { NotaDocumentData } from "./nota-document";
 import {
   buildNotaPrintDocument,
@@ -278,7 +279,20 @@ export async function downloadNotaPdf(
       y += LINE_H;
     }
 
-    out.save(notaPdfFilename(data.noNota));
+    const filename = notaPdfFilename(data.noNota);
+
+    // APK: Share sheet (Filesystem) — jsPDF.save() sering hanya "tampil" di WebView
+    if (isNativeCapacitor()) {
+      const ab = out.output("arraybuffer") as ArrayBuffer;
+      const blob = new Blob([ab], { type: "application/pdf" });
+      return saveOrShareBlob({
+        blob,
+        filename,
+        title: `Nota ${data.noNota}`,
+      });
+    }
+
+    out.save(filename);
     return { ok: true };
   } catch (err) {
     return {

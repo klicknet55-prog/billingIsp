@@ -1,11 +1,15 @@
 "use client";
 
-import { FileSpreadsheet, FileText } from "lucide-react";
+import { FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import {
+  downloadAuthenticatedUrl,
+  openPrintDocumentUrl,
+} from "@/lib/mobile/native-download";
 import { cn } from "@/lib/utils";
 
 const CUSTOM_VALUE = "custom";
@@ -40,26 +44,68 @@ export function LaporanDownloadButtons({
   className?: string;
 }) {
   const qs = exportQuery({ mode, period, from, to });
+  const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const run = async (kind: "pdf" | "xlsx") => {
+    setMessage(null);
+    setBusy(kind);
+    try {
+      if (kind === "pdf") {
+        const result = await openPrintDocumentUrl(`/dashboard/laporan/print?${qs}`);
+        if (result.message) setMessage(result.message);
+        if (!result.ok && result.message) setMessage(result.message);
+      } else {
+        const result = await downloadAuthenticatedUrl({
+          pathOrUrl: `/dashboard/laporan/export?format=xlsx&${qs}`,
+          filename: `laporan-keuangan.xlsx`,
+          title: "Laporan Keuangan",
+        });
+        if (result.message) setMessage(result.message);
+        if (!result.ok && result.message) setMessage(result.message);
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
-    <div className={cn("flex shrink-0 items-center justify-end gap-1.5", className)}>
-      <Button asChild variant="outline" size="sm" className="h-9 px-2.5">
-        <a
-          href={`/dashboard/laporan/print?${qs}`}
-          target="_blank"
-          rel="noopener noreferrer"
+    <div className={cn("flex shrink-0 flex-col items-end gap-1", className)}>
+      <div className="flex items-center justify-end gap-1.5">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 px-2.5"
+          disabled={busy !== null}
           title="Unduh PDF A4"
+          onClick={() => void run("pdf")}
         >
-          <FileText className="size-4" />
+          {busy === "pdf" ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
           <span className="hidden sm:inline">PDF</span>
-        </a>
-      </Button>
-      <Button asChild variant="outline" size="sm" className="h-9 px-2.5">
-        <a href={`/dashboard/laporan/export?format=xlsx&${qs}`} title="Unduh Excel A4">
-          <FileSpreadsheet className="size-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 px-2.5"
+          disabled={busy !== null}
+          title="Unduh Excel"
+          onClick={() => void run("xlsx")}
+        >
+          {busy === "xlsx" ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <FileSpreadsheet className="size-4" />
+          )}
           <span className="hidden sm:inline">Excel</span>
-        </a>
-      </Button>
+        </Button>
+      </div>
+      {message ? (
+        <p className="max-w-[14rem] text-right text-[11px] leading-snug text-muted-foreground">
+          {message}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -83,7 +129,6 @@ export function LaporanFilters({
   const [pending, startTransition] = useTransition();
   const [fromValue, setFromValue] = useState(from);
   const [toValue, setToValue] = useState(to);
-  /** True saat dropdown Custom aktif — jangan remount saat ganti bulan di kalender. */
   const [customOpen, setCustomOpen] = useState(mode === "custom");
 
   function applyPeriod(next: string) {
@@ -112,7 +157,6 @@ export function LaporanFilters({
         onChange={(e) => {
           const next = e.target.value;
           if (next === CUSTOM_VALUE) {
-            // Hanya tampilkan input tanggal; filter diterapkan setelah tanggal dipilih.
             setCustomOpen(true);
             return;
           }
@@ -138,7 +182,6 @@ export function LaporanFilters({
             onChange={(e) => {
               const next = e.target.value;
               setFromValue(next);
-              // Terapkan filter hanya setelah tanggal valid terpilih (input lengkap).
               if (/^\d{4}-\d{2}-\d{2}$/.test(next) && /^\d{4}-\d{2}-\d{2}$/.test(toValue)) {
                 applyCustom(next, toValue);
               }
