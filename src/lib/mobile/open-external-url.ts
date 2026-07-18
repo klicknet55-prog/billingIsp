@@ -46,8 +46,8 @@ export async function openExternalUrl(url: string): Promise<void> {
 }
 
 /**
- * Unduh / buka APK — di Capacitor pakai @capacitor/browser (Custom Tab)
- * agar Download Manager Android jalan. Jangan andalkan window.Capacitor.Plugins.
+ * Unduh / buka APK — selalu lempar ke browser bawaan HP (Custom Tab)
+ * agar Download Manager Android yang menangani file.
  */
 export async function downloadApkFile(url: string): Promise<void> {
   if (typeof window === "undefined") return;
@@ -57,24 +57,11 @@ export async function downloadApkFile(url: string): Promise<void> {
     resolved = ensureUrlScheme(resolved);
   }
 
-  await waitForNativeCapacitor(1500);
-
-  if (!isNativeCapacitor()) {
-    const a = document.createElement("a");
-    a.href = resolved;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.download = "";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    return;
+  const { openInSystemBrowser } = await import("@/lib/mobile/system-browser-download");
+  const result = await openInSystemBrowser(resolved);
+  if (!result.ok) {
+    throw new Error(result.message ?? "Tidak bisa membuka browser unduhan.");
   }
-
-  if (await openWithBrowserPlugin(resolved)) return;
-
-  // Fallback: navigasi langsung — WebView sering tetap memicu unduhan untuk .apk
-  window.location.href = resolved;
 }
 
 /** @deprecated Gunakan downloadApkFile */

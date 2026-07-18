@@ -39,7 +39,11 @@ export default async function PortalNotaPage({ params }: { params: Promise<{ id:
             <ArrowLeft /> Kembali
           </Link>
         </Button>
-        <NotaPrintActions data={notaData} documentTitle={`Nota ${notaData.noNota}`} />
+        <NotaPrintActions
+          data={notaData}
+          receiptId={id}
+          documentTitle={`Nota ${notaData.noNota}`}
+        />
       </div>
 
       <NotaReceipt {...notaData} />

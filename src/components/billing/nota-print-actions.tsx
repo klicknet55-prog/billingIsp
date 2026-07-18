@@ -5,13 +5,17 @@ import { Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { NotaDocumentData } from "@/lib/print/nota-document";
 import { downloadNotaPdf, printNotaDocument } from "@/lib/print/nota-print-client";
+import { isNativeCapacitor } from "@/lib/mobile/capacitor-runtime";
+import { downloadViaSystemBrowser } from "@/lib/mobile/system-browser-download";
 
 type NotaPrintActionsProps = {
   data: NotaDocumentData;
+  /** ID receipt untuk unduhan via browser bawaan (APK). */
+  receiptId?: string;
   documentTitle?: string;
 };
 
-export function NotaPrintActions({ data, documentTitle }: NotaPrintActionsProps) {
+export function NotaPrintActions({ data, receiptId, documentTitle }: NotaPrintActionsProps) {
   const [busy, setBusy] = useState<"print" | "download" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -19,6 +23,23 @@ export function NotaPrintActions({ data, documentTitle }: NotaPrintActionsProps)
     setMessage(null);
     setBusy(action);
     try {
+      // APK: lempar PDF ke browser bawaan (Download Manager / PDF viewer + cetak)
+      if (isNativeCapacitor() && receiptId) {
+        const result = await downloadViaSystemBrowser({
+          kind: "nota",
+          receiptId,
+        });
+        setMessage(
+          result.message ??
+            (result.ok
+              ? action === "print"
+                ? "Buka PDF di browser lalu pilih Cetak."
+                : "PDF dibuka di browser untuk diunduh."
+              : "Gagal membuka unduhan.")
+        );
+        return;
+      }
+
       const result =
         action === "print"
           ? await printNotaDocument(data, documentTitle)
@@ -63,9 +84,7 @@ export function NotaPrintActions({ data, documentTitle }: NotaPrintActionsProps)
         </Button>
       </div>
       {message ? (
-        <p className="text-right text-xs text-muted-foreground sm:max-w-[18rem]">
-          {message}
-        </p>
+        <p className="text-right text-xs text-muted-foreground sm:max-w-[18rem]">{message}</p>
       ) : null}
     </div>
   );

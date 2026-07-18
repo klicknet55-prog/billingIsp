@@ -6,7 +6,9 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { isNativeCapacitor } from "@/lib/mobile/capacitor-runtime";
 import { downloadAuthenticatedUrl } from "@/lib/mobile/native-download";
+import { downloadViaSystemBrowser } from "@/lib/mobile/system-browser-download";
 import { cn } from "@/lib/utils";
 
 const CUSTOM_VALUE = "custom";
@@ -40,7 +42,6 @@ export function LaporanDownloadButtons({
   to: string;
   className?: string;
 }) {
-  const qs = exportQuery({ mode, period, from, to });
   const [busy, setBusy] = useState<"pdf" | "xlsx" | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -49,13 +50,28 @@ export function LaporanDownloadButtons({
     setBusy(kind);
     try {
       const format = kind === "pdf" ? "pdf" : "xlsx";
+
+      // APK: lempar ke browser bawaan (Download Manager)
+      if (isNativeCapacitor()) {
+        const result = await downloadViaSystemBrowser({
+          kind: "laporan",
+          format,
+          period: mode === "period" ? period : undefined,
+          from: mode === "custom" ? from : undefined,
+          to: mode === "custom" ? to : undefined,
+        });
+        setMessage(result.message ?? (result.ok ? "Membuka browser…" : "Gagal unduh."));
+        return;
+      }
+
+      const qs = exportQuery({ mode, period, from, to });
       const result = await downloadAuthenticatedUrl({
         pathOrUrl: `/dashboard/laporan/export?format=${format}&${qs}`,
         filename: kind === "pdf" ? "laporan-keuangan.pdf" : "laporan-keuangan.xlsx",
         title: "Laporan Keuangan",
       });
       if (result.ok) {
-        setMessage(result.message ?? (kind === "pdf" ? "PDF siap dibagikan/disimpan." : "Excel siap dibagikan/disimpan."));
+        setMessage(result.message ?? "File diunduh.");
       } else {
         setMessage(result.message ?? "Gagal mengunduh file.");
       }

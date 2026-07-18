@@ -45,7 +45,11 @@ export default async function NotaPage({
             <ArrowLeft /> Kembali
           </Link>
         </Button>
-        <NotaPrintActions data={notaData} documentTitle={`Nota ${notaData.noNota}`} />
+        <NotaPrintActions
+          data={notaData}
+          receiptId={id}
+          documentTitle={`Nota ${notaData.noNota}`}
+        />
       </div>
 
       <NotaReceipt {...notaData} />
