@@ -1,4 +1,8 @@
-import { isNativeCapacitor, toCapacitorAbsoluteUrl } from "@/lib/mobile/capacitor-runtime";
+import {
+  isNativeCapacitor,
+  toCapacitorAbsoluteUrl,
+  waitForNativeCapacitor,
+} from "@/lib/mobile/capacitor-runtime";
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -25,21 +29,19 @@ function triggerBrowserDownload(blob: Blob, filename: string) {
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-/**
- * Dynamic import plugin Capacitor dari paket npm (wajib agar bridge terdaftar di WebView remote).
- * Jangan andalkan window.Capacitor.Plugins — sering kosong tanpa import.
- */
-async function loadNativeSavePlugins() {
-  const [{ Filesystem, Directory }, { Share }] = await Promise.all([
-    import("@capacitor/filesystem"),
-    import("@capacitor/share"),
-  ]);
-  return { Filesystem, Directory, Share };
+function resolveFetchUrl(pathOrUrl: string): string {
+  let url = pathOrUrl.trim();
+  if (/^https?:\/\//i.test(url)) return url;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  if (typeof window !== "undefined" && /^https?:$/i.test(window.location.protocol)) {
+    return `${window.location.origin}${path}`;
+  }
+  return toCapacitorAbsoluteUrl(path);
 }
 
 /**
- * Simpan / bagikan file di APK (Filesystem + Share sheet).
- * Browser: unduh via anchor blob.
+ * Simpan blob di APK lewat Filesystem + Share sheet.
+ * Fallback: unduh via anchor (WebView baru kadang mendukung).
  */
 export async function saveOrShareBlob(input: {
   blob: Blob;
@@ -49,51 +51,106 @@ export async function saveOrShareBlob(input: {
   const { blob, filename, title } = input;
   const safeName = filename.replace(/[^\w.\-() +\u00c0-\u024f]+/g, "_") || "unduh.bin";
 
+  await waitForNativeCapacitor(1500);
+
   if (!isNativeCapacitor()) {
     triggerBrowserDownload(blob, safeName);
     return { ok: true };
   }
 
+  const errors: string[] = [];
+
   try {
-    const { Filesystem, Directory, Share } = await loadNativeSavePlugins();
+    const { Filesystem, Directory } = await import("@capacitor/filesystem");
+    const { Share } = await import("@capacitor/share");
+
     const data = await blobToBase64(blob);
     const path = `netmanage/${Date.now()}-${safeName}`;
 
-    const written = await Filesystem.writeFile({
+    // Tulis ke Cache (sudah ada di file_paths.xml → FileProvider)
+    await Filesystem.writeFile({
       path,
       data,
       directory: Directory.Cache,
       recursive: true,
     });
 
-    await Share.share({
-      title: title ?? safeName,
-      dialogTitle: title ?? "Simpan atau bagikan file",
-      files: [written.uri],
-    });
+    // getUri → content/file URI yang bisa di-share FileProvider
+    let shareUri: string;
+    try {
+      const got = await Filesystem.getUri({ path, directory: Directory.Cache });
+      shareUri = got.uri;
+    } catch {
+      const written = await Filesystem.writeFile({
+        path,
+        data,
+        directory: Directory.Cache,
+        recursive: true,
+      });
+      shareUri = written.uri;
+    }
 
+    try {
+      await Share.share({
+        title: title ?? safeName,
+        dialogTitle: title ?? "Simpan atau bagikan file",
+        files: [shareUri],
+      });
+      return {
+        ok: true,
+        message: "Pilih aplikasi untuk menyimpan (Files / Drive / WhatsApp).",
+      };
+    } catch (shareErr) {
+      const msg = shareErr instanceof Error ? shareErr.message : String(shareErr);
+      if (/cancel|abort|dismiss|share canceled|User cancelled|canceled/i.test(msg)) {
+        return { ok: true };
+      }
+      errors.push(`Share: ${msg}`);
+
+      // Fallback Share.url (beberapa OEM)
+      try {
+        await Share.share({
+          title: title ?? safeName,
+          dialogTitle: title ?? "Simpan atau bagikan file",
+          url: shareUri,
+        });
+        return {
+          ok: true,
+          message: "Pilih aplikasi untuk membuka/menyimpan file.",
+        };
+      } catch (urlErr) {
+        errors.push(
+          `Share.url: ${urlErr instanceof Error ? urlErr.message : String(urlErr)}`
+        );
+      }
+    }
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err));
+    console.warn("native saveOrShareBlob failed", err);
+  }
+
+  // Fallback terakhir: coba unduh di WebView (Chrome WebView modern)
+  try {
+    triggerBrowserDownload(blob, safeName);
     return {
       ok: true,
-      message: "Pilih aplikasi untuk menyimpan (Files / Drive / WhatsApp).",
+      message: "File disiapkan. Cek notifikasi unduhan di HP.",
     };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/cancel|abort|dismiss|share canceled|User cancelled/i.test(msg)) {
-      return { ok: true };
-    }
-    console.warn("native share failed", err);
-    return {
-      ok: false,
-      message:
-        msg.includes("plugin") || msg.includes("not implemented")
-          ? "Plugin unduh belum aktif. Rebuild APK (Filesystem + Share) lalu coba lagi."
-          : `Gagal menyimpan: ${msg}`,
-    };
+  } catch {
+    /* ignore */
   }
+
+  const joined = errors.filter(Boolean).join(" | ");
+  return {
+    ok: false,
+    message: joined
+      ? `Gagal menyimpan file (${joined}). Rebuild APK dengan plugin Filesystem + Share.`
+      : "Gagal menyimpan file. Rebuild APK lalu coba lagi.",
+  };
 }
 
 /**
- * Unduh file dari URL autentikasi (cookie session).
+ * Unduh file dari URL autentikasi (cookie session WebView).
  * APK: fetch blob → Share. Browser: blob download.
  */
 export async function downloadAuthenticatedUrl(input: {
@@ -101,16 +158,7 @@ export async function downloadAuthenticatedUrl(input: {
   filename: string;
   title?: string;
 }): Promise<{ ok: boolean; message?: string }> {
-  // Prefer origin WebView saat ini (APK remote HTTPS) agar cookie session ikut
-  let url = input.pathOrUrl.trim();
-  if (!/^https?:\/\//i.test(url)) {
-    const path = url.startsWith("/") ? url : `/${url}`;
-    if (typeof window !== "undefined" && /^https?:$/i.test(window.location.protocol)) {
-      url = `${window.location.origin}${path}`;
-    } else {
-      url = toCapacitorAbsoluteUrl(path);
-    }
-  }
+  const url = resolveFetchUrl(input.pathOrUrl);
 
   try {
     const res = await fetch(url, {
@@ -154,7 +202,7 @@ export async function downloadAuthenticatedUrl(input: {
   }
 }
 
-/** @deprecated — gunakan downloadAuthenticatedUrl ke export?format=pdf */
+/** @deprecated */
 export async function openPrintDocumentUrl(
   pathOrUrl: string
 ): Promise<{ ok: boolean; message?: string }> {

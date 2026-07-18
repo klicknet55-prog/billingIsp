@@ -23,8 +23,16 @@ export function NotaPrintActions({ data, documentTitle }: NotaPrintActionsProps)
         action === "print"
           ? await printNotaDocument(data, documentTitle)
           : await downloadNotaPdf(data);
-      if (result.message) setMessage(result.message);
-      if (!result.ok && result.message) setMessage(result.message);
+      if (result.ok) {
+        setMessage(
+          result.message ??
+            (action === "print"
+              ? "PDF siap — buka lalu pilih Cetak."
+              : "PDF siap dibagikan/disimpan.")
+        );
+      } else {
+        setMessage(result.message ?? "Gagal memproses nota.");
+      }
     } finally {
       setBusy(null);
     }

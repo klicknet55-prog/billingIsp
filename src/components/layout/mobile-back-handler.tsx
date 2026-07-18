@@ -15,10 +15,15 @@ type AppPlugin = {
   minimizeApp?: () => Promise<void>;
 };
 
-function getAppPlugin(): AppPlugin | null {
+async function loadAppPlugin(): Promise<AppPlugin | null> {
   if (typeof window === "undefined") return null;
-  const cap = window as Window & { Capacitor?: { Plugins?: { App?: AppPlugin } } };
-  return cap.Capacitor?.Plugins?.App ?? null;
+  try {
+    const mod = await import("@capacitor/app");
+    return mod.App as unknown as AppPlugin;
+  } catch {
+    const cap = window as Window & { Capacitor?: { Plugins?: { App?: AppPlugin } } };
+    return cap.Capacitor?.Plugins?.App ?? null;
+  }
 }
 
 function parentFallbackPath(pathname: string): string {
@@ -34,7 +39,6 @@ function parentFallbackPath(pathname: string): string {
  * Tombol kembali Android:
  * - Bukan root → history.back() atau navigasi ke parent (hindari keluar APK)
  * - Root → "tekan lagi untuk keluar"
- * Capacitor App.backButton menangkap hardware back sebelum WebView default exit.
  */
 export function MobileBackHandler() {
   const pathname = usePathname();
@@ -51,6 +55,10 @@ export function MobileBackHandler() {
   useEffect(() => {
     if (!mobile) return;
 
+    let cancelled = false;
+    let removeCapListener: (() => void) | undefined;
+    let onPopState: (() => void) | undefined;
+
     function showToast() {
       toastRef.current?.remove();
       const el = document.createElement("div");
@@ -66,7 +74,7 @@ export function MobileBackHandler() {
     }
 
     async function exitOrMinimize() {
-      const app = getAppPlugin();
+      const app = await loadAppPlugin();
       try {
         if (app?.minimizeApp) {
           await app.minimizeApp();
@@ -79,7 +87,6 @@ export function MobileBackHandler() {
       } catch {
         /* ignore */
       }
-      // Fallback browser/PWA
       window.history.go(-(window.history.length - 1));
     }
 
@@ -95,7 +102,6 @@ export function MobileBackHandler() {
     }
 
     function handleNonRootBack() {
-      // Ada history SPA yang bisa di-back
       if (typeof window !== "undefined" && window.history.length > 1) {
         router.back();
         return;
@@ -103,36 +109,32 @@ export function MobileBackHandler() {
       router.push(parentFallbackPath(pathnameRef.current));
     }
 
-    // —— Capacitor hardware back (utama untuk APK) ——
-    let removeCapListener: (() => void) | undefined;
-    const app = getAppPlugin();
-    if (isNativeCapacitor() && app?.addListener) {
-      void app
-        .addListener("backButton", ({ canGoBack }) => {
+    void (async () => {
+      if (!isNativeCapacitor()) return;
+      const app = await loadAppPlugin();
+      if (cancelled || !app?.addListener) return;
+      try {
+        const handle = await app.addListener("backButton", ({ canGoBack }) => {
           const path = pathnameRef.current;
-          const isRoot = MOBILE_ROOT_PATHS.has(path);
-          if (isRoot) {
+          if (MOBILE_ROOT_PATHS.has(path)) {
             handleRootBack();
             return;
           }
-          // Prefer WebView/history back bila stack ada
           if (canGoBack || window.history.length > 1) {
             window.history.back();
             return;
           }
           handleNonRootBack();
-        })
-        .then((handle) => {
-          removeCapListener = () => {
-            void Promise.resolve(handle.remove()).catch(() => undefined);
-          };
-        })
-        .catch(() => undefined);
-    }
+        });
+        removeCapListener = () => {
+          void Promise.resolve(handle.remove()).catch(() => undefined);
+        };
+      } catch {
+        /* plugin belum siap */
+      }
+    })();
 
-    // —— Guard popstate di root (browser / tanpa App plugin) ——
     const isRoot = MOBILE_ROOT_PATHS.has(pathname);
-    let onPopState: (() => void) | undefined;
     if (isRoot) {
       onPopState = () => {
         handleRootBack();
@@ -143,6 +145,7 @@ export function MobileBackHandler() {
     }
 
     return () => {
+      cancelled = true;
       removeCapListener?.();
       if (onPopState) {
         window.removeEventListener("popstate", onPopState);

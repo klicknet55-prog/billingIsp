@@ -1,6 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: ["better-sqlite3", "node-routeros"],
+  // Capaitor plugins harus di-transpile agar bridge WebView remote (APK) jalan
+  transpilePackages: [
+    "@capacitor/core",
+    "@capacitor/app",
+    "@capacitor/browser",
+    "@capacitor/filesystem",
+    "@capacitor/share",
+  ],
   devIndicators: false,
   experimental: {
     serverActions: {

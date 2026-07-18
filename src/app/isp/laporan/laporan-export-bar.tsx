@@ -54,8 +54,11 @@ export function LaporanDownloadButtons({
         filename: kind === "pdf" ? "laporan-keuangan.pdf" : "laporan-keuangan.xlsx",
         title: "Laporan Keuangan",
       });
-      if (result.message) setMessage(result.message);
-      if (!result.ok && result.message) setMessage(result.message);
+      if (result.ok) {
+        setMessage(result.message ?? (kind === "pdf" ? "PDF siap dibagikan/disimpan." : "Excel siap dibagikan/disimpan."));
+      } else {
+        setMessage(result.message ?? "Gagal mengunduh file.");
+      }
     } finally {
       setBusy(null);
     }

@@ -1,37 +1,43 @@
-import { isNativeCapacitor, toCapacitorAbsoluteUrl } from "@/lib/mobile/capacitor-runtime";
+import {
+  isNativeCapacitor,
+  toCapacitorAbsoluteUrl,
+  waitForNativeCapacitor,
+} from "@/lib/mobile/capacitor-runtime";
+import { ensureUrlScheme } from "@/lib/site";
 
 /** URL absolut di shell Capacitor; di browser tetap seperti semula. */
 export function resolveMobileUrl(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
   if (isNativeCapacitor()) return toCapacitorAbsoluteUrl(trimmed);
-  return trimmed;
+  if (typeof window !== "undefined" && window.location.origin.startsWith("http")) {
+    return new URL(trimmed.startsWith("/") ? trimmed : `/${trimmed}`, window.location.origin).href;
+  }
+  return ensureUrlScheme(trimmed);
 }
 
-type BrowserPlugin = {
-  open: (options: { url: string; presentationStyle?: "fullscreen" | "popover" }) => Promise<void>;
-};
-
-function getBrowserPlugin(): BrowserPlugin | null {
-  if (typeof window === "undefined") return null;
-  const cap = window as Window & { Capacitor?: { Plugins?: { Browser?: BrowserPlugin } } };
-  return cap.Capacitor?.Plugins?.Browser ?? null;
-}
-
-async function openInSystemBrowser(url: string): Promise<boolean> {
-  const browser = getBrowserPlugin();
-  if (!browser?.open) return false;
-  await browser.open({ url });
-  return true;
+async function openWithBrowserPlugin(url: string): Promise<boolean> {
+  try {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url });
+    return true;
+  } catch (err) {
+    console.warn("Browser.open failed", err);
+    return false;
+  }
 }
 
 /** Buka link eksternal (WhatsApp, Telegram, gambar) — hindari target=_blank di WebView. */
 export async function openExternalUrl(url: string): Promise<void> {
   if (typeof window === "undefined") return;
   const resolved = resolveMobileUrl(url);
+  if (!resolved) return;
+
+  await waitForNativeCapacitor(800);
 
   if (isNativeCapacitor()) {
-    if (await openInSystemBrowser(resolved)) return;
+    if (await openWithBrowserPlugin(resolved)) return;
     window.location.assign(resolved);
     return;
   }
@@ -40,25 +46,35 @@ export async function openExternalUrl(url: string): Promise<void> {
 }
 
 /**
- * Unduh / buka APK — di Capacitor pakai Browser plugin agar Download Manager Android jalan.
- * Dipakai halaman Community dan (nanti) dialog auto-update.
+ * Unduh / buka APK — di Capacitor pakai @capacitor/browser (Custom Tab)
+ * agar Download Manager Android jalan. Jangan andalkan window.Capacitor.Plugins.
  */
 export async function downloadApkFile(url: string): Promise<void> {
   if (typeof window === "undefined") return;
-  const resolved = resolveMobileUrl(url);
+  let resolved = resolveMobileUrl(url);
   if (!resolved) throw new Error("URL unduh tidak valid.");
+  if (!/^https?:\/\//i.test(resolved)) {
+    resolved = ensureUrlScheme(resolved);
+  }
+
+  await waitForNativeCapacitor(1500);
 
   if (!isNativeCapacitor()) {
-    window.open(resolved, "_blank", "noopener,noreferrer");
+    const a = document.createElement("a");
+    a.href = resolved;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.download = "";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
     return;
   }
 
-  if (await openInSystemBrowser(resolved)) return;
+  if (await openWithBrowserPlugin(resolved)) return;
 
-  const opened = window.open(resolved, "_blank");
-  if (opened) return;
-
-  throw new Error("Tidak bisa membuka unduh. Rebuild APK setelah cap sync Browser plugin.");
+  // Fallback: navigasi langsung — WebView sering tetap memicu unduhan untuk .apk
+  window.location.href = resolved;
 }
 
 /** @deprecated Gunakan downloadApkFile */
