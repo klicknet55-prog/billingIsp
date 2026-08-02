@@ -1,0 +1,205 @@
+# Panduan Koneksi SSH ke Server Production
+
+## Masalah
+Windows PowerShell tidak punya SSH client:
+```powershell
+PS C:\Users\WAK-PRI> ssh root@103.67.244.174
+ssh : The term 'ssh' is not recognized...
+```
+
+## Solusi
+
+### Opsi 1: Pakai PuTTY (PALING MUDAH) ⭐
+
+1. **Download PuTTY**
+   - Link: https://www.putty.org/
+   - Download: `putty.exe` (64-bit)
+   - Atau installer lengkap: `putty-64bit-installer.msi`
+
+2. **Buka PuTTY**
+   - Host Name: `103.67.244.174`
+   - Port: `22`
+   - Connection Type: `SSH`
+   - Klik **Open**
+
+3. **Login**
+   - Login as: `root`
+   - Password: (masukkan password root)
+
+4. **Navigasi ke Project**
+   ```bash
+   cd /home/tunnelhost-netmanage/htdocs/netmanage.tunnelhost.my.id
+   ```
+
+---
+
+### Opsi 2: Install OpenSSH via Windows Settings
+
+1. **Buka Settings**
+   - Press `Win + I`
+   - Go to: **Apps** → **Optional Features**
+
+2. **Add Feature**
+   - Klik **Add a feature**
+   - Cari **OpenSSH Client**
+   - Install
+
+3. **Restart PowerShell**
+   - Tutup dan buka ulang PowerShell/Terminal
+
+4. **Test SSH**
+   ```powershell
+   ssh root@103.67.244.174
+   ```
+
+---
+
+### Opsi 3: Pakai Git Bash (Jika Sudah Install Git)
+
+Jika sudah install Git for Windows, Git Bash sudah include SSH:
+
+1. **Buka Git Bash**
+   - Right-click di desktop → **Git Bash Here**
+   - Atau cari "Git Bash" di Start Menu
+
+2. **SSH Connect**
+   ```bash
+   ssh root@103.67.244.174
+   ```
+
+---
+
+### Opsi 4: Pakai WSL (Windows Subsystem for Linux)
+
+Jika sudah aktifkan WSL:
+
+1. **Buka WSL Terminal**
+   ```powershell
+   wsl
+   ```
+
+2. **SSH Connect**
+   ```bash
+   ssh root@103.67.244.174
+   ```
+
+---
+
+### Opsi 5: Pakai VS Code Remote SSH
+
+1. **Install Extension**
+   - Di VS Code, install: **Remote - SSH** (ms-vscode-remote.remote-ssh)
+
+2. **Connect**
+   - Press `Ctrl+Shift+P`
+   - Ketik: **Remote-SSH: Connect to Host**
+   - Masukkan: `root@103.67.244.174`
+   - Enter password
+
+3. **Open Terminal di VS Code**
+   - Terminal akan langsung terhubung ke server
+
+---
+
+## Setelah Berhasil Connect
+
+### 1. Navigasi ke Project
+```bash
+cd /home/tunnelhost-netmanage/htdocs/netmanage.tunnelhost.my.id
+```
+
+### 2. Pull Latest Code
+```bash
+git pull origin netmanage-implementation
+```
+
+### 3. Check Sudo Access
+```bash
+# Test sebagai root (bisa)
+systemctl status redis-server
+
+# Switch ke user tunnelhost-netmanage
+su - tunnelhost-netmanage
+cd ~/htdocs/netmanage.tunnelhost.my.id
+
+# Test sudo (kemungkinan gagal)
+sudo systemctl status redis-server
+```
+
+### 4. Grant Sudo untuk tunnelhost-netmanage (Jika Login sebagai Root)
+
+```bash
+# Kembali ke root
+exit  # Exit dari tunnelhost-netmanage
+
+# Edit sudoers
+visudo
+
+# Tambahkan di akhir file:
+tunnelhost-netmanage ALL=(ALL) NOPASSWD: /bin/systemctl start billisp*, /bin/systemctl stop billisp*, /bin/systemctl restart billisp*, /bin/systemctl status billisp*, /bin/systemctl enable billisp*, /bin/systemctl disable billisp*, /bin/systemctl daemon-reload
+
+# Save: Ctrl+X → Y → Enter
+```
+
+### 5. Test Sudo dari tunnelhost-netmanage
+
+```bash
+# Switch ke user
+su - tunnelhost-netmanage
+
+# Test sudo (harus berhasil tanpa password)
+sudo systemctl status billisp
+sudo systemctl daemon-reload
+```
+
+### 6. Jalankan Setup Script
+
+```bash
+# Pastikan di directory project
+cd ~/htdocs/netmanage.tunnelhost.my.id
+
+# Jalankan setup (jika login sebagai root)
+sudo bash scripts/setup-systemd.sh
+
+# Atau jika sudah grant sudo ke tunnelhost-netmanage
+# Login sebagai tunnelhost-netmanage, lalu:
+sudo bash scripts/setup-systemd.sh
+```
+
+---
+
+## Troubleshooting
+
+### SSH Connection Refused
+```bash
+# Pastikan SSH service jalan
+sudo systemctl status sshd
+
+# Check firewall
+sudo ufw status
+sudo ufw allow 22/tcp
+```
+
+### Permission Denied (publickey)
+```bash
+# Server hanya accept SSH key, bukan password
+# Minta admin untuk enable password authentication
+# Atau setup SSH key di Windows
+```
+
+### Timeout
+```bash
+# Check IP server benar: 103.67.244.174
+# Check koneksi internet
+ping 103.67.244.174
+```
+
+---
+
+## Rekomendasi
+
+**PALING MUDAH**: Pakai **PuTTY** (Opsi 1) - Download, install, connect.
+
+**PALING BAGUS**: Pakai **VS Code Remote SSH** (Opsi 5) - Edit code langsung di server, integrated terminal.
+
+**UNTUK SCRIPT**: Install **OpenSSH Client** via Windows Settings (Opsi 2) - Agar bisa SSH dari PowerShell/CMD.
