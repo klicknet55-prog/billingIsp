@@ -17,16 +17,20 @@ export function isDeployWorkerEnabled(): boolean {
 }
 
 export function buildDeployStepNames(): string[] {
+  const useSystemd = process.env.DEPLOY_USE_SYSTEMD === "true";
+  const restartStep = useSystemd ? "systemd_restart" : "pm2_restart";
+  const workerRestartStep = useSystemd ? "systemd_worker_restart" : "pm2_worker_restart";
+  
   const steps = [
     "backup_database",
     "git_pull",
     "npm_ci",
     "db_ensure_schema",
     "npm_build",
-    "pm2_restart",
+    restartStep,
   ];
   if (isDeployWorkerEnabled()) {
-    steps.push("pm2_worker_restart");
+    steps.push(workerRestartStep);
   }
   return steps;
 }

@@ -1,0 +1,21 @@
+# This is an example configuration file
+# To learn more, see the full config.yaml reference: https://docs.continue.dev/reference
+
+name: NVIDIA DeepSeek Config
+version: 1.0.0
+schema: v1
+
+models:
+  - name: DeepSeek V4 Pro
+    provider: openai
+    model: deepseek-ai/deepseek-v4-pro
+    apiKey: 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
+    apiBase: https://integrate.api.nvidia.com/v1
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      temperature: 1
+      topP: 0.95
+      maxTokens: 16384

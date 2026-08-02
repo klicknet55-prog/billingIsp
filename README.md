@@ -530,6 +530,624 @@ pm2 restart billingisp --update-env          # SQLite
 0 6 * * * curl -fsS -m 120 -H "Authorization: Bearer ISI_CRON_SECRET" https://isp.tunnelhost.my.id/api/cron >> /var/log/billingisp-cron.log 2>&1
 ```
 
+### 9. Update rutin dengan systemd
+
+Setelah `git pull` atau update kode:
+
+```bash
+cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
+git pull origin netmanage-implementation
+npm ci --include=dev
+
+# SQLite
+npm run db:ensure-schema
+npm run build
+sudo systemctl restart billingisp billingisp-worker
+
+# PostgreSQL
+npm run db:migrate:pg
+npm run build
+sudo systemctl restart billisp billisp-worker
+```
+
+### 10. Monitoring dan health check
+
+#### Cek status semua service
+
+```bash
+# SQLite
+sudo systemctl status redis-server billingisp billingisp-worker billingisp-cron.timer
+
+# PostgreSQL
+sudo systemctl status redis-server postgresql billisp billisp-worker billisp-cron.timer
+```
+
+#### Health check otomatis dengan systemd
+
+Tambahkan di file service aplikasi web (contoh `billingisp.service`):
+
+```ini
+[Service]
+# ... existing config ...
+
+# Health check setiap 30 detik
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/usr/bin/curl -f http://127.0.0.1:3000/api/health || exit 1
+
+# Restart jika health check gagal 3 kali berturut-turut
+StartLimitBurst=3
+StartLimitIntervalSec=120
+```
+
+Buat endpoint health check di aplikasi (`src/app/api/health/route.ts`):
+
+```typescript
+import { NextResponse } from 'next/server';
+
+export async function GET() {
+  return NextResponse.json({ status: 'ok', timestamp: new Date().toISOString() });
+}
+```
+
+#### Alerting dengan systemd (email saat service down)
+
+Install mail utility:
+
+```bash
+sudo apt install -y mailutils
+```
+
+Buat script notifikasi `/usr/local/bin/systemd-email`:
+
+```bash
+#!/bin/bash
+/usr/bin/mail -s "$1" admin@yourdomain.com
+```
+
+```bash
+sudo chmod +x /usr/local/bin/systemd-email
+```
+
+Tambahkan di file service (contoh `billingisp.service`):
+
+```ini
+[Unit]
+# ... existing config ...
+OnFailure=failure-email@%n.service
+
+[Service]
+# ... existing config ...
+```
+
+Buat template email `/etc/systemd/system/failure-email@.service`:
+
+```ini
+[Unit]
+Description=Send email on service failure
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo "Service %i failed at $(date)" | /usr/local/bin/systemd-email "Service %i Failed"'
+```
+
+### 11. Resource limiting dengan systemd
+
+Batasi penggunaan CPU dan memory untuk mencegah crash:
+
+Edit file service (contoh `billingisp.service`):
+
+```ini
+[Service]
+# ... existing config ...
+
+# Limit memory ke 1GB (sesuaikan dengan RAM server)
+MemoryLimit=1G
+MemoryAccounting=true
+
+# Limit CPU ke 80%
+CPUQuota=80%
+CPUAccounting=true
+
+# Limit jumlah file descriptors
+LimitNOFILE=4096
+
+# Restart jika process menggunakan lebih dari 1GB
+MemoryMax=1G
+```
+
+Monitoring resource usage:
+
+```bash
+# Lihat penggunaan memory dan CPU
+sudo systemctl status billingisp
+
+# Detail resource accounting
+sudo systemd-cgtop
+
+# Lihat limit yang aktif
+sudo systemctl show billingisp --property=MemoryLimit,CPUQuota
+```
+
+### 12. Log rotation untuk systemd
+
+Journald otomatis rotate log, tapi bisa dikonfigurasi di `/etc/systemd/journald.conf`:
+
+```ini
+[Journal]
+# Limit total log size ke 500MB
+SystemMaxUse=500M
+
+# Limit per file log ke 50MB
+SystemMaxFileSize=50M
+
+# Simpan log maksimal 2 minggu
+MaxRetentionSec=2week
+
+# Compress log lama
+Compress=yes
+```
+
+Setelah edit, restart journald:
+
+```bash
+sudo systemctl restart systemd-journald
+```
+
+Clean up log manual:
+
+```bash
+# Hapus log lebih dari 7 hari
+sudo journalctl --vacuum-time=7d
+
+# Hapus log sampai total size 200MB
+sudo journalctl --vacuum-size=200M
+```
+
+### 13. Backup dan restore dengan systemd
+
+#### Backup otomatis dengan systemd timer (Full Backup)
+
+Systemd timer dapat melakukan backup database lengkap dengan rotasi otomatis dan retention policy.
+
+##### A. Buat script backup dengan rotasi (SQLite)
+
+`/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/scripts/backup-systemd.sh`:
+
+```bash
+#!/bin/bash
+# Full backup script dengan rotasi otomatis untuk SQLite
+
+BACKUP_DIR="/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/data/backups/platform"
+DB_PATH="/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/netmanage.db"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="netmanage_full_${TIMESTAMP}.db"
+RETENTION_DAYS=30  # Simpan backup 30 hari terakhir
+MAX_BACKUPS=10     # Simpan maksimal 10 backup terbaru
+
+# Buat direktori backup jika belum ada
+mkdir -p "$BACKUP_DIR"
+
+# Backup database menggunakan SQLite .backup
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting full backup..."
+sqlite3 "$DB_PATH" ".backup '$BACKUP_DIR/$BACKUP_FILE'"
+
+if [ $? -eq 0 ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Backup berhasil: $BACKUP_FILE"
+    
+    # Compress backup (opsional, hemat disk space)
+    gzip "$BACKUP_DIR/$BACKUP_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Compressed: ${BACKUP_FILE}.gz"
+    
+    # Rotasi: hapus backup lebih dari RETENTION_DAYS hari
+    find "$BACKUP_DIR" -name "netmanage_full_*.db.gz" -type f -mtime +$RETENTION_DAYS -delete
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Deleted backups older than $RETENTION_DAYS days"
+    
+    # Rotasi: simpan hanya MAX_BACKUPS backup terbaru
+    BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/netmanage_full_*.db.gz 2>/dev/null | wc -l)
+    if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
+        ls -1t "$BACKUP_DIR"/netmanage_full_*.db.gz | tail -n +$((MAX_BACKUPS + 1)) | xargs rm -f
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Kept only $MAX_BACKUPS most recent backups"
+    fi
+    
+    # Tampilkan ukuran backup
+    BACKUP_SIZE=$(du -h "$BACKUP_DIR/${BACKUP_FILE}.gz" | cut -f1)
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Backup size: $BACKUP_SIZE"
+    
+    # Tampilkan total backup yang tersimpan
+    TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Total backup size: $TOTAL_SIZE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Total backups: $(ls -1 "$BACKUP_DIR"/netmanage_full_*.db.gz | wc -l)"
+else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Backup failed!"
+    exit 1
+fi
+```
+
+Buat executable:
+
+```bash
+chmod +x /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/scripts/backup-systemd.sh
+```
+
+##### B. Buat script backup PostgreSQL
+
+`/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id/scripts/backup-systemd.sh`:
+
+```bash
+#!/bin/bash
+# Full backup script dengan rotasi otomatis untuk PostgreSQL
+
+BACKUP_DIR="/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id/data/backups/platform"
+DB_NAME="netmanage"
+DB_USER="netmanage"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+BACKUP_FILE="netmanage_full_${TIMESTAMP}.sql"
+RETENTION_DAYS=30
+MAX_BACKUPS=10
+
+mkdir -p "$BACKUP_DIR"
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Starting full backup..."
+
+# Backup PostgreSQL menggunakan pg_dump (gunakan .pgpass untuk password)
+PGPASSWORD="${DB_PASSWORD:-}" pg_dump -U "$DB_USER" -h localhost -d "$DB_NAME" -F c -f "$BACKUP_DIR/$BACKUP_FILE"
+
+if [ $? -eq 0 ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Backup berhasil: $BACKUP_FILE"
+    
+    # Compress jika format plain SQL (format custom -F c sudah compressed)
+    # gzip "$BACKUP_DIR/$BACKUP_FILE"
+    
+    # Rotasi backup
+    find "$BACKUP_DIR" -name "netmanage_full_*.sql" -type f -mtime +$RETENTION_DAYS -delete
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Deleted backups older than $RETENTION_DAYS days"
+    
+    BACKUP_COUNT=$(ls -1 "$BACKUP_DIR"/netmanage_full_*.sql 2>/dev/null | wc -l)
+    if [ "$BACKUP_COUNT" -gt "$MAX_BACKUPS" ]; then
+        ls -1t "$BACKUP_DIR"/netmanage_full_*.sql | tail -n +$((MAX_BACKUPS + 1)) | xargs rm -f
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Kept only $MAX_BACKUPS most recent backups"
+    fi
+    
+    BACKUP_SIZE=$(du -h "$BACKUP_DIR/$BACKUP_FILE" | cut -f1)
+    TOTAL_SIZE=$(du -sh "$BACKUP_DIR" | cut -f1)
+    TOTAL_COUNT=$(ls -1 "$BACKUP_DIR"/netmanage_full_*.sql | wc -l)
+    
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Backup size: $BACKUP_SIZE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Total backup size: $TOTAL_SIZE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Total backups: $TOTAL_COUNT"
+else
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Backup failed!"
+    exit 1
+fi
+```
+
+Untuk PostgreSQL, buat file `.pgpass` agar tidak perlu input password:
+
+```bash
+echo "localhost:5432:netmanage:netmanage:GANTI_PASSWORD_KUAT" > ~/.pgpass
+chmod 600 ~/.pgpass
+```
+
+##### C. Buat systemd service untuk backup
+
+SQLite — `/etc/systemd/system/billingisp-backup.service`:
+
+```ini
+[Unit]
+Description=NetManage ISP Full Backup (SQLite)
+After=billingisp.service
+
+[Service]
+Type=oneshot
+User=tunnelhost-isp
+Group=tunnelhost-isp
+WorkingDirectory=/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
+ExecStart=/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/scripts/backup-systemd.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billingisp-backup
+
+# Timeout 30 menit untuk database besar
+TimeoutStartSec=1800
+```
+
+PostgreSQL — `/etc/systemd/system/billisp-backup.service`:
+
+```ini
+[Unit]
+Description=NetManage ISP Full Backup (PostgreSQL)
+After=billisp.service postgresql.service
+
+[Service]
+Type=oneshot
+User=tunnelhost-billisp
+Group=tunnelhost-billisp
+WorkingDirectory=/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+Environment="DB_PASSWORD=GANTI_PASSWORD_KUAT"
+ExecStart=/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id/scripts/backup-systemd.sh
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billisp-backup
+TimeoutStartSec=1800
+```
+
+##### D. Buat systemd timer untuk schedule backup
+
+SQLite — `/etc/systemd/system/billingisp-backup.timer`:
+
+```ini
+[Unit]
+Description=NetManage ISP Daily Full Backup Timer
+Requires=billingisp-backup.service
+
+[Timer]
+# Backup setiap hari jam 02:00
+OnCalendar=*-*-* 02:00:00
+
+# Backup mingguan (setiap Minggu jam 03:00)
+# OnCalendar=Sun *-*-* 03:00:00
+
+# Backup setiap 6 jam
+# OnCalendar=*-*-* 00,06,12,18:00:00
+
+# Jalan saat boot jika terlewat
+Persistent=true
+
+# Delay acak 0-10 menit (hindari spike load jika banyak service backup bersamaan)
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
+```
+
+PostgreSQL — `/etc/systemd/system/billisp-backup.timer`:
+
+```ini
+[Unit]
+Description=NetManage ISP Daily Full Backup Timer
+Requires=billisp-backup.service
+
+[Timer]
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
+```
+
+##### E. Enable dan start backup timer
+
+```bash
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable timer (auto-start setelah reboot)
+sudo systemctl enable billingisp-backup.timer
+
+# Start timer
+sudo systemctl start billingisp-backup.timer
+
+# Verifikasi timer aktif
+sudo systemctl list-timers billingisp-backup.timer
+sudo systemctl status billingisp-backup.timer
+
+# Tes manual backup (tanpa menunggu jadwal)
+sudo systemctl start billingisp-backup.service
+
+# Lihat log backup
+sudo journalctl -u billingisp-backup.service -n 50 --no-pager
+sudo journalctl -u billingisp-backup.service --since today
+```
+
+##### F. Strategi backup multi-tier (production)
+
+Untuk production yang lebih robust, kombinasikan beberapa strategi:
+
+**1. Backup lokal harian (systemd timer)**
+- Retention: 30 hari
+- Schedule: setiap hari jam 02:00
+
+**2. Backup mingguan ke remote storage**
+
+Edit script backup, tambahkan sync ke remote:
+
+```bash
+# Tambahkan di akhir script backup-systemd.sh
+
+# Sync ke remote server via rsync (setiap Minggu)
+if [ $(date +%u) -eq 7 ]; then  # 7 = Minggu
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Syncing to remote backup..."
+    rsync -avz --delete \
+        "$BACKUP_DIR/" \
+        backup-user@backup-server.com:/backups/netmanage/
+    
+    if [ $? -eq 0 ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] Remote sync completed"
+    else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: Remote sync failed"
+    fi
+fi
+
+# Atau upload ke S3/Wasabi
+# aws s3 sync "$BACKUP_DIR/" s3://your-bucket/netmanage-backups/
+```
+
+**3. Backup snapshot bulanan**
+
+Buat timer terpisah untuk backup bulanan:
+
+`/etc/systemd/system/billingisp-backup-monthly.timer`:
+
+```ini
+[Unit]
+Description=NetManage ISP Monthly Full Backup
+Requires=billingisp-backup.service
+
+[Timer]
+# Setiap tanggal 1 jam 03:00
+OnCalendar=*-*-01 03:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+##### G. Monitoring backup size dan health check
+
+Tambahkan monitoring script `/usr/local/bin/check-backup-health.sh`:
+
+```bash
+#!/bin/bash
+# Health check untuk backup
+
+BACKUP_DIR="/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/data/backups/platform"
+MAX_AGE_HOURS=26  # Alert jika backup terakhir > 26 jam (daily backup harusnya < 24 jam)
+ALERT_EMAIL="admin@yourdomain.com"
+
+# Cari backup terbaru
+LATEST_BACKUP=$(ls -1t "$BACKUP_DIR"/netmanage_full_*.db.gz 2>/dev/null | head -n1)
+
+if [ -z "$LATEST_BACKUP" ]; then
+    echo "ERROR: No backups found!" | mail -s "Backup Alert: No backups" "$ALERT_EMAIL"
+    exit 1
+fi
+
+# Cek umur backup
+BACKUP_AGE=$(( ($(date +%s) - $(stat -c %Y "$LATEST_BACKUP")) / 3600 ))
+
+if [ $BACKUP_AGE -gt $MAX_AGE_HOURS ]; then
+    echo "WARNING: Latest backup is $BACKUP_AGE hours old" | \
+        mail -s "Backup Alert: Outdated backup" "$ALERT_EMAIL"
+    exit 1
+fi
+
+# Cek ukuran backup (minimal 100KB, sesuaikan dengan database Anda)
+BACKUP_SIZE=$(stat -c %s "$LATEST_BACKUP")
+if [ $BACKUP_SIZE -lt 102400 ]; then
+    echo "ERROR: Backup file too small: $BACKUP_SIZE bytes" | \
+        mail -s "Backup Alert: Suspicious backup size" "$ALERT_EMAIL"
+    exit 1
+fi
+
+echo "Backup health check OK: $LATEST_BACKUP ($BACKUP_AGE hours old, $(du -h "$LATEST_BACKUP" | cut -f1))"
+exit 0
+```
+
+Jalankan health check setiap hari via cron atau systemd timer.
+
+##### H. Restore dari backup systemd
+
+**SQLite:**
+
+```bash
+# 1. Stop aplikasi
+sudo systemctl stop billingisp billingisp-worker
+
+# 2. Backup database saat ini (sebagai safety)
+cp /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/netmanage.db \
+   /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/netmanage.db.before-restore
+
+# 3. Extract dan restore backup
+cd /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
+gunzip -c data/backups/platform/netmanage_full_20260802_020000.db.gz > netmanage.db
+
+# 4. Verifikasi integrity
+sqlite3 netmanage.db "PRAGMA integrity_check;"
+
+# 5. Start aplikasi
+sudo systemctl start billingisp billingisp-worker
+sudo systemctl status billingisp
+```
+
+**PostgreSQL:**
+
+```bash
+# 1. Stop aplikasi
+sudo systemctl stop billisp billisp-worker
+
+# 2. Drop dan recreate database
+sudo -u postgres psql -c "DROP DATABASE netmanage;"
+sudo -u postgres psql -c "CREATE DATABASE netmanage OWNER netmanage;"
+
+# 3. Restore dari backup
+cd /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+pg_restore -U netmanage -d netmanage -v \
+    data/backups/platform/netmanage_full_20260802_020000.sql
+
+# 4. Start aplikasi
+sudo systemctl start billisp billisp-worker
+```
+
+##### I. Backup statistics dan reporting
+
+Tambahkan script untuk laporan backup:
+
+```bash
+#!/bin/bash
+# Backup statistics report
+
+BACKUP_DIR="/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/data/backups/platform"
+
+echo "=== NetManage Backup Statistics ==="
+echo "Date: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+echo "Total backups: $(ls -1 "$BACKUP_DIR"/netmanage_full_*.db.gz 2>/dev/null | wc -l)"
+echo "Total size: $(du -sh "$BACKUP_DIR" | cut -f1)"
+echo ""
+echo "Latest backups:"
+ls -lht "$BACKUP_DIR"/netmanage_full_*.db.gz | head -n 5
+echo ""
+echo "Oldest backup: $(ls -lt "$BACKUP_DIR"/netmanage_full_*.db.gz | tail -n1 | awk '{print $6, $7, $8, $9}')"
+echo "Newest backup: $(ls -lt "$BACKUP_DIR"/netmanage_full_*.db.gz | head -n1 | awk '{print $6, $7, $8, $9}')"
+```
+
+Jalankan via cron untuk kirim laporan mingguan:
+
+```cron
+# Setiap Senin jam 08:00
+0 8 * * 1 /usr/local/bin/backup-stats.sh | mail -s "Weekly Backup Report" admin@yourdomain.com
+```
+
+### 14. Migrasi dari PM2 ke systemd
+
+Jika sudah jalan dengan PM2 dan ingin beralih ke systemd:
+
+```bash
+# 1. Stop dan disable PM2
+pm2 stop all
+pm2 delete all
+pm2 kill
+pm2 unstartup
+
+# 2. Buat systemd service files (lihat langkah 2 & 3)
+
+# 3. Enable dan start systemd services
+sudo systemctl daemon-reload
+sudo systemctl enable billingisp billingisp-worker billingisp-cron.timer
+sudo systemctl start billingisp billingisp-worker billingisp-cron.timer
+
+# 4. Verifikasi
+sudo systemctl status billingisp billingisp-worker
+sudo journalctl -u billingisp -f
+
+# 5. Hapus PM2 (opsional)
+npm uninstall -g pm2
+```
+
+### 15. Checklist verifikasi deploy dengan systemd
+
+| Cek | Command | Expected Output |
+|-----|---------|-----------------|
+| Redis | `sudo systemctl status redis-server` | `active (running)` |
+| Web app | `sudo systemctl status billingisp` | `active (running)` |
+| Worker | `sudo systemctl status billingisp-worker` | `active (running)` |
+| Cron timer | `sudo systemctl list-timers billingisp-cron.timer` | `NEXT` kolom terisi |
+| Redis ping | `redis-cli ping` | `PONG` |
+| App response | `curl -I http://127.0.0.1:3000` | `HTTP/1.1 200 OK` |
+| Worker log | `sudo journalctl -u billingisp-worker -n 10` | `Worker netmanage started` |
+| Auto-start | `sudo systemctl is-enabled billingisp` | `enabled` |
+
 ## Integrasi Mikrotik
 
 Set `MIKROTIK_DRIVER=real` di `.env`, lalu tambah router di **ISP → Router**:
@@ -573,7 +1191,592 @@ src/
 ## Mengganti Mock ke Integrasi Nyata
 
 Setel driver di `.env` (`MIKROTIK_DRIVER`, `DUITKU_DRIVER`, `WHATSAPP_DRIVER`, `MAPS_DRIVER`) ke `real`. Untuk multi-tenant, prioritas credential adalah konfigurasi tenant di menu **ISP → Integrasi**; jika tenant belum punya konfigurasi, sistem fallback ke ENV global.
+## Deploy dengan Systemd (Alternatif PM2)
 
+Systemd adalah init system native di Linux yang lebih stabil dan terintegrasi dengan sistem operasi. Berikut cara menjalankan aplikasi NetManage dan Redis menggunakan systemd.
+
+### 1. Install Redis sebagai systemd service
+
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install -y redis-server
+
+# Redis otomatis terinstall sebagai systemd service
+sudo systemctl enable redis-server
+sudo systemctl start redis-server
+sudo systemctl status redis-server
+
+# Verifikasi
+redis-cli ping  # harus: PONG
+```
+
+Konfigurasi Redis (opsional) di `/etc/redis/redis.conf`:
+
+```conf
+# Untuk production, tambahkan password
+requirepass YOUR_STRONG_PASSWORD_HERE
+
+# Binding (default hanya localhost sudah aman untuk satu server)
+bind 127.0.0.1 ::1
+
+# Max memory (sesuaikan dengan RAM server)
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+```
+
+Setelah edit config, restart Redis:
+
+```bash
+sudo systemctl restart redis-server
+```
+
+Jika pakai password, update `.env`:
+
+```env
+REDIS_URL=redis://:YOUR_STRONG_PASSWORD_HERE@127.0.0.1:6379/0
+```
+
+### 2. Buat systemd service untuk aplikasi web
+
+#### SQLite — `/etc/systemd/system/billingisp.service`
+
+```ini
+[Unit]
+Description=NetManage ISP Billing (SQLite)
+After=network.target redis-server.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User=tunnelhost-isp
+Group=tunnelhost-isp
+WorkingDirectory=/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+EnvironmentFile=/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/.env
+ExecStart=/usr/bin/node /home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/node_modules/.bin/next start
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billingisp
+
+# Security hardening (opsional)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### PostgreSQL — `/etc/systemd/system/billisp.service`
+
+```ini
+[Unit]
+Description=NetManage ISP Billing (PostgreSQL)
+After=network.target postgresql.service redis-server.service
+Requires=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=tunnelhost-billisp
+Group=tunnelhost-billisp
+WorkingDirectory=/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+Environment="NODE_ENV=production"
+Environment="PORT=3001"
+EnvironmentFile=/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id/.env
+ExecStart=/usr/bin/node /home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id/node_modules/.bin/next start
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billisp
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 3. Buat systemd service untuk worker (BullMQ)
+
+#### SQLite — `/etc/systemd/system/billingisp-worker.service`
+
+```ini
+[Unit]
+Description=NetManage ISP Billing Worker (SQLite)
+After=network.target redis-server.service billingisp.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User=tunnelhost-isp
+Group=tunnelhost-isp
+WorkingDirectory=/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id
+Environment="NODE_ENV=production"
+EnvironmentFile=/home/tunnelhost-isp/htdocs/isp.tunnelhost.my.id/.env
+ExecStart=/usr/bin/npm run queue:worker
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billingisp-worker
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### PostgreSQL — `/etc/systemd/system/billisp-worker.service`
+
+```ini
+[Unit]
+Description=NetManage ISP Billing Worker (PostgreSQL)
+After=network.target postgresql.service redis-server.service billisp.service
+Requires=redis-server.service
+
+[Service]
+Type=simple
+User=tunnelhost-billisp
+Group=tunnelhost-billisp
+WorkingDirectory=/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id
+Environment="NODE_ENV=production"
+EnvironmentFile=/home/tunnelhost-billisp/htdocs/billisp.tunnelhost.my.id/.env
+ExecStart=/usr/bin/npm run queue:worker
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billisp-worker
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### 4. Enable dan jalankan service
+
+```bash
+# Reload systemd untuk membaca file service baru
+sudo systemctl daemon-reload
+
+# SQLite
+sudo systemctl enable billingisp billingisp-worker
+sudo systemctl start billingisp billingisp-worker
+
+# PostgreSQL
+sudo systemctl enable billisp billisp-worker
+sudo systemctl start billisp billisp-worker
+
+# Verifikasi status
+sudo systemctl status billingisp billingisp-worker
+# atau
+sudo systemctl status billisp billisp-worker
+```
+
+### 5. Perintah systemd berguna
+
+```bash
+# Cek status
+sudo systemctl status billingisp
+sudo systemctl status billingisp-worker
+
+# Restart (setelah git pull atau update .env)
+sudo systemctl restart billingisp billingisp-worker
+
+# Stop
+sudo systemctl stop billingisp billingisp-worker
+
+# Lihat log real-time
+sudo journalctl -u billingisp -f
+sudo journalctl -u billingisp-worker -f
+
+# Lihat log 50 baris terakhir
+sudo journalctl -u billingisp -n 50 --no-pager
+
+# Lihat log sejak hari ini
+sudo journalctl -u billingisp --since today
+
+# Lihat log dengan timestamp spesifik
+sudo journalctl -u billingisp --since "2026-08-01 14:00" --until "2026-08-01 15:00"
+```
+
+### 6. Deploy otomatis dengan systemd
+
+Jika `DEPLOY_ENABLED=true`, edit variabel di `.env`:
+
+```env
+# Untuk systemd, gunakan nama service sebagai PM2 app name
+DEPLOY_PM2_APP=billingisp
+DEPLOY_PM2_WORKER_APP=billingisp-worker
+DEPLOY_USE_SYSTEMD=true  # aktifkan mode systemd
+```
+
+Fitur **Update Aplikasi** di dashboard superadmin akan menjalankan:
+
+```bash
+sudo systemctl restart billingisp billingisp-worker
+```
+
+#### Setup sudo untuk user aplikasi (wajib)
+
+User aplikasi (mis. `tunnelhost-isp`) harus punya izin `sudo systemctl` tanpa password untuk restart service sendiri.
+
+Edit sudoers dengan `visudo`:
+
+```bash
+sudo visudo
+```
+
+Tambahkan di akhir file (sesuaikan user dan nama service):
+
+```bash
+# SQLite - user tunnelhost-isp
+tunnelhost-isp ALL=(ALL) NOPASSWD: /bin/systemctl restart billingisp
+tunnelhost-isp ALL=(ALL) NOPASSWD: /bin/systemctl restart billingisp-worker
+tunnelhost-isp ALL=(ALL) NOPASSWD: /bin/systemctl status billingisp
+tunnelhost-isp ALL=(ALL) NOPASSWD: /bin/systemctl status billingisp-worker
+
+# PostgreSQL - user tunnelhost-billisp (jika ada)
+tunnelhost-billisp ALL=(ALL) NOPASSWD: /bin/systemctl restart billisp
+tunnelhost-billisp ALL=(ALL) NOPASSWD: /bin/systemctl restart billisp-worker
+tunnelhost-billisp ALL=(ALL) NOPASSWD: /bin/systemctl status billisp
+tunnelhost-billisp ALL=(ALL) NOPASSWD: /bin/systemctl status billisp-worker
+```
+
+**Testing sudo tanpa password:**
+
+```bash
+# Jangan pakai sudo di depan, test sebagai user biasa
+sudo systemctl status billingisp
+# Seharusnya langsung jalan tanpa prompt password
+```
+
+Jika masih minta password, cek:
+1. Baris sudoers sudah benar (tidak ada typo)
+2. User sesuai dengan yang menjalankan aplikasi
+3. Path binary `/bin/systemctl` benar (cek: `which systemctl`)
+
+#### Konfigurasi deploy script systemd
+
+Aplikasi akan otomatis detect mode deploy dari `.env`. Saat `DEPLOY_USE_SYSTEMD=true`, alur deploy:
+
+**1. Dashboard Superadmin → Update Aplikasi**
+
+**2. Backend menjalankan (`src/features/deploy/service.ts`):**
+
+```bash
+# Pull kode terbaru
+git pull origin <branch>
+
+# Install dependencies
+npm ci --include=dev
+
+# Database migration
+npm run db:ensure-schema  # SQLite
+# atau
+npm run db:migrate:pg     # PostgreSQL
+
+# Build production
+npm run build
+
+# Restart service via systemd (bukan PM2)
+sudo systemctl restart billingisp billingisp-worker
+```
+
+**3. Verifikasi status:**
+
+```bash
+sudo systemctl status billingisp
+sudo systemctl status billingisp-worker
+```
+
+#### Implementasi kode backend untuk systemd deploy
+
+File yang sudah dimodifikasi:
+
+**1. `scripts/deploy-app.ts` — tambahan support systemd:**
+
+```typescript
+// Detect systemd mode
+function isSystemdMode(): boolean {
+  return process.env.DEPLOY_USE_SYSTEMD === "true";
+}
+
+// Schedule systemd restart (async, non-blocking)
+function scheduleSystemdRestart(webApp: string, workerApp: string | null) {
+  if (process.platform === "win32") return;
+  
+  let command = `sudo systemctl restart ${webApp}`;
+  if (workerApp) {
+    command += ` ${workerApp}`;
+  }
+  
+  const child = spawn("bash", ["-lc", command], {
+    cwd: ROOT,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
+// Di main deploy flow
+const useSystemd = isSystemdMode();
+const restartStepName = useSystemd ? "systemd_restart" : "pm2_restart";
+
+if (useSystemd) {
+  scheduleSystemdRestart(webApp, workerApp);
+  await log(`Menjadwalkan systemd restart ${webApp}…`);
+} else {
+  schedulePm2DeployRestart(buildPm2DeployRestartCommand());
+  await log(`Menjadwalkan pm2 restart ${webApp}…`);
+}
+```
+
+**2. `src/features/platform-deploy/pm2-targets.ts` — dynamic step names:**
+
+```typescript
+export function buildDeployStepNames(): string[] {
+  const useSystemd = process.env.DEPLOY_USE_SYSTEMD === "true";
+  const restartStep = useSystemd ? "systemd_restart" : "pm2_restart";
+  const workerRestartStep = useSystemd ? "systemd_worker_restart" : "pm2_worker_restart";
+  
+  const steps = [
+    "backup_database",
+    "git_pull",
+    "npm_ci",
+    "db_ensure_schema",
+    "npm_build",
+    restartStep,
+  ];
+  if (isDeployWorkerEnabled()) {
+    steps.push(workerRestartStep);
+  }
+  return steps;
+}
+```
+
+#### Alur deploy lengkap dengan systemd
+
+```
+Dashboard Superadmin: "Update Aplikasi"
+  ↓
+POST /api/superadmin/deploy/trigger
+  ↓
+Deploy Script (scripts/deploy-app.ts):
+  1. Lock file check (prevent concurrent deploys)
+  2. Backup database (SQLite: cp, PostgreSQL: pg_dump)
+  3. Git pull (git restore → git pull)
+  4. npm ci --include=dev
+  5. db:ensure-schema or db:migrate:pg
+  6. npm run build
+  7. Detach systemd restart (async, non-blocking):
+     └─ sudo systemctl restart billingisp billingisp-worker
+  8. Write deploy status: "success"
+  ↓
+Return to Dashboard (status: running → polling)
+  ↓
+Systemd restart (independent process):
+  • Stop old app process
+  • Start new app process (read updated .env)
+  • Worker restart or start if needed
+  ↓
+Dashboard polls deploy status via API
+  ↓
+Show result: "Deploy sukses"
+```
+
+#### Environment variables deploy lengkap
+
+```env
+# === Deploy Configuration ===
+DEPLOY_ENABLED=true                      # Enable fitur deploy dari dashboard
+DEPLOY_USE_SYSTEMD=true                  # true = systemd, false/unset = PM2
+
+# Service names (harus sesuai dengan nama systemd service di /etc/systemd/system/)
+DEPLOY_PM2_APP=billingisp                # Nama service: billingisp.service
+DEPLOY_PM2_WORKER_APP=billingisp-worker  # Nama service: billingisp-worker.service
+
+# Optional
+DEPLOY_GIT_BRANCH=netmanage-implementation  # Branch untuk git pull
+DEPLOY_BUILD_TIMEOUT=600000              # Timeout build (ms), default 10 menit
+```
+
+#### Dashboard UI untuk deploy systemd
+
+Di halaman Superadmin → Pengaturan → Update Aplikasi, akan muncul:
+
+```
+📋 Deploy Status
+
+Mode: ⚙️ Systemd (jika DEPLOY_USE_SYSTEMD=true)
+atau
+Mode: 🟢 PM2 (default)
+
+Current Branch: netmanage-implementation
+Local Commit: abc1234
+Remote Commit: def5678
+Status: idle / running / success / failed
+
+[⬇️ Check for Updates] [🚀 Deploy Now]
+
+--- Deploy Steps ---
+✓ Backup Database     (2 mins ago)
+✓ Git Pull           (1 min ago)
+✓ npm ci             (30 secs ago)
+✓ Database Schema    (20 secs ago)
+✓ npm build          (5 secs ago)
+⟳ Systemd Restart    (in progress...)
+  └─ billingisp: restarting
+  └─ billingisp-worker: restarting
+
+Deploy Log:
+[2026-08-02 06:30:00] Deploy dimulai oleh super@netmanage.app (branch: netmanage-implementation, worker Redis aktif)
+[2026-08-02 06:30:15] Backup DB → /data/backups/platform/pre-deploy-2026-08-02T063000.db
+[2026-08-02 06:30:20] Git pull selesai @ def5678
+[2026-08-02 06:30:35] npm ci selesai
+[2026-08-02 06:30:45] db:ensure-schema selesai (SQLite)
+[2026-08-02 06:35:10] npm run build selesai
+[2026-08-02 06:35:15] Menjadwalkan systemd restart billingisp billingisp-worker…
+[2026-08-02 06:35:18] Deploy sukses
+```
+
+#### Rollback jika deploy gagal
+
+Jika deploy gagal di tahap build, backup database sudah tersimpan otomatis:
+
+```bash
+# 1. Cek backup
+ls -lh data/backups/platform/pre-deploy-*.db
+
+# 2. Stop aplikasi
+sudo systemctl stop billingisp billingisp-worker
+
+# 3. Restore backup
+cp data/backups/platform/pre-deploy-2026-08-02T063000.db netmanage.db
+
+# 4. Rollback git (opsional)
+git reset --hard <commit-sebelumnya>
+
+# 5. Restart aplikasi
+sudo systemctl start billingisp billingisp-worker
+
+# 6. Verifikasi
+sudo systemctl status billingisp billingisp-worker
+```
+
+#### Monitoring deploy logs systemd
+
+```bash
+# Real-time logs saat deploy
+sudo journalctl -u billingisp -f
+
+# Lihat log deploy terakhir
+sudo journalctl -u billingisp -n 100 --no-pager
+
+# Log sejak hari ini
+sudo journalctl -u billingisp --since today
+
+# Log dengan filter keyword
+sudo journalctl -u billingisp | grep -i "error\|warning\|deploy"
+
+# Export log ke file
+sudo journalctl -u billingisp --since "2026-08-01" > deploy-log-202608.txt
+```
+
+#### Checklist deploy systemd di production
+
+| Item | Periksa | Notes |
+|------|---------|-------|
+| **Sudoers config** | `sudo visudo` | User harus bisa `sudo systemctl` tanpa password |
+| **Systemd services** | `systemctl list-units \| grep billingisp` | Services sudah registered |
+| **Permissions** | `ls -la /etc/systemd/system/billingisp*.service` | File readable |
+| **.env variables** | `DEPLOY_USE_SYSTEMD=true` | Diset di production |
+| **Service names** | Match di `.env` dan `/etc/systemd/system/` | `DEPLOY_PM2_APP=billingisp` ↔ `billingisp.service` |
+| **Git access** | `cd /app && git pull origin branch` | User aplikasi punya akses repo |
+| **Build timeout** | `DEPLOY_BUILD_TIMEOUT=600000` | Sesuaikan jika build lama |
+| **Backup dir** | `mkdir -p data/backups/platform` | Directory writable |
+| **Deploy script** | `npm run deploy:app` | Bisa dijalankan manual |
+| **Dashboard** | Test "Check for Updates" | Harus ke backend & git successfully |
+
+#### Perbedaan PM2 vs Systemd deploy
+
+| Aspek | PM2 | Systemd |
+|-------|-----|---------|
+| **Trigger restart** | `pm2 restart billingisp` | `sudo systemctl restart billingisp` |
+| **Worker** | `pm2 restart billingisp-worker` | `sudo systemctl restart billingisp-worker` |
+| **Config** | `DEPLOY_USE_SYSTEMD=false` | `DEPLOY_USE_SYSTEMD=true` |
+| **Sudo** | Tidak perlu | Wajib (sudoers NOPASSWD) |
+| **Logging** | `pm2 logs` | `journalctl` |
+| **Monitoring** | `pm2 monit` | `systemctl status` |
+| **On-failure** | `pm2 restart` (auto) | `Restart=always` (auto) |
+| **Update env** | `--update-env` | Automatic (re-read .env) |
+
+#### Migration dari PM2 ke systemd
+
+Jika sudah jalan PM2 dan ingin beralih deploy method ke systemd:
+
+```bash
+# 1. Setup sudoers untuk systemd (lihat step "Setup sudo")
+sudo visudo
+# Tambah baris untuk user aplikasi
+
+# 2. Update .env di production
+DEPLOY_USE_SYSTEMD=true
+DEPLOY_PM2_APP=billingisp
+DEPLOY_PM2_WORKER_APP=billingisp-worker
+
+# 3. Restart aplikasi supaya baca .env baru
+sudo systemctl restart billingisp billingisp-worker
+
+# 4. Test deploy manual
+npm run deploy:app
+
+# 5. Verifikasi via dashboard
+# Dashboard → Pengaturan → Update Aplikasi → "Deploy Now"
+# Harusnya trigger systemd restart, bukan PM2
+```
+
+Kedua method (PM2 dan Systemd) **tidak perlu coexist**. Pilih salah satu untuk production.
+
+
+
+### 7. Troubleshooting systemd
+
+| Masalah | Solusi |
+|---------|--------|
+| `Failed to start` | Cek log: `sudo journalctl -u billingisp -n 50` |
+| `EnvironmentFile not found` | Pastikan path `.env` benar & readable oleh user service |
+| `Permission denied` saat akses DB | Ubah owner folder: `chown -R tunnelhost-isp:tunnelhost-isp /path/to/app` |
+| Worker crash `server-only` | Update kode terbaru (`git pull`), lalu `systemctl restart` |
+| Redis connection refused | Cek `sudo systemctl status redis-server`, pastikan `REDIS_URL` benar |
+| Port 3000 already in use | Cek proses lain: `sudo lsof -i :3000`, atau ubah `PORT` di `.env` |
+| Service tidak auto-start setelah reboot | Pastikan sudah `systemctl enable billingisp` |
+
+### 8. Keunggulan systemd vs PM2
+
+| Aspek | Systemd | PM2 |
+|-------|---------|-----|
+| **Native Linux** | ✅ Terintegrasi OS | ❌ Third-party |
+| **Auto-restart** | ✅ `Restart=always` | ✅ `--watch` |
+| **Log management** | ✅ `journalctl` (log rotation otomatis) | ⚠️ PM2 logs bisa membengkak |
+| **Resource limit** | ✅ `MemoryLimit`, `CPUQuota` | ⚠️ Perlu konfigurasi manual |
+| **Dependency** | ✅ `After=`, `Requires=` | ❌ Manual |
+| **Monitoring** | ⚠️ Perlu tool eksternal | ✅ `pm2 monit` built-in |
+| **Zero-downtime reload** | ❌ Butuh reverse proxy | ✅ `pm2 reload` |
+| **Cluster mode** | ❌ Harus manual load balance | ✅ `pm2 start -i max` |
+
+**Rekomendasi:**
+
+- **Systemd**: untuk production stabil, server dedicated, sysadmin berpengalaman Linux.
+- **PM2**: untuk rapid development, shared hosting, atau butuh monitoring dashboard.
+
+Kedua metode **bisa dipakai bersamaan** di server berbeda. Jangan jalankan keduanya untuk app yang sama di satu server.
 ## Pasang Cron (Background Worker)
 
 Endpoint `GET /api/cron` menjalankan **siklus penagihan pelanggan** dan **siklus langganan SaaS platform**:
@@ -711,6 +1914,116 @@ Jika deploy di Vercel, tambahkan di `vercel.json`:
 
 Vercel mengirim request dengan header `Authorization: Bearer <CRON_SECRET>` otomatis jika variabel `CRON_SECRET` diset di project settings.
 
+### Alternatif: Systemd Timer (Pengganti Crontab)
+
+Systemd timer lebih modern dan terintegrasi dengan journald untuk logging.
+
+#### Buat service untuk menjalankan cron job
+
+`/etc/systemd/system/billingisp-cron.service` (SQLite):
+
+```ini
+[Unit]
+Description=NetManage ISP Billing Cron Job
+After=network.target billingisp.service
+
+[Service]
+Type=oneshot
+User=tunnelhost-isp
+Group=tunnelhost-isp
+Environment="CRON_SECRET=ISI_CRON_SECRET_ANDA"
+ExecStart=/usr/bin/curl -fsS -m 120 -H "Authorization: Bearer ${CRON_SECRET}" https://isp.tunnelhost.my.id/api/cron
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billingisp-cron
+```
+
+Atau untuk PostgreSQL (`billisp-cron.service`):
+
+```ini
+[Unit]
+Description=NetManage ISP Billing Cron Job
+After=network.target billisp.service
+
+[Service]
+Type=oneshot
+User=tunnelhost-billisp
+Group=tunnelhost-billisp
+Environment="CRON_SECRET=ISI_CRON_SECRET_ANDA"
+ExecStart=/usr/bin/curl -fsS -m 120 -H "Authorization: Bearer ${CRON_SECRET}" https://billisp.tunnelhost.my.id/api/cron
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=billisp-cron
+```
+
+#### Buat timer untuk menjadwalkan
+
+`/etc/systemd/system/billingisp-cron.timer` (SQLite):
+
+```ini
+[Unit]
+Description=NetManage ISP Billing Cron Timer (Daily at 6 AM)
+Requires=billingisp-cron.service
+
+[Timer]
+# Setiap hari jam 06:00
+OnCalendar=*-*-* 06:00:00
+# Atau setiap jam: OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Atau PostgreSQL (`billisp-cron.timer`):
+
+```ini
+[Unit]
+Description=NetManage ISP Billing Cron Timer (Daily at 6 AM)
+Requires=billisp-cron.service
+
+[Timer]
+OnCalendar=*-*-* 06:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+#### Enable dan jalankan timer
+
+```bash
+# Reload systemd
+sudo systemctl daemon-reload
+
+# Enable timer (auto-start setelah reboot)
+sudo systemctl enable billingisp-cron.timer
+
+# Start timer
+sudo systemctl start billingisp-cron.timer
+
+# Cek status timer
+sudo systemctl status billingisp-cron.timer
+sudo systemctl list-timers billingisp-cron.timer
+
+# Tes manual (tanpa menunggu jadwal)
+sudo systemctl start billingisp-cron.service
+
+# Lihat log eksekusi cron
+sudo journalctl -u billingisp-cron.service -n 50
+```
+
+#### Keunggulan systemd timer vs crontab
+
+| Aspek | Systemd Timer | Crontab |
+|-------|---------------|---------|
+| **Logging** | ✅ Terintegrasi `journalctl` | ⚠️ Manual redirect ke file |
+| **Retry** | ✅ `Restart=on-failure` | ❌ Harus script manual |
+| **Dependency** | ✅ `After=`, `Requires=` | ❌ Manual |
+| **Persistent** | ✅ Jalan saat boot jika terlewat | ⚠️ Tidak ada built-in |
+| **Monitoring** | ✅ `systemctl list-timers` | ⚠️ Harus `crontab -l` |
+| **Simplicity** | ⚠️ Dua file (service + timer) | ✅ Satu baris |
+
 ### Troubleshooting
 
 | Gejala | Penyebab / solusi |
@@ -722,6 +2035,8 @@ Vercel mengirim request dengan header `Authorization: Bearer <CRON_SECRET>` otom
 | Link bayar tidak bisa dibuka | Set `NEXT_PUBLIC_APP_URL` ke URL publik production |
 | Link auto-login gagal | Pastikan `AUTH_SECRET` sudah diset; link kedaluwarsa setelah `PORTAL_MAGIC_LINK_DAYS` (default 14 hari) |
 | Log cron kosong | Cek `crontab -l`, permission file log, path URL salah |
+| Systemd timer tidak jalan | Cek `systemctl status billingisp-cron.timer`, pastikan `enable` + `start` |
+| Timer jalan tapi service gagal | Lihat log: `journalctl -u billingisp-cron.service -n 30` |
 
 ## Git & Branch
 

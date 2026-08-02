@@ -52,8 +52,8 @@ export default async function RootLayout({
       <body className="min-h-screen antialiased">
         <ThemeInitScript />
         <ThemeProvider
-          defaultPreset={tenant?.themePreset ?? "default"}
-          defaultMode={tenant?.themeMode ?? "light"}
+          defaultPreset={tenant?.themePreset ?? "rose"}
+          defaultMode={tenant?.themeMode ?? "dark"}
         >
           <CapacitorSystemChrome />
           <PortalDeepLinkBootstrap />

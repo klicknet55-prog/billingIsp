@@ -25,7 +25,7 @@ function apply(preset: string, mode: ThemeMode) {
 export function ThemeProvider({
   children,
   defaultPreset = DEFAULT_PRESET,
-  defaultMode = "light",
+  defaultMode = "dark",
 }: {
   children: React.ReactNode;
   defaultPreset?: string;
@@ -45,7 +45,7 @@ export function ThemeProvider({
   const setPreset = useCallback((p: string) => {
     setPresetState(p);
     localStorage.setItem(PRESET_KEY, p);
-    apply(p, (localStorage.getItem(MODE_KEY) as ThemeMode) ?? "light");
+    apply(p, (localStorage.getItem(MODE_KEY) as ThemeMode) ?? "dark");
   }, []);
 
   const setMode = useCallback((m: ThemeMode) => {

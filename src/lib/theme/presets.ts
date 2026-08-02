@@ -19,5 +19,5 @@ export const THEME_PRESETS: ThemePreset[] = [
   { id: "amber", label: "Amber", swatch: "#d97706" },
 ];
 
-export const DEFAULT_PRESET = "default";
+export const DEFAULT_PRESET = "rose";
 export type ThemeMode = "light" | "dark";

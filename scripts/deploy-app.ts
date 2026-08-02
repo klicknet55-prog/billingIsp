@@ -7,6 +7,7 @@
  *   DEPLOY_GIT_BRANCH=netmanage-implementation
  *   DEPLOY_PM2_APP=billingisp
  *   DEPLOY_PM2_WORKER_APP=billingisp-worker  (opsional; default otomatis jika REDIS_URL aktif)
+ *   DEPLOY_USE_SYSTEMD=true  (gunakan systemd restart, bukan PM2)
  */
 import { execSync, spawn } from "node:child_process";
 import { copyFile, mkdir, readFile, unlink, writeFile, appendFile, access } from "node:fs/promises";
@@ -166,6 +167,27 @@ function schedulePm2DeployRestart(bashCommand: string) {
   child.unref();
 }
 
+function scheduleSystemdRestart(webApp: string, workerApp: string | null) {
+  if (process.platform === "win32") return;
+  
+  // Build systemctl restart command
+  let command = `sudo systemctl restart ${webApp}`;
+  if (workerApp) {
+    command += ` ${workerApp}`;
+  }
+  
+  const child = spawn("bash", ["-lc", command], {
+    cwd: ROOT,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
+function isSystemdMode(): boolean {
+  return process.env.DEPLOY_USE_SYSTEMD === "true";
+}
+
 async function main() {
   if (await fileExists(LOCK_FILE)) {
     console.error("Deploy lock aktif — proses lain mungkin masih berjalan.");
@@ -282,33 +304,53 @@ async function main() {
     await setStep(state, "npm_build", "ok");
     await log("npm run build selesai");
 
-    await setStep(state, "pm2_restart", "running");
+    const useSystemd = isSystemdMode();
+    const restartStepName = useSystemd ? "systemd_restart" : "pm2_restart";
+    const workerRestartStepName = useSystemd ? "systemd_worker_restart" : "pm2_worker_restart";
+
+    await setStep(state, restartStepName, "running");
     const webApp = resolveDeployPm2WebApp();
     const workerApp = resolveDeployPm2WorkerApp();
 
-    // Tulis status sukses sebelum restart PM2 — proses deploy bisa ter-kill saat app di-recycle.
+    // Tulis status sukses sebelum restart — proses deploy bisa ter-kill saat app di-recycle.
     state.status = "success";
     state.finishedAt = new Date().toISOString();
     state.error = null;
 
     if (process.platform === "win32") {
-      await log("Windows: lewati pm2 restart (restart dev server manual jika perlu)");
-      await setStep(state, "pm2_restart", "ok", "skipped-windows");
+      await log(`Windows: lewati ${useSystemd ? 'systemd' : 'pm2'} restart (restart dev server manual jika perlu)`);
+      await setStep(state, restartStepName, "ok", "skipped-windows");
       if (workerApp) {
-        await setStep(state, "pm2_worker_restart", "ok", "skipped-windows");
+        await setStep(state, workerRestartStepName, "ok", "skipped-windows");
       }
     } else {
-      await setStep(state, "pm2_restart", "ok", `${webApp} (scheduled)`);
-      if (workerApp) {
-        await setStep(state, "pm2_worker_restart", "running");
-        await setStep(state, "pm2_worker_restart", "ok", `${workerApp} restart/start (scheduled)`);
+      if (useSystemd) {
+        // Systemd mode
+        await setStep(state, restartStepName, "ok", `${webApp} (scheduled)`);
+        if (workerApp) {
+          await setStep(state, workerRestartStepName, "running");
+          await setStep(state, workerRestartStepName, "ok", `${workerApp} restart (scheduled)`);
+        }
+        await log(
+          workerApp
+            ? `Menjadwalkan systemd restart ${webApp} + worker ${workerApp}…`
+            : `Menjadwalkan systemd restart ${webApp}…`
+        );
+        scheduleSystemdRestart(webApp, workerApp);
+      } else {
+        // PM2 mode
+        await setStep(state, restartStepName, "ok", `${webApp} (scheduled)`);
+        if (workerApp) {
+          await setStep(state, workerRestartStepName, "running");
+          await setStep(state, workerRestartStepName, "ok", `${workerApp} restart/start (scheduled)`);
+        }
+        await log(
+          workerApp
+            ? `Menjadwalkan pm2 restart ${webApp} + worker ${workerApp}…`
+            : `Menjadwalkan pm2 restart ${webApp}…`
+        );
+        schedulePm2DeployRestart(buildPm2DeployRestartCommand());
       }
-      await log(
-        workerApp
-          ? `Menjadwalkan pm2 restart ${webApp} + worker ${workerApp}…`
-          : `Menjadwalkan pm2 restart ${webApp}…`
-      );
-      schedulePm2DeployRestart(buildPm2DeployRestartCommand());
     }
 
     await writeState(state);
