@@ -463,15 +463,32 @@ SUDOERS_FILE="/etc/sudoers.d/${SERVICE_NAME}"
 echo -e "${YELLOW}Creating ${SUDOERS_FILE}${NC}"
 
 cat > "$SUDOERS_FILE" <<EOF
-# NetManage ISP - Allow ${ACTUAL_USER} to restart services without password
-${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart ${SERVICE_NAME}
-${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart ${SERVICE_WORKER}
-${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl status ${SERVICE_NAME}
-${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl status ${SERVICE_WORKER}
+# NetManage ISP - Allow ${ACTUAL_USER} to manage services without password
 ${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl start ${SERVICE_NAME}
-${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl start ${SERVICE_WORKER}
 ${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl stop ${SERVICE_NAME}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart ${SERVICE_NAME}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl status ${SERVICE_NAME}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl enable ${SERVICE_NAME}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl disable ${SERVICE_NAME}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl start ${SERVICE_WORKER}
 ${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl stop ${SERVICE_WORKER}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart ${SERVICE_WORKER}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl status ${SERVICE_WORKER}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl enable ${SERVICE_WORKER}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl disable ${SERVICE_WORKER}
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl start ${SERVICE_CRON}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl stop ${SERVICE_CRON}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart ${SERVICE_CRON}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl status ${SERVICE_CRON}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl enable ${SERVICE_CRON}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl disable ${SERVICE_CRON}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl start ${SERVICE_BACKUP}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl stop ${SERVICE_BACKUP}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl restart ${SERVICE_BACKUP}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl status ${SERVICE_BACKUP}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl enable ${SERVICE_BACKUP}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl disable ${SERVICE_BACKUP}.timer
+${ACTUAL_USER} ALL=(ALL) NOPASSWD: /bin/systemctl daemon-reload
 EOF
 
 chmod 0440 "$SUDOERS_FILE"
