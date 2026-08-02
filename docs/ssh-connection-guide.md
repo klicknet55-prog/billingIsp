@@ -109,8 +109,17 @@ cd /home/tunnelhost-netmanage/htdocs/netmanage.tunnelhost.my.id
 ```
 
 ### 2. Pull Latest Code
+
+⚠️ **PENTING**: Jangan pull sebagai root! File akan jadi milik root dan bikin masalah.
+
 ```bash
+# ✅ CARA BENAR: Switch ke user dulu
+su - tunnelhost-netmanage
+cd ~/htdocs/netmanage.tunnelhost.my.id
 git pull origin netmanage-implementation
+
+# Atau pakai sudo -u (jika masih sebagai root)
+# sudo -u tunnelhost-netmanage git pull origin netmanage-implementation
 ```
 
 ### 3. Check Sudo Access
@@ -158,17 +167,48 @@ sudo systemctl daemon-reload
 # Pastikan di directory project
 cd ~/htdocs/netmanage.tunnelhost.my.id
 
-# Jalankan setup (jika login sebagai root)
+# ✅ CARA BENAR: Jalankan sebagai root, tapi pastikan ownership benar sebelumnya
+# Jika login sebagai root:
 sudo bash scripts/setup-systemd.sh
 
-# Atau jika sudah grant sudo ke tunnelhost-netmanage
-# Login sebagai tunnelhost-netmanage, lalu:
+# Atau jika sudah grant sudo ke tunnelhost-netmanage:
+# Switch ke user tunnelhost-netmanage dulu
+su - tunnelhost-netmanage
+cd ~/htdocs/netmanage.tunnelhost.my.id
 sudo bash scripts/setup-systemd.sh
+```
+
+### 7. Fix Ownership (Jika Ada Masalah)
+
+```bash
+# Jika accidentally pull/edit sebagai root, fix ownership:
+sudo chown -R tunnelhost-netmanage:tunnelhost-netmanage /home/tunnelhost-netmanage/htdocs/netmanage.tunnelhost.my.id
+
+# Verifikasi ownership
+ls -la /home/tunnelhost-netmanage/htdocs/netmanage.tunnelhost.my.id
+# Harus: tunnelhost-netmanage tunnelhost-netmanage
 ```
 
 ---
 
 ## Troubleshooting
+
+### File Ownership Issues (Permission Denied)
+
+```bash
+# Gejala: npm install gagal, systemd service gagal start, deploy error
+# Penyebab: File milik root karena git pull/edit sebagai root
+
+# Solusi: Fix ownership
+sudo chown -R tunnelhost-netmanage:tunnelhost-netmanage /home/tunnelhost-netmanage/htdocs/netmanage.tunnelhost.my.id
+
+# Cek ownership setelah fix
+ls -la /home/tunnelhost-netmanage/htdocs/netmanage.tunnelhost.my.id
+# Semua file harus: tunnelhost-netmanage tunnelhost-netmanage
+
+# Prevent di masa depan: Selalu pull/edit sebagai user, bukan root
+su - tunnelhost-netmanage
+```
 
 ### SSH Connection Refused
 ```bash
