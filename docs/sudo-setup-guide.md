@@ -20,8 +20,8 @@ sudo visudo
 # Tambahkan baris berikut di akhir file:
 tunnelhost-netmanage ALL=(ALL) NOPASSWD: ALL
 
-# Atau jika ingin lebih restrictive (hanya systemctl untuk billisp):
-tunnelhost-netmanage ALL=(ALL) NOPASSWD: /bin/systemctl start billisp*, /bin/systemctl stop billisp*, /bin/systemctl restart billisp*, /bin/systemctl status billisp*, /bin/systemctl enable billisp*, /bin/systemctl disable billisp*, /bin/systemctl daemon-reload
+# Atau jika ingin lebih restrictive (hanya systemctl untuk billisp - NO WILDCARDS):
+tunnelhost-netmanage ALL=(ALL) NOPASSWD: /bin/systemctl start billisp, /bin/systemctl stop billisp, /bin/systemctl restart billisp, /bin/systemctl status billisp, /bin/systemctl enable billisp, /bin/systemctl disable billisp, /bin/systemctl start billisp-worker, /bin/systemctl stop billisp-worker, /bin/systemctl restart billisp-worker, /bin/systemctl status billisp-worker, /bin/systemctl enable billisp-worker, /bin/systemctl disable billisp-worker, /bin/systemctl start billisp-cron.timer, /bin/systemctl stop billisp-cron.timer, /bin/systemctl status billisp-cron.timer, /bin/systemctl enable billisp-cron.timer, /bin/systemctl start billisp-backup.timer, /bin/systemctl stop billisp-backup.timer, /bin/systemctl status billisp-backup.timer, /bin/systemctl enable billisp-backup.timer, /bin/systemctl daemon-reload
 ```
 
 **Setelah setup sudo**, jalankan lagi:
@@ -226,7 +226,7 @@ sudo chmod +x /usr/local/bin/backup-billisp.sh
 **File: `/etc/sudoers.d/billisp`**
 
 ```bash
-tunnelhost-netmanage ALL=(ALL) NOPASSWD: /bin/systemctl start billisp, /bin/systemctl stop billisp, /bin/systemctl restart billisp, /bin/systemctl status billisp, /bin/systemctl enable billisp, /bin/systemctl disable billisp, /bin/systemctl start billisp-worker, /bin/systemctl stop billisp-worker, /bin/systemctl restart billisp-worker, /bin/systemctl status billisp-worker, /bin/systemctl enable billisp-worker, /bin/systemctl disable billisp-worker, /bin/systemctl daemon-reload
+tunnelhost-netmanage ALL=(ALL) NOPASSWD: /bin/systemctl start billisp, /bin/systemctl stop billisp, /bin/systemctl restart billisp, /bin/systemctl status billisp, /bin/systemctl enable billisp, /bin/systemctl disable billisp, /bin/systemctl start billisp-worker, /bin/systemctl stop billisp-worker, /bin/systemctl restart billisp-worker, /bin/systemctl status billisp-worker, /bin/systemctl enable billisp-worker, /bin/systemctl disable billisp-worker, /bin/systemctl start billisp-cron.timer, /bin/systemctl stop billisp-cron.timer, /bin/systemctl status billisp-cron.timer, /bin/systemctl enable billisp-cron.timer, /bin/systemctl start billisp-backup.timer, /bin/systemctl stop billisp-backup.timer, /bin/systemctl status billisp-backup.timer, /bin/systemctl enable billisp-backup.timer, /bin/systemctl daemon-reload
 ```
 
 ```bash

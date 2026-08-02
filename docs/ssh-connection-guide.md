@@ -144,10 +144,10 @@ exit  # Exit dari tunnelhost-netmanage
 # Edit sudoers
 visudo
 
-# Tambahkan di akhir file:
-tunnelhost-netmanage ALL=(ALL) NOPASSWD: /bin/systemctl start billisp*, /bin/systemctl stop billisp*, /bin/systemctl restart billisp*, /bin/systemctl status billisp*, /bin/systemctl enable billisp*, /bin/systemctl disable billisp*, /bin/systemctl daemon-reload
+# Tambahkan di akhir file (sudoers tidak support wildcards, harus list semua service):
+tunnelhost-netmanage ALL=(ALL) NOPASSWD: /bin/systemctl start billisp, /bin/systemctl stop billisp, /bin/systemctl restart billisp, /bin/systemctl status billisp, /bin/systemctl enable billisp, /bin/systemctl disable billisp, /bin/systemctl start billisp-worker, /bin/systemctl stop billisp-worker, /bin/systemctl restart billisp-worker, /bin/systemctl status billisp-worker, /bin/systemctl enable billisp-worker, /bin/systemctl disable billisp-worker, /bin/systemctl start billisp-cron.timer, /bin/systemctl stop billisp-cron.timer, /bin/systemctl restart billisp-cron.timer, /bin/systemctl status billisp-cron.timer, /bin/systemctl enable billisp-cron.timer, /bin/systemctl disable billisp-cron.timer, /bin/systemctl start billisp-backup.timer, /bin/systemctl stop billisp-backup.timer, /bin/systemctl restart billisp-backup.timer, /bin/systemctl status billisp-backup.timer, /bin/systemctl enable billisp-backup.timer, /bin/systemctl disable billisp-backup.timer, /bin/systemctl daemon-reload
 
-# Save: Ctrl+X → Y → Enter
+# Save: Ctrl+X → Y → Enter (atau :wq jika pakai vi)
 ```
 
 ### 5. Test Sudo dari tunnelhost-netmanage
