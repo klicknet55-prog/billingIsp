@@ -14,6 +14,7 @@ export const PELANGGAN_PLACEHOLDERS: PlaceholderDef[] = [
   { key: "tunggakan", label: "Total tunggakan", example: "Rp300.000 (Mei 2026, April 2026)" },
   { key: "jatuh_tempo", label: "Tanggal jatuh tempo", example: "15 Jun 2026" },
   { key: "link_bayar", label: "Link bayar portal", example: "https://app.example/p/x7k2m9n" },
+  { key: "link_nota", label: "Link nota / bukti pembayaran", example: "https://app.example/portal/nota/INV-0001" },
   {
     key: "link_apkportal",
     label: "Link download APK MyWiFi",

@@ -6,6 +6,7 @@ export type TenantTemplateKey =
   | "invoice_overdue"
   | "invoice_dunning_2"
   | "invoice_dunning_final"
+  | "payment_success"
   | "manual_invoice"
   | "manual_custom";
 
@@ -21,6 +22,7 @@ export const TENANT_TEMPLATE_KEYS: TenantTemplateKey[] = [
   "invoice_overdue",
   "invoice_dunning_2",
   "invoice_dunning_final",
+  "payment_success",
   "manual_invoice",
   "manual_custom",
 ];
@@ -37,6 +39,7 @@ export const TEMPLATE_LABELS: Record<string, string> = {
   invoice_overdue: "Tagihan jatuh tempo H+0 (cron)",
   invoice_dunning_2: "Dunning step 2 — H+3 (cron)",
   invoice_dunning_final: "Dunning final + isolir H+7 (cron)",
+  payment_success: "Pembayaran berhasil (WA)",
   manual_invoice: "Kirim manual — tagihan / link bayar",
   manual_custom: "Kirim manual — pesan custom",
   saas_reminder_7d: "Reminder langganan H-7",

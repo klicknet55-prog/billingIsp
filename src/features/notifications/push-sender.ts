@@ -2,10 +2,14 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { devicePushTokens, pushNotificationLogs, users } from "@/lib/db/schema";
+import { devicePushTokens, pelanggan, pushNotificationLogs, users } from "@/lib/db/schema";
 import { isFcmConfigured, sendFcmV1Message } from "@/features/notifications/fcm-v1-client";
 import { createLogger } from "@/lib/logger";
 import { PUSH_PATHS } from "@/lib/mobile/push-navigation";
+import { tenantHasSaasFeature } from "@/features/tenants/saas-access";
+import { getTenantWhatsAppConfig } from "@/features/integrations/service";
+import { getWhatsAppClient } from "@/lib/integrations/whatsapp";
+import { formatPaymentSuccessMessageFromTemplate } from "@/features/messages/invoice-message";
 
 const log = createLogger("notif:push");
 
@@ -139,6 +143,7 @@ export async function notifyPaymentSuccess(input: {
   pelangganNama: string;
   noNota: string;
   total: number;
+  receiptId?: string;
 }): Promise<void> {
   const title = "Pembayaran berhasil";
   const body = `${input.pelangganNama} membayar ${input.noNota} (Rp${input.total.toLocaleString("id-ID")}).`;
@@ -172,6 +177,30 @@ export async function notifyPaymentSuccess(input: {
       receiptNo: input.noNota,
     },
   });
+
+  if (!(await tenantHasSaasFeature(input.tenantId, "whatsapp"))) return;
+  const tenantWaCfg = await getTenantWhatsAppConfig(input.tenantId);
+  if (process.env.WHATSAPP_DRIVER === "real" && !tenantWaCfg) return;
+
+  const cust = await db.query.pelanggan.findFirst({
+    where: and(eq(pelanggan.tenantId, input.tenantId), eq(pelanggan.id, input.pelangganId)),
+    columns: { noWa: true },
+  });
+  if (!cust?.noWa?.trim()) return;
+
+  const message = await formatPaymentSuccessMessageFromTemplate(input.tenantId, input.pelangganId, {
+    noNota: input.noNota,
+    receiptId: input.receiptId,
+    amount: input.total,
+    paidAt: new Date(),
+    title: input.noNota,
+  });
+
+  try {
+    await getWhatsAppClient().sendNotification(cust.noWa, message, input.tenantId);
+  } catch (err) {
+    log.warn(`WA payment success gagal untuk ${cust.noWa}: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 export async function notifyTicketEvent(input: {

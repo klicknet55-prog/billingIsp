@@ -1,10 +1,13 @@
 import "server-only";
-import { buildTagihanCronContext } from "@/features/messages/context";
+import {
+  buildPelangganContext,
+  buildTagihanCronContext,
+} from "@/features/messages/context";
 import { renderTemplate } from "@/features/messages/render";
 import { getTemplateBody } from "@/features/messages/templates";
 import type { TenantTemplateKey } from "@/features/messages/types";
 import { tagihanBalance } from "@/features/billing/tagihan-balance";
-import { formatRupiah } from "@/lib/utils";
+import { formatDate, formatRupiah } from "@/lib/utils";
 
 export type InvoiceCronKind =
   | "new"
@@ -47,6 +50,36 @@ export async function formatInvoiceMessageFromTemplate(
     link_bayar: parts.payUrl,
     sisa_tagihan: formatRupiah(balance),
     sisa_hari: String(parts.daysPastDue ?? 0),
+  });
+}
+
+export async function formatPaymentSuccessMessageFromTemplate(
+  tenantId: string,
+  pelangganId: string,
+  parts: {
+    noNota?: string;
+    receiptId?: string;
+    amount: number;
+    paidAt?: Date;
+    title?: string;
+  }
+): Promise<string> {
+  const body = await getTemplateBody("tenant", "payment_success", tenantId);
+  const vars = await buildPelangganContext(tenantId, pelangganId);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+  const noteUrl = parts.receiptId
+    ? `${baseUrl}/portal/nota/${parts.receiptId}`
+    : baseUrl
+      ? `${baseUrl}/portal/tagihan`
+      : "/portal/tagihan";
+
+  return renderTemplate(body, {
+    ...vars,
+    tagihan: parts.title ?? vars.tagihan,
+    jumlah_tagihan: formatRupiah(parts.amount),
+    link_nota: noteUrl,
+    no_invoice: parts.noNota ?? vars.no_invoice,
+    jatuh_tempo: parts.paidAt ? formatDate(parts.paidAt) : vars.jatuh_tempo,
   });
 }
 

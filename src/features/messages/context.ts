@@ -74,6 +74,8 @@ export async function buildPelangganContext(
   const dueDate = focus?.dueDate ?? cust.tglJatuhTempo ?? new Date();
   const platform = await getPlatformSettings();
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+
   return {
     nama_pelanggan: cust.nama,
     no_wa: cust.noWa,
@@ -84,6 +86,7 @@ export async function buildPelangganContext(
     tunggakan: formatTunggakanLabel(summary.tunggakan),
     jatuh_tempo: formatDate(dueDate),
     link_bayar: await portalPayLink(tenantId, pelangganId),
+    link_nota: baseUrl ? `${baseUrl}/portal/nota` : "/portal/nota",
     link_apkportal: platform.communityApkPortalUrl?.trim() || "-",
     nama_usaha: tenant?.namaUsaha ?? "",
     paket: paket?.nama ?? "",

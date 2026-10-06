@@ -11,6 +11,8 @@ export const DEFAULT_TENANT_TEMPLATES: Record<TenantTemplateKey, string> = {
     "[[nama_pelanggan]], pengingat ke-2: tagihan [[tagihan]] ([[jumlah_tagihan]]) sudah lewat [[sisa_hari]] hari. Sisa bayar [[sisa_tagihan]]. Bayar: [[link_bayar]]",
   invoice_dunning_final:
     "[[nama_pelanggan]], PERINGATAN AKHIR: layanan akan dinonaktifkan jika tagihan [[tagihan]] (sisa [[sisa_tagihan]]) belum dibayar. Bayar segera: [[link_bayar]]",
+  payment_success:
+    "Pembayaran [[tagihan]] sebesar [[jumlah_tagihan]] telah berhasil diterima. Terima kasih, [[nama_pelanggan]]. Lihat nota: [[link_nota]]",
   manual_invoice:
     "Halo [[nama_pelanggan]], tagihan [[tagihan]] sebesar [[jumlah_tagihan]] jatuh tempo [[jatuh_tempo]]. Tunggakan: [[tunggakan]]. Bayar di: [[link_bayar]]",
   manual_custom:

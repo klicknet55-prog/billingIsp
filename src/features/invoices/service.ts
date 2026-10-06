@@ -12,6 +12,7 @@ import { addMonths, sameBillingPeriod } from "@/features/jobs/billing";
 import { createLogger } from "@/lib/logger";
 import { newId } from "@/lib/utils";
 import { setIsolasi } from "@/features/customers/service";
+import { notifyPaymentSuccess } from "@/features/notifications/push-sender";
 
 const log = createLogger("invoices");
 
@@ -268,6 +269,18 @@ export async function markInvoicePaid(
     .update(pelanggan)
     .set({ tglJatuhTempo: addMonths(anchor, 1) })
     .where(and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, inv.pelangganId)));
+
+  void notifyPaymentSuccess({
+    tenantId,
+    pelangganId: inv.pelangganId,
+    pelangganNama: (await db.query.pelanggan.findFirst({
+      where: and(eq(pelanggan.tenantId, tenantId), eq(pelanggan.id, inv.pelangganId)),
+      columns: { nama: true },
+    }))?.nama ?? "Pelanggan",
+    noNota: inv.noInvoice,
+    total: inv.totalTagihan,
+    receiptId: inv.id,
+  });
 
   log.info(`Invoice ${invoiceId} lunas via ${metode}`);
 }
