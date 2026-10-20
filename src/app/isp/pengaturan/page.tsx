@@ -4,7 +4,11 @@ import { db } from "@/lib/db";
 import { tenants } from "@/lib/db/schema";
 import { DEFAULT_BRAND_NAME } from "@/lib/site";
 import { eq } from "drizzle-orm";
-import { AdminProfileForm, CompanyProfileForm } from "./settings-forms";
+import {
+  AdminProfileForm,
+  BillingSettingsForm,
+  CompanyProfileForm,
+} from "./settings-forms";
 
 export default async function PengaturanPage() {
   const user = await requireUser(["owner", "admin"]);
@@ -22,6 +26,26 @@ export default async function PengaturanPage() {
           <CardContent>
             <AdminProfileForm
               defaults={{ nama: user.nama, email: user.email, phone: user.phone }}
+            />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Pengaturan Penagihan</CardTitle>
+            <CardDescription>
+              Atur jadwal pembuatan tagihan, pengingat WhatsApp, dan isolir pelanggan untuk tenant ini.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BillingSettingsForm
+              defaults={{
+                billingReminderDays: tenant?.billingReminderDays ?? 3,
+                billingFirstInvoiceDays: tenant?.billingFirstInvoiceDays ?? 5,
+                billingGenerateDays: tenant?.billingGenerateDays ?? 5,
+                billingIsolationDays: tenant?.billingIsolationDays ?? 7,
+                billingDunningStep2Days: tenant?.billingDunningStep2Days ?? 3,
+              }}
             />
           </CardContent>
         </Card>
@@ -47,4 +71,3 @@ export default async function PengaturanPage() {
     </div>
   );
 }
-

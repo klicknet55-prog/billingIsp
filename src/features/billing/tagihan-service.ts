@@ -1,21 +1,29 @@
 import "server-only";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { invoices, paketInternet, pelanggan, receiptTagihanLinks, tagihan } from "@/lib/db/schema";
+import {
+  invoices,
+  paketInternet,
+  pelanggan,
+  receiptTagihanLinks,
+  tagihan,
+  tenants,
+} from "@/lib/db/schema";
 import {
   addMonths,
   isPastDue,
   resolveActiveBillingPeriod,
   startOfDay,
 } from "@/features/jobs/due-date";
-import { ISOLATION_DAYS } from "@/features/jobs/billing";
+import type { BillingSettings } from "@/features/jobs/billing";
+import { getTenantBillingSettings } from "@/features/billing/settings";
 import {
   OUTSTANDING_TAGIHAN_STATUSES,
   tagihanBalance,
 } from "@/features/billing/tagihan-balance";
 import { setIsolasi } from "@/features/customers/service";
 import { emitWebhookEvent } from "@/features/webhooks/dispatch";
-import { FIRST_INVOICE_DAYS, shouldGenerateInvoice } from "@/features/jobs/billing";
+import { shouldGenerateInvoice } from "@/features/jobs/billing";
 import { newId } from "@/lib/utils";
 import type { TagihanPelangganRow, TagihanPelangganStatus } from "./tagihan-types";
 
@@ -142,9 +150,11 @@ export async function ensureTagihanForCustomer(
   tenantId: string,
   pelangganId: string,
   hargaBulanan: number,
-  now: Date = new Date()
+  now: Date = new Date(),
+  billingSettings?: BillingSettings
 ): Promise<typeof tagihan.$inferSelect | null> {
   if (hargaBulanan <= 0) return null;
+  const settings = billingSettings ?? (await getTenantBillingSettings(tenantId));
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const cust = await db.query.pelanggan.findFirst({
@@ -180,10 +190,12 @@ export async function ensureTagihanForCustomer(
 
     if (priorCount === 0) {
       if (!pastDue) {
-        const graceEnd = new Date(tglDaftar.getTime() + FIRST_INVOICE_DAYS * 24 * 60 * 60 * 1000);
+        const graceEnd = new Date(
+          tglDaftar.getTime() + settings.firstInvoiceDays * 24 * 60 * 60 * 1000
+        );
         if (startOfDay(now) < startOfDay(graceEnd)) return null;
       }
-    } else if (!shouldGenerateInvoice(now, dueDate) && !pastDue) {
+    } else if (!shouldGenerateInvoice(now, dueDate, settings.generateDays) && !pastDue) {
       return null;
     }
 
@@ -239,7 +251,29 @@ export async function isolateOverdueUnpaid(
   now: Date = new Date()
 ): Promise<number> {
   const today = startOfDay(now);
-  const isolationCutoff = new Date(today.getTime() - ISOLATION_DAYS * 24 * 60 * 60 * 1000);
+  const tenantSettings = tenantId
+    ? [
+        {
+          id: tenantId,
+          billingIsolationDays: (await getTenantBillingSettings(tenantId)).isolationDays,
+        },
+      ]
+    : await db
+        .select({
+          id: tenants.id,
+          billingReminderDays: tenants.billingReminderDays,
+          billingFirstInvoiceDays: tenants.billingFirstInvoiceDays,
+          billingGenerateDays: tenants.billingGenerateDays,
+          billingIsolationDays: tenants.billingIsolationDays,
+          billingDunningStep2Days: tenants.billingDunningStep2Days,
+        })
+        .from(tenants);
+  const isolationDaysByTenant = new Map(
+    tenantSettings.map((tenant) => [
+      tenant.id,
+      tenant.billingIsolationDays,
+    ])
+  );
   let count = 0;
 
   const openRows = await db.query.tagihan.findMany({
@@ -254,6 +288,9 @@ export async function isolateOverdueUnpaid(
   const fromTagihan = new Map<string, { tenantId: string; pelangganId: string }>();
   for (const row of openRows) {
     if (tagihanBalance(row) <= 0) continue;
+    const isolationDays = isolationDaysByTenant.get(row.tenantId);
+    if (isolationDays === undefined) continue;
+    const isolationCutoff = new Date(today.getTime() - isolationDays * 24 * 60 * 60 * 1000);
     if (startOfDay(row.dueDate) > isolationCutoff) continue;
     fromTagihan.set(`${row.tenantId}:${row.pelangganId}`, {
       tenantId: row.tenantId,
@@ -278,6 +315,9 @@ export async function isolateOverdueUnpaid(
 
   for (const cust of customers) {
     if (!cust.tglJatuhTempo || cust.isIsolated) continue;
+    const isolationDays = isolationDaysByTenant.get(cust.tenantId);
+    if (isolationDays === undefined) continue;
+    const isolationCutoff = new Date(today.getTime() - isolationDays * 24 * 60 * 60 * 1000);
     if (startOfDay(cust.tglJatuhTempo) > isolationCutoff) continue;
 
     const tglDaftar = cust.tglDaftar ?? cust.createdAt;
@@ -430,7 +470,8 @@ export async function getPaketHarga(tenantId: string, pelangganId: string): Prom
 function resolvePelangganTagihanStatus(
   summary: Pick<TagihanSummary, "hasBulanIni" | "tunggakan" | "activeDueDate">,
   now: Date,
-  isIsolated: boolean
+  isIsolated: boolean,
+  generateDays: number
 ): TagihanPelangganStatus {
   if (summary.tunggakan.length > 0) return "tunggakan";
   if (summary.hasBulanIni) {
@@ -438,7 +479,7 @@ function resolvePelangganTagihanStatus(
     if (pastDue && isIsolated) return "open";
     return "open";
   }
-  const inWindow = shouldGenerateInvoice(now, summary.activeDueDate);
+  const inWindow = shouldGenerateInvoice(now, summary.activeDueDate, generateDays);
   const isPastDue = startOfDay(now) > startOfDay(summary.activeDueDate);
   if (inWindow || isPastDue) return "open";
   return "not_due";
@@ -450,15 +491,21 @@ export async function syncTagihanForPelanggan(
   pelangganId: string,
   now: Date = new Date()
 ) {
+  const settings = await getTenantBillingSettings(tenantId);
   const harga = await getPaketHarga(tenantId, pelangganId);
   if (harga > 0) {
-    await ensureTagihanForCustomer(tenantId, pelangganId, harga, now);
+    await ensureTagihanForCustomer(tenantId, pelangganId, harga, now, settings);
   }
   await isolateOverdueUnpaid(tenantId, now);
 }
 
 /** Sinkronkan tagihan tenant (buat yang belum ada + isolir lewat jatuh tempo). */
-export async function syncTagihanForTenant(tenantId: string, now: Date = new Date()) {
+export async function syncTagihanForTenant(
+  tenantId: string,
+  now: Date = new Date(),
+  billingSettings?: BillingSettings
+) {
+  const settings = billingSettings ?? (await getTenantBillingSettings(tenantId));
   const customers = await db
     .select({
       id: pelanggan.id,
@@ -470,7 +517,7 @@ export async function syncTagihanForTenant(tenantId: string, now: Date = new Dat
 
   for (const cust of customers) {
     if (cust.harga <= 0) continue;
-    await ensureTagihanForCustomer(tenantId, cust.id, cust.harga, now);
+    await ensureTagihanForCustomer(tenantId, cust.id, cust.harga, now, settings);
   }
 
   await isolateOverdueUnpaid(tenantId, now);
@@ -481,7 +528,8 @@ export async function listTagihanPelanggan(
   tenantId: string,
   now: Date = new Date()
 ): Promise<TagihanPelangganRow[]> {
-  await syncTagihanForTenant(tenantId, now);
+  const settings = await getTenantBillingSettings(tenantId);
+  await syncTagihanForTenant(tenantId, now, settings);
 
   const [customers, tagihanRows] = await Promise.all([
     db
@@ -543,7 +591,12 @@ export async function listTagihanPelanggan(
       tunggakan,
       activeDueDate,
     };
-    const status = resolvePelangganTagihanStatus(summary, now, c.isIsolated);
+    const status = resolvePelangganTagihanStatus(
+      summary,
+      now,
+      c.isIsolated,
+      settings.generateDays
+    );
     const canNunggak = await canCatatNunggak(tenantId, c.id, now);
 
     result.push({

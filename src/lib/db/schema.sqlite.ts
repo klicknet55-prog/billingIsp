@@ -31,6 +31,11 @@ export const tenants = sqliteTable("tenant", {
     .default("light"),
   referralCode: text("referral_code").unique(),
   referredByTenantId: text("referred_by_tenant_id"),
+  billingReminderDays: integer("billing_reminder_days").notNull().default(3),
+  billingFirstInvoiceDays: integer("billing_first_invoice_days").notNull().default(5),
+  billingGenerateDays: integer("billing_generate_days").notNull().default(5),
+  billingIsolationDays: integer("billing_isolation_days").notNull().default(7),
+  billingDunningStep2Days: integer("billing_dunning_step2_days").notNull().default(3),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 

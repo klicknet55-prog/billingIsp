@@ -109,6 +109,31 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     sql: "ALTER TABLE tenant_whatsapp_config ADD COLUMN basic_auth_user TEXT",
   },
   {
+    table: "tenant",
+    column: "billing_reminder_days",
+    sql: "ALTER TABLE tenant ADD COLUMN billing_reminder_days INTEGER NOT NULL DEFAULT 3",
+  },
+  {
+    table: "tenant",
+    column: "billing_first_invoice_days",
+    sql: "ALTER TABLE tenant ADD COLUMN billing_first_invoice_days INTEGER NOT NULL DEFAULT 5",
+  },
+  {
+    table: "tenant",
+    column: "billing_generate_days",
+    sql: "ALTER TABLE tenant ADD COLUMN billing_generate_days INTEGER NOT NULL DEFAULT 5",
+  },
+  {
+    table: "tenant",
+    column: "billing_isolation_days",
+    sql: "ALTER TABLE tenant ADD COLUMN billing_isolation_days INTEGER NOT NULL DEFAULT 7",
+  },
+  {
+    table: "tenant",
+    column: "billing_dunning_step2_days",
+    sql: "ALTER TABLE tenant ADD COLUMN billing_dunning_step2_days INTEGER NOT NULL DEFAULT 3",
+  },
+  {
     table: "tagihan",
     column: "amount_paid",
     sql: "ALTER TABLE tagihan ADD COLUMN amount_paid INTEGER NOT NULL DEFAULT 0",

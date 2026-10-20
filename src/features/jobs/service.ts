@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, isNull, lt, lte } from "drizzle-orm";
+import { and, eq, gte, isNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { paketInternet, pelanggan, tagihan, tenants } from "@/lib/db/schema";
 import {
@@ -9,10 +9,8 @@ import {
 } from "@/features/billing/tagihan-service";
 import { tagihanBalance, OUTSTANDING_TAGIHAN_STATUSES } from "@/features/billing/tagihan-balance";
 import {
-  DUNNING_STEP2_DAYS,
-  ISOLATION_DAYS,
+  type BillingSettings,
   portalPayLink,
-  REMINDER_DAYS,
 } from "@/features/jobs/billing";
 import { startOfDay } from "@/features/jobs/due-date";
 import { formatInvoiceMessageFromTemplate } from "@/features/messages/invoice-message";
@@ -57,11 +55,26 @@ export interface BillingCycleResult {
 
 async function syncTagihanForTenants(now: Date, result: BillingCycleResult) {
   const activeTenants = await db
-    .select({ id: tenants.id })
+    .select({
+      id: tenants.id,
+      billingReminderDays: tenants.billingReminderDays,
+      billingFirstInvoiceDays: tenants.billingFirstInvoiceDays,
+      billingGenerateDays: tenants.billingGenerateDays,
+      billingIsolationDays: tenants.billingIsolationDays,
+      billingDunningStep2Days: tenants.billingDunningStep2Days,
+    })
     .from(tenants)
     .where(eq(tenants.status, "active"));
 
-  for (const { id: tenantId } of activeTenants) {
+  for (const tenant of activeTenants) {
+    const { id: tenantId } = tenant;
+    const settings: BillingSettings = {
+      reminderDays: tenant.billingReminderDays,
+      firstInvoiceDays: tenant.billingFirstInvoiceDays,
+      generateDays: tenant.billingGenerateDays,
+      isolationDays: tenant.billingIsolationDays,
+      dunningStep2Days: tenant.billingDunningStep2Days,
+    };
     const customers = await db
       .select({
         id: pelanggan.id,
@@ -75,7 +88,13 @@ async function syncTagihanForTenants(now: Date, result: BillingCycleResult) {
     for (const cust of customers) {
       if (cust.harga <= 0) continue;
       try {
-        const created = await ensureTagihanForCustomer(tenantId, cust.id, cust.harga, now);
+        const created = await ensureTagihanForCustomer(
+          tenantId,
+          cust.id,
+          cust.harga,
+          now,
+          settings
+        );
         if (created) result.tagihanCreated++;
       } catch (err) {
         log.warn(`Gagal buat tagihan ${cust.id}: ${err instanceof Error ? err.message : String(err)}`);
@@ -88,9 +107,8 @@ async function syncTagihanForTenants(now: Date, result: BillingCycleResult) {
  * Background worker: siklus tagihan otomatis.
  * - Buat tagihan periode.
  * - H+0: tandai tunggakan + WA overdue.
- * - H+3: dunning step 2.
- * - H+7: dunning final + isolir (grace ISOLATION_DAYS).
- * - H-3: pengingat pre-due.
+ * - H+N: dunning step 2 dan final/isolir sesuai pengaturan tenant.
+ * - H-N: pengingat pre-due sesuai pengaturan tenant.
  */
 export async function runBillingCycle(): Promise<BillingCycleResult> {
   const now = new Date();
@@ -109,8 +127,13 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
   await syncTagihanForTenants(now, result);
   result.tunggakan = await markOverdueTagihan(now);
 
-  const upcoming = await db
-    .select({ t: tagihan, noWa: pelanggan.noWa, pelangganId: pelanggan.id })
+  const upcomingRows = await db
+    .select({
+      t: tagihan,
+      noWa: pelanggan.noWa,
+      pelangganId: pelanggan.id,
+      reminderDays: tenants.billingReminderDays,
+    })
     .from(tagihan)
     .innerJoin(pelanggan, eq(tagihan.pelangganId, pelanggan.id))
     .innerJoin(tenants, eq(tagihan.tenantId, tenants.id))
@@ -119,10 +142,12 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
         eq(tenants.status, "active"),
         eq(tagihan.status, "open"),
         gte(tagihan.dueDate, now),
-        lte(tagihan.dueDate, new Date(now.getTime() + REMINDER_DAYS * DAY)),
         isNull(tagihan.preDueRemindedAt)
       )
     );
+  const upcoming = upcomingRows.filter(
+    ({ t, reminderDays }) => t.dueDate <= new Date(now.getTime() + reminderDays * DAY)
+  );
 
   for (const { t, noWa, pelangganId } of upcoming) {
     if (tagihanBalance(t) <= 0) continue;
@@ -188,7 +213,12 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
   }
 
   const dunning2Rows = await db
-    .select({ t: tagihan, noWa: pelanggan.noWa, pelangganId: pelanggan.id })
+    .select({
+      t: tagihan,
+      noWa: pelanggan.noWa,
+      pelangganId: pelanggan.id,
+      dunningStep2Days: tenants.billingDunningStep2Days,
+    })
     .from(tagihan)
     .innerJoin(pelanggan, eq(tagihan.pelangganId, pelanggan.id))
     .innerJoin(tenants, eq(tagihan.tenantId, tenants.id))
@@ -200,10 +230,10 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
       )
     );
 
-  for (const { t, noWa, pelangganId } of dunning2Rows) {
+  for (const { t, noWa, pelangganId, dunningStep2Days } of dunning2Rows) {
     if (tagihanBalance(t) <= 0) continue;
     const past = daysPastDue(t.dueDate, now);
-    if (past < DUNNING_STEP2_DAYS) continue;
+    if (past < dunningStep2Days) continue;
     if (!OUTSTANDING_TAGIHAN_STATUSES.includes(t.status as (typeof OUTSTANDING_TAGIHAN_STATUSES)[number])) {
       continue;
     }
@@ -226,7 +256,12 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
   }
 
   const finalRows = await db
-    .select({ t: tagihan, noWa: pelanggan.noWa, pelangganId: pelanggan.id })
+    .select({
+      t: tagihan,
+      noWa: pelanggan.noWa,
+      pelangganId: pelanggan.id,
+      isolationDays: tenants.billingIsolationDays,
+    })
     .from(tagihan)
     .innerJoin(pelanggan, eq(tagihan.pelangganId, pelanggan.id))
     .innerJoin(tenants, eq(tagihan.tenantId, tenants.id))
@@ -238,10 +273,10 @@ export async function runBillingCycle(): Promise<BillingCycleResult> {
       )
     );
 
-  for (const { t, noWa, pelangganId } of finalRows) {
+  for (const { t, noWa, pelangganId, isolationDays } of finalRows) {
     if (tagihanBalance(t) <= 0) continue;
     const past = daysPastDue(t.dueDate, now);
-    if (past < ISOLATION_DAYS) continue;
+    if (past < isolationDays) continue;
     if (!OUTSTANDING_TAGIHAN_STATUSES.includes(t.status as (typeof OUTSTANDING_TAGIHAN_STATUSES)[number])) {
       continue;
     }

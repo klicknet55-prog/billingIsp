@@ -1783,10 +1783,12 @@ Endpoint `GET /api/cron` menjalankan **siklus penagihan pelanggan** dan **siklus
 
 **Penagihan pelanggan (tenant aktif saja):**
 
-- **Generate invoice bulanan** per pelanggan aktif (harga dari paket internet), mulai **H-7** sebelum jatuh tempo (atur via `BILLING_GENERATE_DAYS`).
+- Tagihan pertama dibuat setelah jeda **5 hari** dari pendaftaran pelanggan secara default.
+- **Generate invoice bulanan** per pelanggan aktif (harga dari paket internet), mulai **H-5** sebelum jatuh tempo secara default; tenant dapat mengubahnya di **Dashboard → Pengaturan → Pengaturan Penagihan**.
 - Notifikasi WhatsApp tagihan baru + **link bayar auto-login** (`/portal/masuk` → langsung ke Tagihan).
-- Pengingat WhatsApp **H-3** sebelum jatuh tempo (sekali per invoice, `BILLING_REMINDER_DAYS`).
-- Invoice lewat jatuh tempo → status `overdue`, **isolasi pelanggan** di Mikrotik, notifikasi WhatsApp + link bayar.
+- Pengingat WhatsApp **H-3** sebelum jatuh tempo secara default (sekali per invoice; dapat diatur per tenant di **Dashboard → Pengaturan → Pengaturan Penagihan**).
+- Dunning step 2 dikirim pada **H+3** secara default; isolasi pelanggan di Mikrotik dan dunning final dilakukan pada **H+7** secara default. Seluruh jeda dapat diatur per tenant di **Dashboard → Pengaturan → Pengaturan Penagihan**.
+- Invoice lewat jatuh tempo → status `overdue`, notifikasi WhatsApp + link bayar.
 
 **Langganan SaaS platform:**
 

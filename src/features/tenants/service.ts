@@ -430,6 +430,11 @@ export async function registerTenant(
     themeMode: "light",
     referralCode: null,
     referredByTenantId: null,
+    billingReminderDays: 3,
+    billingFirstInvoiceDays: 5,
+    billingGenerateDays: 5,
+    billingIsolationDays: 7,
+    billingDunningStep2Days: 3,
     createdAt: new Date(),
   };
   await db.insert(tenants).values(tenant);

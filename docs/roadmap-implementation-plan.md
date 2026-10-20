@@ -771,7 +771,7 @@ Tabel opsional: `dunning_step_log` — jejak step per tagihan.
 - [x] Schema: `amountPaid`, status `partial`, kolom dunning di `tagihan`
 - [x] Service bayar sebagian (admin/kolektor + portal amount = sisa)
 - [x] Template WA dunning step 2 & final (`invoice_dunning_2`, `invoice_dunning_final`)
-- [x] Cron: H+0 tunggakan, H+3 dunning 2, H+7 final + isolir (grace `BILLING_ISOLATION_DAYS`)
+- [x] Cron: H+0 tunggakan; dunning dan grace isolir dapat diatur per tenant dari menu Pengaturan Penagihan
 - [x] UI: riwayat pembayaran + bayar sebagian di detail tagihan
 - [x] Webhook `tagihan.partial_paid` (6b)
 

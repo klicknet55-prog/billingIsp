@@ -6,6 +6,7 @@ import { useToast } from "@/components/ui/toast";
 import type { ActionState } from "@/features/auth/actions";
 import {
   saveAdminProfileAction,
+  saveBillingSettingsAction,
   saveCompanyProfileAction,
 } from "@/features/settings/actions";
 
@@ -145,3 +146,75 @@ export function CompanyProfileForm({
   );
 }
 
+export function BillingSettingsForm({
+  defaults,
+}: {
+  defaults: {
+    billingReminderDays: number;
+    billingFirstInvoiceDays: number;
+    billingGenerateDays: number;
+    billingIsolationDays: number;
+    billingDunningStep2Days: number;
+  };
+}) {
+  const [state, action] = useActionState(saveBillingSettingsAction, initial);
+  const { toast } = useToast();
+  useEffect(() => {
+    if (state.ok) toast({ title: "Pengaturan penagihan tersimpan", variant: "success" });
+    if (state.error) toast({ title: state.error, variant: "error" });
+  }, [state.ok, state.error, toast]);
+  const fe = state.fieldErrors ?? {};
+  const fields = [
+    {
+      name: "billingReminderDays",
+      label: "Reminder WhatsApp sebelum jatuh tempo",
+      description: "Jumlah hari sebelum jatuh tempo (H-N).",
+    },
+    {
+      name: "billingFirstInvoiceDays",
+      label: "Tagihan pertama setelah pendaftaran",
+      description: "Jeda hari setelah tanggal pendaftaran pelanggan (D+N).",
+    },
+    {
+      name: "billingGenerateDays",
+      label: "Generate tagihan recurring",
+      description: "Jumlah hari sebelum jatuh tempo untuk mulai membuat tagihan (H-N).",
+    },
+    {
+      name: "billingIsolationDays",
+      label: "Grace period sebelum isolir",
+      description: "Jumlah hari setelah jatuh tempo sebelum pelanggan diisolir (H+N).",
+    },
+    {
+      name: "billingDunningStep2Days",
+      label: "Dunning step 2",
+      description: "Jumlah hari setelah jatuh tempo untuk pengingat WhatsApp kedua (H+N).",
+    },
+  ] as const;
+
+  return (
+    <form action={action} className="space-y-4">
+      {fields.map((field) => (
+        <div key={field.name}>
+          <label htmlFor={field.name} className="mb-1 block text-sm font-medium">
+            {field.label}
+          </label>
+          <input
+            id={field.name}
+            name={field.name}
+            type="number"
+            min={0}
+            max={365}
+            step={1}
+            required
+            defaultValue={defaults[field.name]}
+            className="h-9 w-full rounded-md border px-3 text-sm"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">{field.description} Rentang 0–365 hari.</p>
+          {fe[field.name] && <p className="text-xs text-destructive">{fe[field.name]}</p>}
+        </div>
+      ))}
+      <SubmitButton>Simpan Pengaturan Penagihan</SubmitButton>
+    </form>
+  );
+}

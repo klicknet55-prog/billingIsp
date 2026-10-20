@@ -24,6 +24,30 @@ const companyProfileSchema = z.object({
   phone: z.string().trim().optional(),
 });
 
+const billingSettingsSchema = z.object({
+  billingReminderDays: z.coerce.number().int().min(0).max(365),
+  billingFirstInvoiceDays: z.coerce.number().int().min(0).max(365),
+  billingGenerateDays: z.coerce.number().int().min(0).max(365),
+  billingIsolationDays: z.coerce.number().int().min(0).max(365),
+  billingDunningStep2Days: z.coerce.number().int().min(0).max(365),
+});
+
+export async function saveBillingSettingsAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const user = await requireUser(["owner", "admin"]);
+  if (!user.tenantId) return { error: "Tenant tidak ditemukan." };
+
+  const parsed = parseForm(billingSettingsSchema, formData);
+  if (!parsed.ok) return { fieldErrors: parsed.fieldErrors };
+
+  await db.update(tenants).set(parsed.data).where(eq(tenants.id, user.tenantId));
+  revalidatePath("/dashboard/pengaturan");
+  revalidatePath("/dashboard/tagihan");
+  return { ok: true };
+}
+
 export async function saveAdminProfileAction(
   _prev: ActionState,
   formData: FormData
@@ -160,4 +184,3 @@ export async function saveCompanyProfileAction(
   revalidatePath("/dashboard/laporan");
   return { ok: true };
 }
-
