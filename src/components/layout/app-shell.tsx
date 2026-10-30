@@ -67,6 +67,7 @@ function isNavGroup(entry: DashboardNavEntry): entry is DashboardNavGroup {
 const NAV: Record<string, DashboardNavItem[]> = {
   superadmin: [
     { href: "/superadmin", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/superadmin/sales", label: "Tim Sales", icon: UserPlus },
     { href: "/superadmin/tenants", label: "Tenant", icon: Building2 },
     { href: "/superadmin/packages", label: "Paket SaaS", icon: Package },
     { href: "/superadmin/transactions", label: "Transaksi", icon: CreditCard },
@@ -84,6 +85,9 @@ const NAV: Record<string, DashboardNavItem[]> = {
     { href: "/kolektor/community", label: "Community", icon: HandCoins },
     { href: "/kolektor/kontributor", label: "Kontributor", icon: Heart },
   ],
+  sales: [
+    { href: "/sales", label: "Dashboard Sales", icon: LayoutDashboard },
+  ],
 };
 
 export function AppShell({
@@ -98,7 +102,7 @@ export function AppShell({
   renewalOnly,
   children,
 }: {
-  variant: "superadmin" | "dashboard" | "kolektor";
+  variant: "superadmin" | "dashboard" | "kolektor" | "sales";
   userName: string;
   userRole: string;
   brandName?: string;
