@@ -50,6 +50,17 @@ export const otpCodes = active.otpCodes as typeof sqlite.otpCodes;
 export const passwordResets = active.passwordResets as typeof sqlite.passwordResets;
 export const portalAccessCodes = active.portalAccessCodes as typeof sqlite.portalAccessCodes;
 export const referralRewards = active.referralRewards as typeof sqlite.referralRewards;
+export const salesProfiles = active.salesProfiles as typeof sqlite.salesProfiles;
+export const tenantSalesAttributions =
+  active.tenantSalesAttributions as typeof sqlite.tenantSalesAttributions;
+export const salesAttributionAudits =
+  active.salesAttributionAudits as typeof sqlite.salesAttributionAudits;
+export const salesCommissionPayoutRequests =
+  active.salesCommissionPayoutRequests as typeof sqlite.salesCommissionPayoutRequests;
+export const salesCommissionRetentionSummaries =
+  active.salesCommissionRetentionSummaries as typeof sqlite.salesCommissionRetentionSummaries;
+export const dataRetentionRuns = active.dataRetentionRuns as typeof sqlite.dataRetentionRuns;
+export const salesCommissions = active.salesCommissions as typeof sqlite.salesCommissions;
 export const communityDonations = active.communityDonations as typeof sqlite.communityDonations;
 export const platformSettings = active.platformSettings as typeof sqlite.platformSettings;
 export const messageTemplates = active.messageTemplates as typeof sqlite.messageTemplates;
@@ -89,4 +100,13 @@ export type MessageBatch = typeof sqlite.messageBatches.$inferSelect;
 export type DevicePushToken = typeof sqlite.devicePushTokens.$inferSelect;
 export type PushNotificationLog = typeof sqlite.pushNotificationLogs.$inferSelect;
 export type ReferralReward = typeof sqlite.referralRewards.$inferSelect;
+export type SalesProfile = typeof sqlite.salesProfiles.$inferSelect;
+export type TenantSalesAttribution = typeof sqlite.tenantSalesAttributions.$inferSelect;
+export type SalesAttributionAudit = typeof sqlite.salesAttributionAudits.$inferSelect;
+export type SalesCommissionPayoutRequest =
+  typeof sqlite.salesCommissionPayoutRequests.$inferSelect;
+export type SalesCommissionRetentionSummary =
+  typeof sqlite.salesCommissionRetentionSummaries.$inferSelect;
+export type DataRetentionRun = typeof sqlite.dataRetentionRuns.$inferSelect;
+export type SalesCommission = typeof sqlite.salesCommissions.$inferSelect;
 export type CommunityDonation = typeof sqlite.communityDonations.$inferSelect;

@@ -113,6 +113,27 @@
       "when": 1786326000000,
       "tag": "0015_tenant_billing_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793162400000,
+      "tag": "0016_sales_commission",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793278080000,
+      "tag": "0017_sales_commission_payout_request",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793278081000,
+      "tag": "0018_data_retention",
+      "breakpoints": true
     }
   ]
 }

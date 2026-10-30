@@ -134,6 +134,16 @@ export const COLUMN_PATCHES: { table: string; column: string; sql: string }[] = 
     sql: "ALTER TABLE tenant ADD COLUMN billing_dunning_step2_days INTEGER NOT NULL DEFAULT 3",
   },
   {
+    table: "payment_gateway_log",
+    column: "sales_user_id",
+    sql: "ALTER TABLE payment_gateway_log ADD COLUMN sales_user_id TEXT REFERENCES user(id)",
+  },
+  {
+    table: "payment_gateway_log",
+    column: "commission_rate_bps",
+    sql: "ALTER TABLE payment_gateway_log ADD COLUMN commission_rate_bps INTEGER",
+  },
+  {
     table: "tagihan",
     column: "amount_paid",
     sql: "ALTER TABLE tagihan ADD COLUMN amount_paid INTEGER NOT NULL DEFAULT 0",

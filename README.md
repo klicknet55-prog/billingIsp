@@ -1779,7 +1779,7 @@ Kedua method (PM2 dan Systemd) **tidak perlu coexist**. Pilih salah satu untuk p
 Kedua metode **bisa dipakai bersamaan** di server berbeda. Jangan jalankan keduanya untuk app yang sama di satu server.
 ## Pasang Cron (Background Worker)
 
-Endpoint `GET /api/cron` menjalankan **siklus penagihan pelanggan** dan **siklus langganan SaaS platform**:
+Endpoint `GET /api/cron` menjalankan **siklus penagihan pelanggan**, **siklus langganan SaaS platform**, dan **retensi data berkala**:
 
 **Penagihan pelanggan (tenant aktif saja):**
 
@@ -1795,9 +1795,16 @@ Endpoint `GET /api/cron` menjalankan **siklus penagihan pelanggan** dan **siklus
 - Subscription lewat `akhir` → status `expired`, tenant `suspended` (login ISP diblokir).
 - Reminder WhatsApp **H-7** dan **H-1** ke owner (jika nomor WA owner diisi di profil staf).
 
+**Retensi data (tanggal mengikuti `APP_TIMEZONE`):**
+
+- Retensi dijalankan **setahun sekali pada 28 Januari**. Pada 23–27 Januari, owner tenant yang terdampak menerima pemberitahuan WhatsApp H-5; cron harian memungkinkan retry jika pengiriman gagal.
+- Pada 28 Januari, data teknis/operasional selesai dan data billing terminal yang lebih tua dari 2 tahun per cutoff 28 Januari (dua tahun sebelumnya) diarsipkan gzip ke `data/backups/tenant/<tenant-id>/retention/`, lalu dipurge. Job yang gagal dapat dicoba ulang pada hari-hari berikutnya.
+- Jika WhatsApp gagal, arsip gagal dibuat, atau data masih aktif/dirujuk, data tidak dipurge. Data pelanggan dan paket internet tidak dihapus; demikian juga tenant, akun, invoice/tagihan belum lunas, pembayaran pending, tiket belum selesai, dan saldo komisi payable.
+- Pastikan cron memanggil endpoint setiap hari dan worker aktif bila Redis digunakan. Arsip berada di server aplikasi; salin ke backup eksternal dan batasi akses folder backup.
+
 Syarat generate otomatis: pelanggan punya **paket internet aktif**, tenant `active`, belum ada invoice periode bulan yang sama. Tanggal jatuh tempo diambil dari field **Jatuh Tempo** pelanggan (maju +1 bulan setelah pembayaran lunas).
 
-Tanpa cron, generate tagihan, isolasi otomatis, dan reminder tidak berjalan.
+Tanpa cron, generate tagihan, isolasi otomatis, reminder, dan retensi data terjadwal tidak berjalan.
 
 ### 1. Set `CRON_SECRET` di `.env`
 
@@ -1847,7 +1854,7 @@ crontab -e
 Tambahkan baris berikut — **ganti URL dan secret** dengan nilai production Anda:
 
 ```cron
-# Siklus penagihan: setiap hari jam 06:00 WIB (sesuaikan timezone server)
+# Siklus penagihan/reminder harian dan retensi tahunan 28 Januari (sesuaikan APP_TIMEZONE)
 0 6 * * * curl -fsS -m 120 -H "Authorization: Bearer ISI_CRON_SECRET_ANDA" https://isp.tunnelhost.my.id/api/cron >> /var/log/billingisp-cron.log 2>&1
 ```
 

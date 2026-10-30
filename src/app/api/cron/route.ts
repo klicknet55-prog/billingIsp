@@ -1,5 +1,6 @@
 import { runBillingCycle } from "@/features/jobs/service";
 import { runSaasSubscriptionLifecycle } from "@/features/jobs/saas-subscription";
+import { runDataRetentionCycle } from "@/features/retention/service";
 import { enqueueCronRun } from "@/features/jobs/enqueue";
 import { recordCronRun } from "@/features/platform-health/service";
 
@@ -28,7 +29,8 @@ export async function GET(req: Request) {
 
   const saas = await runSaasSubscriptionLifecycle();
   const billing = await runBillingCycle();
-  const payload = { ok: true, billing, saas };
+  const retention = await runDataRetentionCycle();
+  const payload = { ok: true, billing, saas, retention };
   await recordCronRun(payload);
   return Response.json(payload);
 }

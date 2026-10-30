@@ -1,5 +1,6 @@
 import { runBillingCycle } from "@/features/jobs/service";
 import { runSaasSubscriptionLifecycle } from "@/features/jobs/saas-subscription";
+import { runDataRetentionCycle } from "@/features/retention/service";
 import { runBatchSend } from "@/features/messages/send";
 import { executeWebhookDelivery } from "@/features/webhooks/deliver";
 import { runImportBatchById } from "@/features/customers/import-service";
@@ -14,7 +15,8 @@ export async function processQueueJob(name: JobName, data: JobDataMap[JobName]) 
     case "cron.run": {
       const saas = await runSaasSubscriptionLifecycle();
       const billing = await runBillingCycle();
-      const payload = { ok: true as const, billing, saas };
+      const retention = await runDataRetentionCycle();
+      const payload = { ok: true as const, billing, saas, retention };
       await recordCronRun(payload);
       log.info(`cron.run selesai: tagihan+${billing.tagihanCreated} isolir+${billing.isolated}`);
       return payload;

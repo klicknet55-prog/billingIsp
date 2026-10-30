@@ -1,6 +1,7 @@
 import {
   boolean,
   doublePrecision,
+  index,
   integer,
   jsonb,
   pgTable,
@@ -43,7 +44,7 @@ export const users = pgTable("user", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: text("role", {
-    enum: ["superadmin", "owner", "admin", "kolektor", "teknisi"],
+    enum: ["superadmin", "owner", "admin", "kolektor", "teknisi", "sales"],
   }).notNull(),
   phone: text("phone"),
   latitude: doublePrecision("latitude"),
@@ -313,6 +314,8 @@ export const paymentGatewayLogs = pgTable("payment_gateway_log", {
     .default("pending"),
   amount: integer("amount").notNull().default(0),
   paymentMethod: text("payment_method"),
+  salesUserId: text("sales_user_id").references(() => users.id),
+  commissionRateBps: integer("commission_rate_bps"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -587,6 +590,154 @@ export const referralRewards = pgTable(
   (t) => [uniqueIndex("referral_reward_referee_unique").on(t.refereeTenantId)]
 );
 
+export const salesProfiles = pgTable(
+  "sales_profile",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id),
+    referralCode: text("referral_code").notNull(),
+    commissionRateBps: integer("commission_rate_bps").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("sales_profile_referral_code_unique").on(t.referralCode)]
+);
+
+export const tenantSalesAttributions = pgTable(
+  "tenant_sales_attribution",
+  {
+    tenantId: text("tenant_id")
+      .primaryKey()
+      .references(() => tenants.id),
+    salesUserId: text("sales_user_id")
+      .notNull()
+      .references(() => users.id),
+    source: text("source", { enum: ["referral_code", "manual"] }).notNull(),
+    attributedBy: text("attributed_by").references(() => users.id),
+    attributedAt: timestamp("attributed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("tenant_sales_attribution_sales_idx").on(t.salesUserId, t.attributedAt)]
+);
+
+export const salesAttributionAudits = pgTable(
+  "sales_attribution_audit",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    previousSalesUserId: text("previous_sales_user_id").references(() => users.id),
+    nextSalesUserId: text("next_sales_user_id").references(() => users.id),
+    source: text("source", { enum: ["referral_code", "manual"] }).notNull(),
+    changedBy: text("changed_by").references(() => users.id),
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("sales_attribution_audit_tenant_idx").on(t.tenantId, t.createdAt)]
+);
+
+export const salesCommissionPayoutRequests = pgTable(
+  "sales_commission_payout_request",
+  {
+    id: text("id").primaryKey(),
+    salesUserId: text("sales_user_id")
+      .notNull()
+      .references(() => users.id),
+    amount: integer("amount").notNull(),
+    status: text("status", {
+      enum: ["requested", "approved", "paid", "rejected"],
+    }).notNull().default("requested"),
+    payoutMethod: text("payout_method").notNull(),
+    accountName: text("account_name").notNull(),
+    accountNumber: text("account_number").notNull(),
+    payoutReference: text("payout_reference"),
+    rejectionReason: text("rejection_reason"),
+    reviewedBy: text("reviewed_by").references(() => users.id),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).notNull().defaultNow(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+  },
+  (t) => [index("sales_commission_payout_request_sales_idx").on(t.salesUserId, t.requestedAt)]
+);
+
+export const salesCommissionRetentionSummaries = pgTable(
+  "sales_commission_retention_summary",
+  {
+    salesUserId: text("sales_user_id")
+      .primaryKey()
+      .references(() => users.id),
+    paidAmount: integer("paid_amount").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  }
+);
+
+export const dataRetentionRuns = pgTable(
+  "data_retention_run",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    period: text("period").notNull(),
+    notificationStatus: text("notification_status", {
+      enum: ["pending", "sent", "failed"],
+    }).notNull().default("pending"),
+    notificationSentAt: timestamp("notification_sent_at", { withTimezone: true }),
+    purgeStatus: text("purge_status", {
+      enum: ["pending", "running", "completed", "failed"],
+    }).notNull().default("pending"),
+    archivePath: text("archive_path"),
+    deletedCounts: jsonb("deleted_counts").$type<Record<string, number>>(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("data_retention_run_tenant_period_unique").on(t.tenantId, t.period),
+    index("data_retention_run_period_status_idx").on(t.period, t.purgeStatus),
+  ]
+);
+
+export const salesCommissions = pgTable(
+  "sales_commission",
+  {
+    id: text("id").primaryKey(),
+    salesUserId: text("sales_user_id")
+      .notNull()
+      .references(() => users.id),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    paymentGatewayLogId: text("payment_gateway_log_id").references(
+      () => paymentGatewayLogs.id
+    ),
+    reversalOfId: text("reversal_of_id").references((): AnyPgColumn => salesCommissions.id),
+    entryType: text("entry_type", { enum: ["commission", "reversal"] }).notNull(),
+    baseAmount: integer("base_amount").notNull(),
+    commissionRateBps: integer("commission_rate_bps").notNull(),
+    amount: integer("amount").notNull(),
+    payoutRequestId: text("payout_request_id").references(
+      () => salesCommissionPayoutRequests.id
+    ),
+    status: text("status", { enum: ["payable", "paid", "reversed"] })
+      .notNull()
+      .default("payable"),
+    payoutReference: text("payout_reference"),
+    reason: text("reason"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sales_commission_payment_unique").on(t.paymentGatewayLogId),
+    uniqueIndex("sales_commission_reversal_unique").on(t.reversalOfId),
+    index("sales_commission_sales_status_idx").on(t.salesUserId, t.status, t.createdAt),
+    index("sales_commission_tenant_idx").on(t.tenantId, t.createdAt),
+    index("sales_commission_payout_request_idx").on(t.payoutRequestId),
+  ]
+);
+
 export const communityDonations = pgTable(
   "community_donation",
   {
@@ -701,6 +852,13 @@ export const pgSchema = {
   passwordResets,
   portalAccessCodes,
   referralRewards,
+  salesProfiles,
+  tenantSalesAttributions,
+  salesAttributionAudits,
+  salesCommissionRetentionSummaries,
+  dataRetentionRuns,
+  salesCommissionPayoutRequests,
+  salesCommissions,
   communityDonations,
   platformSettings,
   messageTemplates,

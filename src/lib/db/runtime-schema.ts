@@ -19,6 +19,160 @@ export function applyAppSchemaMigrations(
   const log = opts?.log ?? false;
   let applied = applyColumnPatches(db, { log });
 
+  if (!hasDbTable(db, "sales_profile")) {
+    db.exec(`
+      CREATE TABLE sales_profile (
+        user_id TEXT PRIMARY KEY NOT NULL REFERENCES user(id),
+        referral_code TEXT NOT NULL UNIQUE,
+        commission_rate_bps INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel sales_profile dibuat");
+  }
+
+  if (!hasDbTable(db, "tenant_sales_attribution")) {
+    db.exec(`
+      CREATE TABLE tenant_sales_attribution (
+        tenant_id TEXT PRIMARY KEY NOT NULL REFERENCES tenant(id),
+        sales_user_id TEXT NOT NULL REFERENCES user(id),
+        source TEXT NOT NULL,
+        attributed_by TEXT REFERENCES user(id),
+        attributed_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE INDEX tenant_sales_attribution_sales_idx
+        ON tenant_sales_attribution(sales_user_id, attributed_at);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel tenant_sales_attribution dibuat");
+  }
+
+  if (!hasDbTable(db, "sales_attribution_audit")) {
+    db.exec(`
+      CREATE TABLE sales_attribution_audit (
+        id TEXT PRIMARY KEY NOT NULL,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        previous_sales_user_id TEXT REFERENCES user(id),
+        next_sales_user_id TEXT REFERENCES user(id),
+        source TEXT NOT NULL,
+        changed_by TEXT REFERENCES user(id),
+        reason TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE INDEX sales_attribution_audit_tenant_idx
+        ON sales_attribution_audit(tenant_id, created_at);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel sales_attribution_audit dibuat");
+  }
+
+  if (!hasDbTable(db, "sales_commission")) {
+    db.exec(`
+      CREATE TABLE sales_commission (
+        id TEXT PRIMARY KEY NOT NULL,
+        sales_user_id TEXT NOT NULL REFERENCES user(id),
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        payment_gateway_log_id TEXT UNIQUE REFERENCES payment_gateway_log(id),
+        reversal_of_id TEXT UNIQUE REFERENCES sales_commission(id),
+        entry_type TEXT NOT NULL,
+        base_amount INTEGER NOT NULL,
+        commission_rate_bps INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        payout_request_id TEXT REFERENCES sales_commission_payout_request(id),
+        status TEXT NOT NULL DEFAULT 'payable',
+        payout_reference TEXT,
+        reason TEXT,
+        paid_at INTEGER,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE INDEX sales_commission_sales_status_idx
+        ON sales_commission(sales_user_id, status, created_at);
+      CREATE INDEX sales_commission_tenant_idx
+        ON sales_commission(tenant_id, created_at);
+      CREATE INDEX sales_commission_payout_request_idx
+        ON sales_commission(payout_request_id);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel sales_commission dibuat");
+  }
+
+  if (!hasDbTable(db, "sales_commission_payout_request")) {
+    db.exec(`
+      CREATE TABLE sales_commission_payout_request (
+        id TEXT PRIMARY KEY NOT NULL,
+        sales_user_id TEXT NOT NULL REFERENCES user(id),
+        amount INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'requested',
+        payout_method TEXT NOT NULL,
+        account_name TEXT NOT NULL,
+        account_number TEXT NOT NULL,
+        payout_reference TEXT,
+        rejection_reason TEXT,
+        reviewed_by TEXT REFERENCES user(id),
+        requested_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        reviewed_at INTEGER,
+        paid_at INTEGER
+      );
+      CREATE INDEX sales_commission_payout_request_sales_idx
+        ON sales_commission_payout_request(sales_user_id, requested_at);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel sales_commission_payout_request dibuat");
+  }
+
+  if (
+    hasDbTable(db, "sales_commission") &&
+    !hasColumn(db, "sales_commission", "payout_request_id")
+  ) {
+    db.exec(
+      "ALTER TABLE sales_commission ADD COLUMN payout_request_id TEXT REFERENCES sales_commission_payout_request(id)"
+    );
+    db.exec(
+      "CREATE INDEX IF NOT EXISTS sales_commission_payout_request_idx ON sales_commission(payout_request_id)"
+    );
+    applied++;
+    if (log) console.log("[ok]   kolom sales_commission.payout_request_id ditambahkan");
+  }
+
+  if (!hasDbTable(db, "sales_commission_retention_summary")) {
+    db.exec(`
+      CREATE TABLE sales_commission_retention_summary (
+        sales_user_id TEXT PRIMARY KEY NOT NULL REFERENCES user(id),
+        paid_amount INTEGER NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel sales_commission_retention_summary dibuat");
+  }
+
+  if (!hasDbTable(db, "data_retention_run")) {
+    db.exec(`
+      CREATE TABLE data_retention_run (
+        id TEXT PRIMARY KEY NOT NULL,
+        tenant_id TEXT NOT NULL REFERENCES tenant(id),
+        period TEXT NOT NULL,
+        notification_status TEXT NOT NULL DEFAULT 'pending',
+        notification_sent_at INTEGER,
+        purge_status TEXT NOT NULL DEFAULT 'pending',
+        archive_path TEXT,
+        deleted_counts TEXT,
+        last_error TEXT,
+        created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+        updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE UNIQUE INDEX data_retention_run_tenant_period_unique
+        ON data_retention_run(tenant_id, period);
+      CREATE INDEX data_retention_run_period_status_idx
+        ON data_retention_run(period, purge_status);
+    `);
+    applied++;
+    if (log) console.log("[ok]   tabel data_retention_run dibuat");
+  }
+
   if (hasDbTable(db, "tenant") && hasColumn(db, "tenant", "referral_code")) {
     db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS tenant_referral_code_unique ON tenant(referral_code)"

@@ -1,5 +1,13 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  integer,
+  index,
+  real,
+  sqliteTable,
+  text,
+  uniqueIndex,
+  type AnySQLiteColumn,
+} from "drizzle-orm/sqlite-core";
 
 /**
  * Skema SQLite — production server lama + default dev.
@@ -47,7 +55,7 @@ export const users = sqliteTable("user", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: text("role", {
-    enum: ["superadmin", "owner", "admin", "kolektor", "teknisi"],
+    enum: ["superadmin", "owner", "admin", "kolektor", "teknisi", "sales"],
   }).notNull(),
   phone: text("phone"),
   /** Koordinat terakhir teknisi (untuk auto-assign tiket). */
@@ -328,6 +336,8 @@ export const paymentGatewayLogs = sqliteTable("payment_gateway_log", {
     .default("pending"),
   amount: integer("amount").notNull().default(0),
   paymentMethod: text("payment_method"),
+  salesUserId: text("sales_user_id").references(() => users.id),
+  commissionRateBps: integer("commission_rate_bps"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
 
@@ -638,6 +648,150 @@ export const referralRewards = sqliteTable("referral_reward", {
   rewardedAt: integer("rewarded_at", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
 });
+
+export const salesProfiles = sqliteTable("sales_profile", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  referralCode: text("referral_code").notNull().unique(),
+  commissionRateBps: integer("commission_rate_bps").notNull().default(0),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+});
+
+export const tenantSalesAttributions = sqliteTable(
+  "tenant_sales_attribution",
+  {
+    tenantId: text("tenant_id")
+      .primaryKey()
+      .references(() => tenants.id),
+    salesUserId: text("sales_user_id")
+      .notNull()
+      .references(() => users.id),
+    source: text("source", { enum: ["referral_code", "manual"] }).notNull(),
+    attributedBy: text("attributed_by").references(() => users.id),
+    attributedAt: integer("attributed_at", { mode: "timestamp" }).notNull().default(now),
+  },
+  (t) => [index("tenant_sales_attribution_sales_idx").on(t.salesUserId, t.attributedAt)]
+);
+
+export const salesAttributionAudits = sqliteTable(
+  "sales_attribution_audit",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    previousSalesUserId: text("previous_sales_user_id").references(() => users.id),
+    nextSalesUserId: text("next_sales_user_id").references(() => users.id),
+    source: text("source", { enum: ["referral_code", "manual"] }).notNull(),
+    changedBy: text("changed_by").references(() => users.id),
+    reason: text("reason"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+  },
+  (t) => [index("sales_attribution_audit_tenant_idx").on(t.tenantId, t.createdAt)]
+);
+
+export const salesCommissionPayoutRequests = sqliteTable(
+  "sales_commission_payout_request",
+  {
+    id: text("id").primaryKey(),
+    salesUserId: text("sales_user_id")
+      .notNull()
+      .references(() => users.id),
+    amount: integer("amount").notNull(),
+    status: text("status", {
+      enum: ["requested", "approved", "paid", "rejected"],
+    }).notNull().default("requested"),
+    payoutMethod: text("payout_method").notNull(),
+    accountName: text("account_name").notNull(),
+    accountNumber: text("account_number").notNull(),
+    payoutReference: text("payout_reference"),
+    rejectionReason: text("rejection_reason"),
+    reviewedBy: text("reviewed_by").references(() => users.id),
+    requestedAt: integer("requested_at", { mode: "timestamp" }).notNull().default(now),
+    reviewedAt: integer("reviewed_at", { mode: "timestamp" }),
+    paidAt: integer("paid_at", { mode: "timestamp" }),
+  },
+  (t) => [index("sales_commission_payout_request_sales_idx").on(t.salesUserId, t.requestedAt)]
+);
+
+export const salesCommissionRetentionSummaries = sqliteTable(
+  "sales_commission_retention_summary",
+  {
+    salesUserId: text("sales_user_id")
+      .primaryKey()
+      .references(() => users.id),
+    paidAmount: integer("paid_amount").notNull().default(0),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+  }
+);
+
+export const dataRetentionRuns = sqliteTable(
+  "data_retention_run",
+  {
+    id: text("id").primaryKey(),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    period: text("period").notNull(),
+    notificationStatus: text("notification_status", {
+      enum: ["pending", "sent", "failed"],
+    }).notNull().default("pending"),
+    notificationSentAt: integer("notification_sent_at", { mode: "timestamp" }),
+    purgeStatus: text("purge_status", {
+      enum: ["pending", "running", "completed", "failed"],
+    }).notNull().default("pending"),
+    archivePath: text("archive_path"),
+    deletedCounts: text("deleted_counts", { mode: "json" }).$type<Record<string, number>>(),
+    lastError: text("last_error"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex("data_retention_run_tenant_period_unique").on(t.tenantId, t.period),
+    index("data_retention_run_period_status_idx").on(t.period, t.purgeStatus),
+  ]
+);
+
+export const salesCommissions = sqliteTable(
+  "sales_commission",
+  {
+    id: text("id").primaryKey(),
+    salesUserId: text("sales_user_id")
+      .notNull()
+      .references(() => users.id),
+    tenantId: text("tenant_id")
+      .notNull()
+      .references(() => tenants.id),
+    paymentGatewayLogId: text("payment_gateway_log_id")
+      .references(() => paymentGatewayLogs.id)
+      .unique(),
+    reversalOfId: text("reversal_of_id")
+      .references((): AnySQLiteColumn => salesCommissions.id)
+      .unique(),
+    entryType: text("entry_type", { enum: ["commission", "reversal"] }).notNull(),
+    baseAmount: integer("base_amount").notNull(),
+    commissionRateBps: integer("commission_rate_bps").notNull(),
+    amount: integer("amount").notNull(),
+    payoutRequestId: text("payout_request_id").references(
+      () => salesCommissionPayoutRequests.id
+    ),
+    status: text("status", { enum: ["payable", "paid", "reversed"] })
+      .notNull()
+      .default("payable"),
+    payoutReference: text("payout_reference"),
+    reason: text("reason"),
+    paidAt: integer("paid_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(now),
+  },
+  (t) => [
+    index("sales_commission_sales_status_idx").on(t.salesUserId, t.status, t.createdAt),
+    index("sales_commission_tenant_idx").on(t.tenantId, t.createdAt),
+    index("sales_commission_payout_request_idx").on(t.payoutRequestId),
+  ]
+);
 
 export const communityDonations = sqliteTable("community_donation", {
   id: text("id").primaryKey(),
